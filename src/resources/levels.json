@@ -1,0 +1,65 @@
+{
+  "First Realm": {
+    "exp": 100,
+    "tunable_count": 2,
+    "base_mana": 20,
+    "Stage 1": { "unlocks": "Element Selection" },
+    "Stage 2": { "unlocks": "X Velocity Control" },
+    "Stage 3": { "unlocks": "Y Velocity Control" },
+    "Stage 4": { "unlocks": "X Velocity Direction Control" },
+    "Stage 5": { "unlocks": "Y Velocity Direction Control" }
+  },
+  "Second Realm": {
+    "exp": 2000,
+    "tunable_count": 3,
+    "base_mana": 61.03515625,
+    "Stage 1": { "unlocks": "Functions of (t)" },
+    "Stage 2": { "unlocks": "Functions of (x)" },
+    "Stage 3": { "unlocks": "Functions of (y)" },
+    "Stage 4": { "unlocks": "Functions of other functions" }
+  },
+  "Third Realm": {
+    "exp": 40000,
+    "tunable_count": 4,
+    "base_mana": 149.0116119385,
+    "Stage 1": { "unlocks": "X Acceleration Control" },
+    "Stage 2": { "unlocks": "Y Acceleration Control" },
+    "Stage 3": { "unlocks": "X Acceleration Direction Control" },
+    "Stage 4": { "unlocks": "Y Acceleration Direction Control" }
+  },
+  "Fourth Realm": {
+    "exp": 800000,
+    "tunable_count": 5,
+    "base_mana": 454.7473508865,
+    "Stage 1": { "unlocks": "Shape control" },
+    "Stage 2": { "unlocks": "Density control" },
+    "Stage 3": { "unlocks": "Mass control" },
+    "Stage 4": { "unlocks": "Split rules" },
+    "Stage 5": { "unlocks": "Merge rules" }
+  },
+  "Fifth Realm": {
+    "exp": 16000000,
+    "tunable_count": 8,
+    "base_mana": 1387.7787807816,
+    "Stage 1": { "unlocks": "Spell Scheduling" },
+    "Stage 2": { "unlocks": "Time after death control" },
+    "Stage 3": { "unlocks": "Early Realese Rules" }
+  },
+  "Sixth Realm": {
+    "exp": 320000000,
+    "tunable_count": 11,
+    "base_mana": 2710.5054312141,
+    "Stage 1": { "unlocks": "Mana Cost Cap" },
+    "Stage 2": { "unlocks": "State of Matter Swaping" },
+    "Stage 3": { "unlocks": "Element Type Swaping" }
+  },
+  "Seventh Realm": {
+    "exp": 6400000000,
+    "tunable_count": 15,
+    "base_mana": 5000,
+    "Stage 1": { "unlocks": "Z controls" },
+    "Stage 2": { "unlocks": "Position Overrides" },
+    "Stage 3": { "unlocks": "Multi-Casting" },
+    "Stage 4": { "unlocks": "Chos Threashold Control" }
+  }
+}
