@@ -51,6 +51,20 @@ public class Game {
 
     }
 
+    public static void playerConnected(String internal_id) {
+        List<Player> players = Game.getPlayers();
+        for (Player p : players) {
+            if (p.getInternalId().equals(internal_id)) {
+                p.connected = true;
+                return;
+            }
+        }
+        Player player = new Player();
+        player.internal_id = internal_id;
+        player.connected = true;
+        players.add(player);
+    }
+
     private static void clientLoop(double dt) {
         for (Player p : players) {
             Packet incomming_packet = NetworkStream.getPacket(p.getInternalId(), isClient);

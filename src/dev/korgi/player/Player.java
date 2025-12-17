@@ -6,8 +6,8 @@ import dev.korgi.networking.Packet;
 
 public class Player {
 
-    private String internal_id;
-    private boolean connected;
+    public String internal_id;
+    public boolean connected;
 
     public void serverLoop(double dt) {
         if (!connected) {
@@ -16,17 +16,17 @@ public class Player {
         // handle key press logic here
 
         JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, 1, -1, outData);
+        Packet outPacket = new Packet(internal_id, Packet.CLIENT, Packet.BROADCAST, outData);
         NetworkStream.sendPacket(outPacket);
     }
 
     public void clientLoop(double dt) {
-        if (!connected) {
+        if (!connected || !NetworkStream.clientId.equals(internal_id)) {
             return;
         }
 
         JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, 0, 0, outData);
+        Packet outPacket = new Packet(internal_id, Packet.SERVER, Packet.INPUT_HANDLE_REQUEST, outData);
         NetworkStream.sendPacket(outPacket);
 
     }

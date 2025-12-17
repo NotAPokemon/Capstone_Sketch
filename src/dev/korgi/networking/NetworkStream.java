@@ -1,5 +1,6 @@
 package dev.korgi.networking;
 
+import dev.korgi.Game;
 import dev.korgi.json.JSONObject;
 
 import java.io.*;
@@ -35,7 +36,7 @@ public class NetworkStream {
 
     private static final Map<String, Long> lastPing = new HashMap<>();
 
-    private static String clientId;
+    public static String clientId;
     private static long lastPingSent = 0;
 
     // ========================
@@ -204,6 +205,7 @@ public class NetworkStream {
 
             sendHandshakeResponse(socket, true, "OK");
             System.out.println("Handshake accepted: " + packet.getInternalId());
+            Game.playerConnected(packet.getInternalId());
             return true;
         }
 
@@ -215,6 +217,7 @@ public class NetworkStream {
                 close(clientSocket);
             } else {
                 System.out.println("Handshake successful");
+                Game.playerConnected(clientId);
             }
             return true;
         }
