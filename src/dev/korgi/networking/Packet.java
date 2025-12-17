@@ -8,12 +8,14 @@ public class Packet {
     private int destination;
     private int type;
     private JSONObject data;
+    public String network_destination;
 
     public Packet(String internal_id, int destination, int type, JSONObject data) {
         this.internal_id = internal_id;
         this.destination = destination;
         this.type = type;
         this.data = data;
+        this.network_destination = NetworkStream.locate(network_destination);
     }
 
     public int getDestination() {

@@ -16,7 +16,7 @@ public class Player {
         // handle key press logic here
 
         JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, 0, 0, outData);
+        Packet outPacket = new Packet(internal_id, 1, -1, outData);
         NetworkStream.sendPacket(outPacket);
     }
 
@@ -26,7 +26,7 @@ public class Player {
         }
 
         JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, 1, 0, outData);
+        Packet outPacket = new Packet(internal_id, 0, 0, outData);
         NetworkStream.sendPacket(outPacket);
 
     }
