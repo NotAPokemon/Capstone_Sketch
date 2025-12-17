@@ -1,8 +1,8 @@
 package dev.korgi.gui;
 
 import dev.korgi.Game;
+import dev.korgi.gui.rendering.WorldSpace;
 import dev.korgi.player.Player;
-import dev.korgi.networking.NetworkStream;
 import processing.core.PApplet;
 
 import java.util.List;
@@ -18,9 +18,6 @@ public class Screen extends PApplet {
         return mInstance;
     }
 
-    // ========================
-    // Processing setup
-    // ========================
     @Override
     public void settings() {
         size(900, 600);
@@ -32,34 +29,39 @@ public class Screen extends PApplet {
         textFont(createFont("Arial", 14));
     }
 
-    // ========================
-    // Main draw loop
-    // ========================
+    @Override
+    public void keyPressed() {
+        if (key == 'w') {
+            WorldSpace.camera.position.z += 1;
+        } else if (key == 's') {
+            WorldSpace.camera.position.z -= 1;
+        } else if (key == 'a') {
+            WorldSpace.camera.position.x -= 1;
+        } else if (key == 'd') {
+            WorldSpace.camera.position.x += 1;
+        } else if (keyCode == SHIFT) {
+            WorldSpace.camera.position.y -= 1;
+        } else if (key == ' ') {
+            WorldSpace.camera.position.y += 1;
+        }
+    }
+
     @Override
     public void draw() {
-        background(20);
-
         if (Game.isInitialized()) {
             Game.loop();
         }
 
-        drawHUD();
+        WorldSpace.execute();
         drawPlayers();
-        drawNetworkInfo();
+        drawHUD();
     }
 
-    // ========================
-    // Heads-up display
-    // ========================
     private void drawHUD() {
         fill(255);
-        text("Mode: " + (Game.isClient ? "CLIENT" : "SERVER"), 20, 30);
         text("FPS: " + (int) frameRate, 20, 50);
     }
 
-    // ========================
-    // Player visualization
-    // ========================
     private void drawPlayers() {
         List<Player> players = Game.getPlayers();
         if (players == null)
@@ -76,23 +78,9 @@ public class Screen extends PApplet {
 
             // ID
             fill(255);
-            text(p.getInternalId().substring(0, 6), x - 15, y + 30);
+            text(p.internal_id.substring(0, 6), x - 15, y + 30);
 
             i++;
         }
-    }
-
-    // ========================
-    // Network diagnostics
-    // ========================
-    private void drawNetworkInfo() {
-        int baseY = 100;
-
-        fill(200);
-        text("Network Debug", 20, baseY);
-        text("----------------", 20, baseY + 15);
-
-        text("Client packets queued: " + NetworkStream.clientPackets.size(), 20, baseY + 40);
-        text("Server packets queued: " + NetworkStream.serverPackets.size(), 20, baseY + 60);
     }
 }
