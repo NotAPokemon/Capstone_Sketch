@@ -52,7 +52,7 @@ public class Screen extends PApplet {
             Game.loop();
         }
 
-        WorldSpace.execute();
+        WorldSpace.execute(this);
         drawPlayers();
         drawHUD();
     }
