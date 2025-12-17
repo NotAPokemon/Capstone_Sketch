@@ -66,6 +66,8 @@ public class JSONObject {
                 wrappedMap.put(entry.getKey().toString(), wrapValue(entry.getValue()));
             }
             return wrappedMap;
+        } else if (value instanceof JSONObject) {
+            return value;
         } else {
             return new JSONObject(value);
         }
@@ -127,9 +129,10 @@ public class JSONObject {
         if (value instanceof Number || value instanceof Boolean)
             return value.toString();
         if (value instanceof JSONObject)
-            return ((JSONObject) value).toJSONString();
-        if (value instanceof Map)
+            return valueToJSONString(((JSONObject) value).values);
+        if (value instanceof Map) {
             return new JSONObject(value).toJSONString();
+        }
         if (value instanceof List) {
             StringBuilder sb = new StringBuilder();
             sb.append("[");
@@ -154,6 +157,7 @@ public class JSONObject {
             sb.append("]");
             return sb.toString();
         }
+        System.out.println(value.getClass());
         return new JSONObject(value).toJSONString();
     }
 

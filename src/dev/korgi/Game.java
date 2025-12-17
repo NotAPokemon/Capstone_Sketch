@@ -25,6 +25,10 @@ public class Game {
         initialized = true;
     }
 
+    public static List<Player> getPlayers() {
+        return players;
+    }
+
     public static void loop() {
         NetworkStream.update(!isClient);
         double dt = (System.nanoTime() - lastTime) / 1e9;
