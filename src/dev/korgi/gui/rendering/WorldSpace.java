@@ -5,15 +5,16 @@ import java.util.List;
 
 import com.aparapi.Range;
 
+import dev.korgi.gui.Screen;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
-import processing.core.PApplet;
 
 public class WorldSpace {
 
     private static List<Voxel> objects = new ArrayList<>();
     public static Camera camera = new Camera();
-    private static final double VOXEL_SIZE = 5;
+    public static final double VOXEL_SIZE = 5;
+    public static GridRaytraceKernel kernel;
 
     public static void init() {
         // example voxels
@@ -27,58 +28,77 @@ public class WorldSpace {
         v2.color = new Vector4(0, 1, 0, 1);
         objects.add(v2);
 
-        camera.position = new Vector3(0, 0, -50);
+        camera.position = new Vector3(0, 0, 0);
         camera.rotation = new Vector3(0, 0, 0);
         camera.fov = 500;
     }
 
-    public static void execute(PApplet screen) {
+    private static GridRaytraceKernel reqire(int[] p, int w, int h) {
+        kernel = kernel == null ? new GridRaytraceKernel(p, w, h) : kernel;
+        return kernel;
+    }
+
+    public static void execute() {
+        Screen screen = Screen.getInstance();
         int width = screen.width;
         int height = screen.height;
 
-        float[] voxelPositions = new float[objects.size() * 3];
-        float[] voxelColors = new float[objects.size() * 3];
-        for (int i = 0; i < objects.size(); i++) {
+        // --- Prepare pixel buffer
+        if (screen.pixels == null || screen.pixels.length != width * height) {
+            screen.loadPixels();
+        }
+
+        // --- Flatten voxel data
+        int voxelCount = objects.size();
+        float[] vx = new float[voxelCount];
+        float[] vy = new float[voxelCount];
+        float[] vz = new float[voxelCount];
+        float[] size = new float[voxelCount];
+        int[] vcolor = new int[voxelCount];
+
+        for (int i = 0; i < voxelCount; i++) {
             Voxel v = objects.get(i);
-            voxelPositions[i * 3] = (float) v.position.x;
-            voxelPositions[i * 3 + 1] = (float) v.position.y;
-            voxelPositions[i * 3 + 2] = (float) v.position.z;
+            vx[i] = (float) v.position.x;
+            vy[i] = (float) v.position.y;
+            vz[i] = (float) v.position.z;
+            size[i] = (float) VOXEL_SIZE;
 
-            voxelColors[i * 3] = (float) v.color.x;
-            voxelColors[i * 3 + 1] = (float) v.color.y;
-            voxelColors[i * 3 + 2] = (float) v.color.z;
+            int r = (int) (v.color.x * 255);
+            int g = (int) (v.color.y * 255);
+            int b = (int) (v.color.z * 255);
+            int a = (int) (v.color.w * 255);
+
+            vcolor[i] = (a << 24) |
+                    (r << 16) |
+                    (g << 8) |
+                    b;
         }
 
-        float cellSize = (float) VOXEL_SIZE * 1.5f;
-        VoxelGrid grid = new VoxelGrid(objects, cellSize);
+        // --- Create kernel
+        kernel = reqire(screen.pixels, width, height);
 
-        int[][] cellVoxelIndices = grid.cellVoxelIndices;
-        int[] cellCount = grid.cellCount;
+        // --- Camera parameters
+        kernel.camX = (float) camera.position.x;
+        kernel.camY = (float) camera.position.y;
+        kernel.camZ = (float) camera.position.z;
 
-        GridRaytraceKernel kernel = new GridRaytraceKernel(
-                width, height,
-                (float) Math.toRadians(camera.fov),
-                new float[] { (float) camera.position.x, (float) camera.position.y, (float) camera.position.z },
-                voxelPositions, voxelColors, (float) VOXEL_SIZE,
-                grid.gridSizeX, grid.gridSizeY, grid.gridSizeZ, cellSize,
-                cellVoxelIndices, cellCount);
+        kernel.rotX = (float) camera.rotation.x; // pitch
+        kernel.rotY = (float) camera.rotation.y; // yaw
+        kernel.fov = (float) camera.fov;
 
-        kernel.execute(Range.create(width * height, 10));
-        float[] gpuPixels = kernel.getPixels();
+        // --- Voxel data
+        kernel.vx = vx;
+        kernel.vy = vy;
+        kernel.vz = vz;
+        kernel.size = size;
+        kernel.vcolor = vcolor;
+        kernel.voxelCount = voxelCount;
 
-        screen.loadPixels();
+        // --- Execute kernel
+        int totalPixels = width * height;
+        kernel.execute(Range.create(totalPixels));
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int idx = y * width + x;
-                float r = gpuPixels[idx * 3];
-                float g = gpuPixels[idx * 3 + 1];
-                float b = gpuPixels[idx * 3 + 2];
-
-                screen.pixels[idx] = screen.color(r * 255, g * 255, b * 255);
-            }
-        }
-
+        // --- Push pixels to screen
         screen.updatePixels();
     }
 

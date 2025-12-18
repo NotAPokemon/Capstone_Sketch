@@ -4,43 +4,26 @@ import com.aparapi.Kernel;
 
 public class GridRaytraceKernel extends Kernel {
 
-    private final int width, height;
-    private final float fov, aspectRatio;
-    private final float[] camPos;
-    private final float[] voxelPositions; // x,y,z
-    private final float[] voxelColors; // r,g,b
-    private final float voxelSize;
-    private final int voxelCount;
+    // --- Output
+    public int[] pixels;
+    public int width;
+    public int height;
 
-    private final int gridSizeX, gridSizeY, gridSizeZ;
-    private final float cellSize;
-    private final int[][] cellVoxelIndices;
-    private final int[] cellCount;
+    // --- Camera
+    public float camX, camY, camZ;
+    public float rotX, rotY; // pitch, yaw
+    public float fov; // vertical FOV in degrees
 
-    private final float[] pixels;
+    // --- Voxels
+    public float[] vx, vy, vz;
+    public float[] size;
+    public int[] vcolor;
+    public int voxelCount;
 
-    public GridRaytraceKernel(int width, int height, float fov, float[] camPos,
-            float[] voxelPositions, float[] voxelColors, float voxelSize,
-            int gridSizeX, int gridSizeY, int gridSizeZ, float cellSize,
-            int[][] cellVoxelIndices, int[] cellCount) {
+    public GridRaytraceKernel(int[] pixels, int width, int height) {
+        this.pixels = pixels;
         this.width = width;
         this.height = height;
-        this.fov = fov;
-        this.aspectRatio = (float) width / height;
-        this.camPos = camPos;
-        this.voxelPositions = voxelPositions;
-        this.voxelColors = voxelColors;
-        this.voxelSize = voxelSize;
-        this.voxelCount = voxelPositions.length / 3;
-
-        this.gridSizeX = gridSizeX;
-        this.gridSizeY = gridSizeY;
-        this.gridSizeZ = gridSizeZ;
-        this.cellSize = cellSize;
-        this.cellVoxelIndices = cellVoxelIndices;
-        this.cellCount = cellCount;
-
-        this.pixels = new float[width * height * 3];
     }
 
     @Override
@@ -48,67 +31,117 @@ public class GridRaytraceKernel extends Kernel {
         int id = getGlobalId();
         int x = id % width;
         int y = id / width;
+        if (y >= height)
+            return;
 
-        // ray direction
-        float ndcX = (2f * (x + 0.5f) / width - 1f) * tan(fov / 2f) * aspectRatio;
-        float ndcY = (1f - 2f * (y + 0.5f) / height) * tan(fov / 2f);
-        float dirX = ndcX, dirY = ndcY, dirZ = 1f;
-        float len = sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
-        dirX /= len;
-        dirY /= len;
-        dirZ /= len;
+        // --- Aspect ratio
+        float aspect = (float) width / height;
 
-        float t = 0f; // march along ray
-        float dt = cellSize * 0.5f; // step size
+        // --- Normalized device coordinates
+        float ndcX = (2f * (x + 0.5f) / width - 1f);
+        float ndcY = (1f - 2f * (y + 0.5f) / height);
 
-        float hitR = 0, hitG = 0, hitB = 1; // background
+        // --- Screen space coordinates (aspect corrected)
+        float tanFov = tan(radians(fov * 0.5f));
+        float dx = ndcX * aspect * tanFov;
+        float dy = ndcY * tanFov;
+        float dz = 1f; // forward along -Z
 
-        while (t < 1000f) { // max distance
-            float px = camPos[0] + dirX * t;
-            float py = camPos[1] + dirY * t;
-            float pz = camPos[2] + dirZ * t;
+        // --- Normalize ray
+        float invLen = rsqrt(dx * dx + dy * dy + dz * dz);
+        dx *= invLen;
+        dy *= invLen;
+        dz *= invLen;
 
-            int cx = (int) (px / cellSize);
-            int cy = (int) (py / cellSize);
-            int cz = (int) (pz / cellSize);
+        // --- Apply camera rotation (yaw then pitch)
+        float cosY = cos(rotY);
+        float sinY = sin(rotY);
+        float cosX = cos(rotX);
+        float sinX = sin(rotX);
 
-            if (cx < 0 || cy < 0 || cz < 0 || cx >= gridSizeX || cy >= gridSizeY || cz >= gridSizeZ)
-                break;
+        // Yaw (Y axis)
+        float dx1 = dx * cosY + dz * sinY;
+        float dz1 = -dx * sinY + dz * cosY;
 
-            int cellIndex = cx + gridSizeX * (cy + gridSizeY * cz);
-            int count = cellCount[cellIndex];
-            for (int i = 0; i < count; i++) {
-                int vi = cellVoxelIndices[cellIndex][i];
-                float vx = voxelPositions[vi * 3];
-                float vy = voxelPositions[vi * 3 + 1];
-                float vz = voxelPositions[vi * 3 + 2];
-                if (px >= vx && px <= vx + voxelSize &&
-                        py >= vy && py <= vy + voxelSize &&
-                        pz >= vz && pz <= vz + voxelSize) {
-                    hitR = voxelColors[vi * 3];
-                    hitG = voxelColors[vi * 3 + 1];
-                    hitB = voxelColors[vi * 3 + 2];
-                    t = 10000f; // hit voxel, terminate
-                    break;
-                }
+        // Pitch (X axis)
+        float dy1 = dy * cosX - dz1 * sinX;
+        float dz2 = dy * sinX + dz1 * cosX;
+
+        dx = dx1;
+        dy = dy1;
+        dz = dz2;
+
+        // --- Ray origin
+        float ox = camX;
+        float oy = camY;
+        float oz = camZ;
+
+        // --- Trace voxels
+        float closestT = 1e20f;
+        int hitColor = 0xFF87CEEB; // sky color
+
+        for (int i = 0; i < voxelCount; i++) {
+            float minx = vx[i];
+            float miny = vy[i];
+            float minz = vz[i];
+            float s = size[i];
+
+            float maxx = minx + s;
+            float maxy = miny + s;
+            float maxz = minz + s * 1 / (aspect * 2);
+
+            float t = intersectAABB(ox, oy, oz, dx, dy, dz, minx, miny, minz, maxx, maxy, maxz);
+            if (t > 0f && t < closestT) {
+                closestT = t;
+                hitColor = vcolor[i];
             }
-            t += dt;
         }
 
-        pixels[id * 3] = hitR;
-        pixels[id * 3 + 1] = hitG;
-        pixels[id * 3 + 2] = hitB;
+        // --- Depth shading
+        if (closestT < 1e19f) {
+            float shade = exp(-closestT * 0.03f);
+            int a = (hitColor >> 24) & 255;
+            int r = (hitColor >> 16) & 255;
+            int g = (hitColor >> 8) & 255;
+            int b = hitColor & 255;
+
+            r = (int) (r * shade);
+            g = (int) (g * shade);
+            b = (int) (b * shade);
+
+            hitColor = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+
+        pixels[id] = hitColor;
     }
 
-    public float[] getPixels() {
-        return pixels;
+    // --- Ray vs AABB intersection
+    float intersectAABB(
+            float ox, float oy, float oz,
+            float dx, float dy, float dz,
+            float minx, float miny, float minz,
+            float maxx, float maxy, float maxz) {
+        float tx1 = (minx - ox) / dx;
+        float tx2 = (maxx - ox) / dx;
+        float tmin = min(tx1, tx2);
+        float tmax = max(tx1, tx2);
+
+        float ty1 = (miny - oy) / dy;
+        float ty2 = (maxy - oy) / dy;
+        tmin = max(tmin, min(ty1, ty2));
+        tmax = min(tmax, max(ty1, ty2));
+
+        float tz1 = (minz - oz) / dz;
+        float tz2 = (maxz - oz) / dz;
+        tmin = max(tmin, min(tz1, tz2));
+        tmax = min(tmax, max(tz1, tz2));
+
+        if (tmax >= max(tmin, 0f))
+            return tmin;
+        return -1f;
     }
 
-    protected float tan(float x) {
-        return (float) Math.tan(x);
-    }
-
-    protected float sqrt(float x) {
-        return (float) Math.sqrt(x);
+    float radians(float angle) {
+        return (float) Math.PI * angle / 180;
     }
 }

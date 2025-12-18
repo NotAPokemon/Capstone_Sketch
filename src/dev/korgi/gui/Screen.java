@@ -52,7 +52,7 @@ public class Screen extends PApplet {
             Game.loop();
         }
 
-        WorldSpace.execute(this);
+        WorldSpace.execute();
         drawPlayers();
         drawHUD();
     }
@@ -82,5 +82,11 @@ public class Screen extends PApplet {
 
             i++;
         }
+    }
+
+    @Override
+    public void exit() {
+        WorldSpace.kernel.dispose();
+        super.exit();
     }
 }
