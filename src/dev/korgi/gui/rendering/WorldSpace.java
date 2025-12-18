@@ -13,7 +13,7 @@ public class WorldSpace {
 
     private static List<Voxel> objects = new ArrayList<>();
     public static Camera camera = new Camera();
-    public static final double VOXEL_SIZE = 5;
+    public static final double VOXEL_SIZE = 1;
     public static GridRaytraceKernel kernel;
 
     public static void init() {
@@ -33,19 +33,15 @@ public class WorldSpace {
         camera.fov = 500;
     }
 
-    private static GridRaytraceKernel reqire(int[] p, int w, int h) {
-        kernel = kernel == null ? new GridRaytraceKernel(p, w, h) : kernel;
-        return kernel;
-    }
-
     public static void execute() {
         Screen screen = Screen.getInstance();
         int width = screen.width;
         int height = screen.height;
 
-        // --- Prepare pixel buffer
-        if (screen.pixels == null || screen.pixels.length != width * height) {
-            screen.loadPixels();
+        // --- Check if pixels array needs resizing
+        boolean resizePixels = screen.pixels == null || screen.pixels.length != width * height;
+        if (resizePixels) {
+            screen.loadPixels(); // reload pixel buffer
         }
 
         // --- Flatten voxel data
@@ -74,8 +70,10 @@ public class WorldSpace {
                     b;
         }
 
-        // --- Create kernel
-        kernel = reqire(screen.pixels, width, height);
+        // --- Recreate kernel if needed
+        if (kernel == null || resizePixels) {
+            kernel = new GridRaytraceKernel(screen.pixels, width, height);
+        }
 
         // --- Camera parameters
         kernel.camX = (float) camera.position.x;
@@ -95,8 +93,7 @@ public class WorldSpace {
         kernel.voxelCount = voxelCount;
 
         // --- Execute kernel
-        int totalPixels = width * height;
-        kernel.execute(Range.create(totalPixels));
+        kernel.execute(Range.create(screen.pixels.length));
 
         // --- Push pixels to screen
         screen.updatePixels();
