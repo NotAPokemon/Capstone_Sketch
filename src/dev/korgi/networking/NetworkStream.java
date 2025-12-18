@@ -12,36 +12,40 @@ public class NetworkStream {
 
     public static final int PROTOCOL_VERSION = 1;
 
+    // Destinations
+    public static final int CLIENT = 0;
+    public static final int SERVER = 1;
+
+    // Packet types
+    public static final int INPUT_HANDLE_REQUEST = 0;
+    public static final int BROADCAST = -1;
+    public static final int HANDSHAKE_REQUEST = 2;
+    public static final int HANDSHAKE_RESPONSE = 3;
+    public static final int PING = 9;
+    public static final int DISCONNECT = 10;
+
     private static final long HANDSHAKE_TIMEOUT_MS = 5000;
     private static final long PING_TIMEOUT_MS = 15000;
     private static final long PING_INTERVAL_MS = 3000;
 
-    // ========================
     // Packet queues
-    // ========================
-    public static List<Packet> serverPackets = new ArrayList<>();
-    public static List<Packet> clientPackets = new ArrayList<>();
+    public static final List<Packet> serverPackets = new ArrayList<>();
+    public static final List<Packet> clientPackets = new ArrayList<>();
 
-    // ========================
     // Sockets
-    // ========================
     private static ServerSocket serverSocket;
     private static Socket clientSocket;
 
     private static final Map<String, Socket> clientSockets = new HashMap<>();
     private static final Map<Socket, String> socketToClientId = new HashMap<>();
-
     private static final Set<Socket> pendingSockets = new HashSet<>();
     private static final Map<Socket, Long> pendingSince = new HashMap<>();
-
     private static final Map<String, Long> lastPing = new HashMap<>();
 
     public static String clientId;
     private static long lastPingSent = 0;
 
-    // ========================
-    // Incoming queue (socket-aware)
-    // ========================
+    // Incoming queue
     private static final Queue<Incoming> incoming = new ConcurrentLinkedQueue<>();
 
     private static class Incoming {
@@ -66,10 +70,8 @@ public class NetworkStream {
     public static void startClient(String host, int port) throws IOException {
         clientSocket = new Socket(host, port);
         new Thread(() -> listenSocket(clientSocket)).start();
-
         clientId = UUID.randomUUID().toString();
         sendHandshake();
-
         System.out.println("Connected to " + host + ":" + port);
     }
 
@@ -94,7 +96,7 @@ public class NetworkStream {
 
             if (!isServer && clientSocket != null &&
                     System.currentTimeMillis() - lastPingSent > PING_INTERVAL_MS) {
-                sendPacket(new Packet(clientId, 0, 9, new JSONObject()));
+                sendPacket(new Packet(clientId, SERVER, PING, new JSONObject()));
                 lastPingSent = System.currentTimeMillis();
             }
 
@@ -112,14 +114,11 @@ public class NetworkStream {
     // Socket listener
     // ========================
     private static void listenSocket(Socket socket) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(socket.getInputStream()))) {
-
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 incoming.add(new Incoming(socket, line));
             }
-
         } catch (IOException ignored) {
         }
     }
@@ -131,21 +130,29 @@ public class NetworkStream {
         try {
             String json = new JSONObject(packet).toJSONString();
 
-            if (packet.getDestination() == 0) {
-                if (clientSocket != null && !clientSocket.isClosed()) {
-                    sendString(clientSocket, json);
-                }
-            } else {
-                if (packet.getType() == -1) {
-                    for (Socket s : clientSockets.values()) {
-                        sendString(s, json);
-                    }
-                } else {
-                    Socket s = clientSockets.get(packet.network_destination);
-                    if (s != null)
-                        sendString(s, json);
-                }
+            // BROADCAST handling
+            if (packet.getType() == BROADCAST && packet.getDestination() == CLIENT) {
+                for (Socket s : clientSockets.values())
+                    sendString(s, json);
+                return;
             }
+
+            switch (packet.getDestination()) {
+                case CLIENT: // server -> specific client
+                    if (packet.network_destination != null) {
+                        Socket s = clientSockets.get(packet.network_destination);
+                        if (s != null)
+                            sendString(s, json);
+                    }
+                    break;
+                case SERVER: // client -> server
+                    if (clientSocket != null && !clientSocket.isClosed())
+                        sendString(clientSocket, json);
+                    break;
+                default:
+                    System.err.println("Unknown destination: " + packet.getDestination());
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -161,7 +168,6 @@ public class NetworkStream {
     // ========================
     private static void acceptPacket(Socket socket, String packetString) {
         JSONObject obj = JSONObject.fromJSONString(packetString);
-
         Packet packet = new Packet(
                 obj.getString("internal_id"),
                 obj.getInt("destination"),
@@ -171,7 +177,7 @@ public class NetworkStream {
         if (handleProtocolPackets(socket, packet, obj))
             return;
 
-        if (packet.getDestination() == 0)
+        if (packet.getDestination() == CLIENT)
             clientPackets.add(packet);
         else
             serverPackets.add(packet);
@@ -181,14 +187,12 @@ public class NetworkStream {
     // Protocol handling
     // ========================
     private static boolean handleProtocolPackets(Socket socket, Packet packet, JSONObject raw) {
-
-        // HANDSHAKE REQUEST
-        if (packet.getType() == 2) {
+        // HANDSHAKE REQUEST (server side)
+        if (packet.getType() == HANDSHAKE_REQUEST) {
             if (!pendingSockets.contains(socket))
                 return true;
 
             JSONObject data = raw.getJSONObject("data");
-            System.out.println(data);
             int version = data.getInt("protocol");
             if (version != PROTOCOL_VERSION) {
                 sendHandshakeResponse(socket, false, "Protocol mismatch");
@@ -209,8 +213,8 @@ public class NetworkStream {
             return true;
         }
 
-        // HANDSHAKE RESPONSE (client)
-        if (packet.getType() == 3) {
+        // HANDSHAKE RESPONSE (client side)
+        if (packet.getType() == HANDSHAKE_RESPONSE) {
             boolean ok = raw.getJSONObject("data").getBoolean("accepted");
             if (!ok) {
                 System.out.println("Handshake rejected");
@@ -223,13 +227,13 @@ public class NetworkStream {
         }
 
         // PING
-        if (packet.getType() == 9) {
+        if (packet.getType() == PING) {
             lastPing.put(packet.getInternalId(), System.currentTimeMillis());
             return true;
         }
 
         // DISCONNECT
-        if (packet.getType() == 10) {
+        if (packet.getType() == DISCONNECT) {
             disconnectClient(packet.getInternalId());
             return true;
         }
@@ -243,8 +247,7 @@ public class NetworkStream {
     private static void sendHandshake() {
         JSONObject data = new JSONObject();
         data.set("protocol", PROTOCOL_VERSION);
-
-        sendPacket(new Packet(clientId, 0, 2, data));
+        sendPacket(new Packet(clientId, SERVER, HANDSHAKE_REQUEST, data));
     }
 
     private static void sendHandshakeResponse(Socket socket, boolean ok, String reason) {
@@ -252,8 +255,7 @@ public class NetworkStream {
             JSONObject data = new JSONObject();
             data.set("accepted", ok);
             data.set("reason", reason);
-
-            Packet p = new Packet("server", 0, 3, data);
+            Packet p = new Packet("server", CLIENT, HANDSHAKE_RESPONSE, data);
             sendString(socket, new JSONObject(p).toJSONString());
         } catch (IOException ignored) {
         }
@@ -306,11 +308,9 @@ public class NetworkStream {
 
     public static Packet getPacket(String internalId, boolean isClient) {
         List<Packet> list = isClient ? clientPackets : serverPackets;
-        Iterator<Packet> it = list.iterator();
-        while (it.hasNext()) {
-            Packet p = it.next();
+        for (Packet p : list) {
             if (p.getInternalId().equals(internalId)) {
-                it.remove();
+                list.remove(p);
                 return p;
             }
         }

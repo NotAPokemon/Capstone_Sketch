@@ -4,12 +4,6 @@ import dev.korgi.json.JSONObject;
 
 public class Packet {
 
-    public static final int CLIENT = 0;
-    public static final int SERVER = 1;
-
-    public static final int INPUT_HANDLE_REQUEST = 0;
-    public static final int BROADCAST = -1;
-
     private String internal_id;
     private int destination;
     private int type;

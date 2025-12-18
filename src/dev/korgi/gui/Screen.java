@@ -31,7 +31,18 @@ public class Screen extends PApplet {
 
     @Override
     public void keyPressed() {
+        if (Game.isClient) {
+            Player client = Game.getClient();
+            client.pressedKeys.add("" + key);
+        }
+    }
 
+    @Override
+    public void keyReleased() {
+        if (Game.isClient) {
+            Player client = Game.getClient();
+            client.pressedKeys.remove("" + key);
+        }
     }
 
     @Override

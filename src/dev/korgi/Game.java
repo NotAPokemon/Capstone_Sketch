@@ -30,6 +30,17 @@ public class Game {
         return players;
     }
 
+    public static Player getClient() {
+        if (isClient) {
+            for (Player p : players) {
+                if (p.internal_id.equals(NetworkStream.clientId)) {
+                    return p;
+                }
+            }
+        }
+        return null;
+    }
+
     public static void loop() {
         NetworkStream.update(!isClient);
         double dt = (System.nanoTime() - lastTime) / 1e9;

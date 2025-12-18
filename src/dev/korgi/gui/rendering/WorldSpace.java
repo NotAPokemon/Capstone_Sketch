@@ -7,7 +7,6 @@ import com.aparapi.Range;
 
 import dev.korgi.gui.Screen;
 import dev.korgi.math.Vector3;
-import dev.korgi.math.Vector4;
 
 public class WorldSpace {
 
@@ -18,14 +17,10 @@ public class WorldSpace {
 
     public static void init() {
         // example voxels
-        Voxel v1 = new Voxel();
-        v1.position = new Vector3(0, 0, 200);
-        v1.color = new Vector4(1, 0, 0, 1);
+        Voxel v1 = new Voxel(0, 0, 20, 1, 0, 0, 1);
         objects.add(v1);
 
-        Voxel v2 = new Voxel();
-        v2.position = new Vector3(50, 50, 300);
-        v2.color = new Vector4(0, 1, 0, 1);
+        Voxel v2 = new Voxel(5, 5, 30, 0, 1, 0, 1);
         objects.add(v2);
 
         camera.position = new Vector3(0, 0, 0);

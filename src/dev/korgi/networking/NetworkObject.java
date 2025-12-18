@@ -13,6 +13,7 @@ public abstract class NetworkObject {
     public void loop(double dt, boolean isClient) {
         Packet incomming_packet = NetworkStream.getPacket(internal_id, isClient);
         if (incomming_packet != null) {
+            handleInPacket(incomming_packet);
             incomming_packet.getData().fillObject(this);
         }
         if (cancelTick != null && cancelTick.get()) {
@@ -28,9 +29,11 @@ public abstract class NetworkObject {
             canceledTickEnd = false;
             return;
         }
+
         JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, isClient ? Packet.CLIENT : Packet.SERVER,
-                isClient ? Packet.INPUT_HANDLE_REQUEST : Packet.BROADCAST, outData);
+        Packet outPacket = new Packet(internal_id, isClient ? NetworkStream.SERVER : NetworkStream.CLIENT,
+                isClient ? NetworkStream.INPUT_HANDLE_REQUEST : NetworkStream.BROADCAST, outData);
+        handleOutPacket(outPacket);
         NetworkStream.sendPacket(outPacket);
 
     }
@@ -41,6 +44,14 @@ public abstract class NetworkObject {
 
     protected void setCancelProtocol(Supplier<Boolean> supplier) {
         this.cancelTick = supplier;
+    }
+
+    protected void handleOutPacket(Packet out) {
+
+    }
+
+    protected void handleInPacket(Packet in) {
+
     }
 
     protected abstract void client(double dt);
