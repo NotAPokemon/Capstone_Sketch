@@ -44,6 +44,7 @@ public class NetworkStream {
 
     public static String clientId;
     private static long lastPingSent = 0;
+    private static long lastRoundTripPing = -1;
 
     // Incoming queue
     private static final Queue<Incoming> incoming = new ConcurrentLinkedQueue<>();
@@ -75,6 +76,14 @@ public class NetworkStream {
         System.out.println("Connected to " + host + ":" + port);
     }
 
+    private static void sendPingPacket() {
+        JSONObject data = new JSONObject();
+        long timestamp = System.currentTimeMillis();
+        data.set("timestamp", timestamp);
+        sendPacket(new Packet(clientId, SERVER, PING, data));
+        lastPingSent = timestamp;
+    }
+
     // ========================
     // Tick update
     // ========================
@@ -96,7 +105,7 @@ public class NetworkStream {
 
             if (!isServer && clientSocket != null &&
                     System.currentTimeMillis() - lastPingSent > PING_INTERVAL_MS) {
-                sendPacket(new Packet(clientId, SERVER, PING, new JSONObject()));
+                sendPingPacket();
                 lastPingSent = System.currentTimeMillis();
             }
 
@@ -153,6 +162,12 @@ public class NetworkStream {
                     System.err.println("Unknown destination: " + packet.getDestination());
             }
 
+        } catch (SocketException e) {
+            if (Game.isClient) {
+                e.printStackTrace();
+            } else {
+                disconnectClient(packet.getInternalId());
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -228,7 +243,23 @@ public class NetworkStream {
 
         // PING
         if (packet.getType() == PING) {
-            lastPing.put(packet.getInternalId(), System.currentTimeMillis());
+            if (Game.isClient) {
+                JSONObject data = packet.getData();
+                if (data.hasKey("timestamp")) {
+                    long sentTime = data.getLong("timestamp");
+                    lastRoundTripPing = System.currentTimeMillis() - sentTime;
+                }
+                lastPing.put(packet.getInternalId(), System.currentTimeMillis());
+            } else {
+                JSONObject data = packet.getData();
+                if (data.hasKey("timestamp")) {
+                    JSONObject replyData = new JSONObject();
+                    replyData.set("timestamp", data.getLong("timestamp"));
+                    sendPacket(new Packet("server", CLIENT, PING, replyData));
+                }
+
+                lastPing.put(packet.getInternalId(), System.currentTimeMillis());
+            }
             return true;
         }
 
@@ -316,4 +347,9 @@ public class NetworkStream {
         }
         return null;
     }
+
+    public static long getPing() {
+        return lastRoundTripPing;
+    }
+
 }

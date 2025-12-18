@@ -1,15 +1,19 @@
 package dev.korgi.gui;
 
+import java.awt.AWTException;
+import java.awt.Robot;
 import java.util.List;
 
 import dev.korgi.Game;
 import dev.korgi.gui.rendering.WorldSpace;
+import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import processing.core.PApplet;
 
 public class Screen extends PApplet {
 
     private static Screen mInstance;
+    private Robot robot;
 
     public static Screen getInstance() {
         if (mInstance == null) {
@@ -27,13 +31,20 @@ public class Screen extends PApplet {
     public void setup() {
         frameRate(60);
         textFont(createFont("Arial", 14));
+        try {
+            robot = new Robot();
+        } catch (AWTException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void keyPressed() {
         if (Game.isClient) {
             Player client = Game.getClient();
-            client.pressedKeys.add("" + key);
+            if (!client.pressedKeys.contains("" + key)) {
+                client.pressedKeys.add("" + key);
+            }
         }
     }
 
@@ -45,6 +56,10 @@ public class Screen extends PApplet {
         }
     }
 
+    private float lastMouseX, lastMouseY;
+    private boolean firstMouse = true;
+    private float mouseSensitivity = 0.002f;
+
     @Override
     public void draw() {
         if (Game.isInitialized()) {
@@ -55,6 +70,7 @@ public class Screen extends PApplet {
         }
 
         if (Game.isClient) {
+            handleMouseMovement();
             WorldSpace.execute();
             drawOpenClientMenus();
         } else {
@@ -67,11 +83,36 @@ public class Screen extends PApplet {
     private void drawHUD() {
         fill(255);
         text("FPS: " + (int) frameRate, 30, 50);
+        if (Game.isClient) {
+            text("Ping: " + (int) NetworkStream.getPing(), 30, 60);
+        }
     }
 
     private boolean stopHostingHover = false;
 
     private void drawOpenClientMenus() {
+
+    }
+
+    private void handleMouseMovement() {
+        noCursor();
+        if (firstMouse) {
+            lastMouseX = width / 2;
+            lastMouseY = height / 2;
+            robot.mouseMove((int) (windowX + width / 2), (int) (windowY + height / 2));
+            firstMouse = false;
+        }
+
+        float deltaX = mouseX - lastMouseX;
+        float deltaY = mouseY - lastMouseY;
+
+        robot.mouseMove((int) (windowX + width / 2), (int) (windowY + height / 2));
+
+        WorldSpace.camera.rotation.y -= deltaX * mouseSensitivity;
+        WorldSpace.camera.rotation.x -= deltaY * mouseSensitivity;
+
+        WorldSpace.camera.rotation.x = Math.max((float) -Math.PI / 2,
+                Math.min((float) Math.PI / 2, WorldSpace.camera.rotation.x));
 
     }
 

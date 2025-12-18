@@ -25,7 +25,7 @@ public class WorldSpace {
 
         camera.position = new Vector3(0, 0, 0);
         camera.rotation = new Vector3(0, 0, 0);
-        camera.fov = 500;
+        camera.fov = 50;
     }
 
     public static void execute() {
@@ -59,10 +59,7 @@ public class WorldSpace {
             int b = (int) (v.color.z * 255);
             int a = (int) (v.color.w * 255);
 
-            vcolor[i] = (a << 24) |
-                    (r << 16) |
-                    (g << 8) |
-                    b;
+            vcolor[i] = (a << 24) | (r << 16) | (g << 8) | b;
         }
 
         // --- Recreate kernel if needed
@@ -74,10 +71,30 @@ public class WorldSpace {
         kernel.camX = (float) camera.position.x;
         kernel.camY = (float) camera.position.y;
         kernel.camZ = (float) camera.position.z;
-
-        kernel.rotX = (float) camera.rotation.x; // pitch
-        kernel.rotY = (float) camera.rotation.y; // yaw
         kernel.fov = (float) camera.fov;
+
+        // --- Precompute camera axes
+        float cosX = (float) Math.cos(camera.rotation.x);
+        float sinX = (float) Math.sin(camera.rotation.x);
+        float cosY = (float) Math.cos(camera.rotation.y);
+        float sinY = (float) Math.sin(camera.rotation.y);
+
+        // Forward
+        kernel.forwardX = cosX * sinY;
+        kernel.forwardY = sinX;
+        kernel.forwardZ = cosX * cosY;
+
+        // Right (yaw only, XZ plane)
+        kernel.rightX = (float) Math.sin(camera.rotation.y - Math.PI / 2);
+        kernel.rightY = 0f;
+        kernel.rightZ = (float) Math.cos(camera.rotation.y - Math.PI / 2);
+
+        // Up = cross(right, forward)
+        kernel.upX = kernel.rightY * kernel.forwardZ - kernel.rightZ * kernel.forwardY;
+        kernel.upY = kernel.rightZ * kernel.forwardX - kernel.rightX * kernel.forwardZ;
+        kernel.upZ = kernel.rightX * kernel.forwardY - kernel.rightY * kernel.forwardX;
+
+        kernel.tanFov = (float) Math.tan((camera.fov * 0.5) * (Math.PI / 180));
 
         // --- Voxel data
         kernel.vx = vx;
@@ -88,7 +105,11 @@ public class WorldSpace {
         kernel.voxelCount = voxelCount;
 
         // --- Execute kernel
+        long time = System.nanoTime();
         kernel.execute(Range.create(screen.pixels.length));
+        if ((System.nanoTime() - time) / 1e9 > 0.1) {
+            System.out.println("Warning Kernal Latancy High: " + (System.nanoTime() - time) / 1e9);
+        }
 
         // --- Push pixels to screen
         screen.updatePixels();

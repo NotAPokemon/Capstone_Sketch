@@ -443,6 +443,7 @@ public class JSONObject {
                     pos++;
                     break;
                 } else {
+                    System.out.println(json);
                     throw new RuntimeException("Expected ',' or '}' at position " + pos);
                 }
             }
@@ -535,15 +536,32 @@ public class JSONObject {
             int start = pos;
             if (peek() == '-')
                 pos++;
-            while (pos < json.length() && Character.isDigit(peek()))
-                pos++;
-            if (pos < json.length() && peek() == '.') {
-                pos++;
-                while (pos < json.length() && Character.isDigit(peek()))
+            boolean hasDot = false;
+            boolean hasExp = false;
+
+            while (pos < json.length()) {
+                char c = peek();
+                if (Character.isDigit(c)) {
                     pos++;
-                return Double.parseDouble(json.substring(start, pos));
+                } else if (c == '.' && !hasDot) {
+                    hasDot = true;
+                    pos++;
+                } else if ((c == 'e' || c == 'E') && !hasExp) {
+                    hasExp = true;
+                    pos++;
+                    if (peek() == '+' || peek() == '-')
+                        pos++; // optional sign
+                } else {
+                    break;
+                }
             }
-            return Long.parseLong(json.substring(start, pos));
+
+            String numberStr = json.substring(start, pos);
+            if (numberStr.contains(".") || numberStr.contains("e") || numberStr.contains("E")) {
+                return Double.parseDouble(numberStr);
+            } else {
+                return Long.parseLong(numberStr);
+            }
         }
 
         private void skipWhitespace() {

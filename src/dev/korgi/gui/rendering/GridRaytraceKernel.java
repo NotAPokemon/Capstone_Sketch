@@ -11,8 +11,14 @@ public class GridRaytraceKernel extends Kernel {
 
     // --- Camera
     public float camX, camY, camZ;
+    public float fov;
     public float rotX, rotY; // pitch, yaw
-    public float fov; // vertical FOV in degrees
+
+    // --- Camera basis (precomputed on CPU)
+    public float forwardX, forwardY, forwardZ;
+    public float rightX, rightY, rightZ;
+    public float upX, upY, upZ;
+    public float tanFov;
 
     // --- Voxels
     public float[] vx, vy, vz;
@@ -34,49 +40,27 @@ public class GridRaytraceKernel extends Kernel {
         if (y >= height)
             return;
 
-        // --- Aspect ratio
         float aspect = (float) width / height;
+        float ndcX = 2f * (x + 0.5f) / width - 1f;
+        float ndcY = 1f - 2f * (y + 0.5f) / height;
 
-        // --- Normalized device coordinates
-        float ndcX = (2f * (x + 0.5f) / width - 1f);
-        float ndcY = (1f - 2f * (y + 0.5f) / height);
+        // --- Ray direction (using precomputed axes)
+        float dx = forwardX + ndcX * aspect * tanFov * rightX + ndcY * tanFov * upX;
+        float dy = forwardY + ndcX * aspect * tanFov * rightY + ndcY * tanFov * upY;
+        float dz = forwardZ + ndcX * aspect * tanFov * rightZ + ndcY * tanFov * upZ;
 
-        // --- Screen space coordinates (aspect corrected)
-        float tanFov = tan(radians(fov * 0.5f));
-        float dx = ndcX * aspect * tanFov;
-        float dy = ndcY * tanFov;
-        float dz = 1f; // forward along -Z
-
-        // --- Normalize ray
+        // Normalize ray
         float invLen = rsqrt(dx * dx + dy * dy + dz * dz);
         dx *= invLen;
         dy *= invLen;
         dz *= invLen;
 
-        // --- Apply camera rotation (yaw then pitch)
-        float cosY = cos(rotY);
-        float sinY = sin(rotY);
-        float cosX = cos(rotX);
-        float sinX = sin(rotX);
-
-        // Yaw (Y axis)
-        float dx1 = dx * cosY + dz * sinY;
-        float dz1 = -dx * sinY + dz * cosY;
-
-        // Pitch (X axis)
-        float dy1 = dy * cosX - dz1 * sinX;
-        float dz2 = dy * sinX + dz1 * cosX;
-
-        dx = dx1;
-        dy = dy1;
-        dz = dz2;
-
-        // --- Ray origin
+        // Ray origin
         float ox = camX;
         float oy = camY;
         float oz = camZ;
 
-        // --- Trace voxels
+        // Trace voxels
         float closestT = 1e20f;
         int hitColor = 0xFF87CEEB; // sky color
 
@@ -88,7 +72,7 @@ public class GridRaytraceKernel extends Kernel {
 
             float maxx = minx + s;
             float maxy = miny + s;
-            float maxz = minz + s * 1 / (aspect * 2);
+            float maxz = minz + s;
 
             float t = intersectAABB(ox, oy, oz, dx, dy, dz, minx, miny, minz, maxx, maxy, maxz);
             if (t > 0f && t < closestT) {
@@ -97,7 +81,7 @@ public class GridRaytraceKernel extends Kernel {
             }
         }
 
-        // --- Depth shading
+        // Depth shading
         if (closestT < 1e19f) {
             float shade = exp(-closestT * 0.03f);
             int a = (hitColor >> 24) & 255;
@@ -115,12 +99,12 @@ public class GridRaytraceKernel extends Kernel {
         pixels[id] = hitColor;
     }
 
-    // --- Ray vs AABB intersection
     float intersectAABB(
             float ox, float oy, float oz,
             float dx, float dy, float dz,
             float minx, float miny, float minz,
             float maxx, float maxy, float maxz) {
+
         float tx1 = (minx - ox) / dx;
         float tx2 = (maxx - ox) / dx;
         float tmin = min(tx1, tx2);
@@ -142,6 +126,6 @@ public class GridRaytraceKernel extends Kernel {
     }
 
     float radians(float angle) {
-        return (float) Math.PI * angle / 180;
+        return (float) Math.PI * angle / 180f;
     }
 }
