@@ -1,6 +1,8 @@
 package dev.korgi.gui;
 
 import java.awt.AWTException;
+import java.awt.Component;
+import java.awt.Point;
 import java.awt.Robot;
 import java.util.List;
 
@@ -42,21 +44,65 @@ public class Screen extends PApplet {
     public void keyPressed() {
         if (Game.isClient) {
             Player client = Game.getClient();
-            if (!client.pressedKeys.contains("" + key)) {
-                client.pressedKeys.add("" + key);
+            String k = normalizeKey();
+            if (k != null && client != null && !client.pressedKeys.contains(k)) {
+                client.pressedKeys.add(k);
             }
         }
+    }
+
+    private String normalizeKey() {
+        if (key != CODED) {
+            return ("" + key).toLowerCase();
+        }
+
+        switch (keyCode) {
+            case SHIFT:
+                return "SHIFT";
+            case CONTROL:
+                return "CTRL";
+            case ALT:
+                return "ALT";
+            case TAB:
+                return "TAB";
+            case ENTER:
+                return "ENTER";
+            case ESC:
+                return "ESC";
+            case UP:
+                return "UP";
+            case DOWN:
+                return "DOWN";
+            case LEFT:
+                return "LEFT";
+            case RIGHT:
+                return "RIGHT";
+        }
+
+        return null;
     }
 
     @Override
     public void keyReleased() {
         if (Game.isClient) {
             Player client = Game.getClient();
-            client.pressedKeys.remove("" + key);
+            if (client != null) {
+                client.pressedKeys.remove(normalizeKey());
+            }
         }
     }
 
-    private float lastMouseX, lastMouseY;
+    @Override
+    public void focusLost() {
+        if (!Game.isClient)
+            return;
+
+        Player client = Game.getClient();
+        if (client != null) {
+            client.pressedKeys.clear();
+        }
+    }
+
     private boolean firstMouse = true;
     private float mouseSensitivity = 0.002f;
 
@@ -91,22 +137,42 @@ public class Screen extends PApplet {
     private boolean stopHostingHover = false;
 
     private void drawOpenClientMenus() {
+        fill(255);
+        int size = 10;
+        int gap = 4;
+        int thickness = 2;
+
+        int cx = width / 2;
+        int cy = height / 2;
+
+        stroke(255);
+        strokeWeight(thickness);
+
+        line(cx - gap - size, cy, cx - gap, cy);
+
+        line(cx + gap, cy, cx + gap + size, cy);
+
+        line(cx, cy - gap - size, cx, cy - gap);
+
+        line(cx, cy + gap, cx, cy + gap + size);
+
+        noStroke();
 
     }
 
     private void handleMouseMovement() {
         noCursor();
+        Point p = ((Component) surface.getNative()).getLocationOnScreen();
         if (firstMouse) {
-            lastMouseX = width / 2;
-            lastMouseY = height / 2;
-            robot.mouseMove((int) (windowX + width / 2), (int) (windowY + height / 2));
+            robot.mouseMove((int) (p.x + width / 2), (int) (p.y + height / 2));
             firstMouse = false;
+            return;
         }
 
-        float deltaX = mouseX - lastMouseX;
-        float deltaY = mouseY - lastMouseY;
+        float deltaX = mouseX - width / 2;
+        float deltaY = mouseY - height / 2;
 
-        robot.mouseMove((int) (windowX + width / 2), (int) (windowY + height / 2));
+        robot.mouseMove((int) (p.x + width / 2), (int) (p.y + height / 2));
 
         WorldSpace.camera.rotation.y -= deltaX * mouseSensitivity;
         WorldSpace.camera.rotation.x -= deltaY * mouseSensitivity;

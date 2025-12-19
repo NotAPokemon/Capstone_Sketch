@@ -14,6 +14,7 @@ public class Game {
     public static boolean isClient;
     private static boolean initialized = false;
     private static List<Player> players = new ArrayList<>();
+    public static boolean canFly = true;
 
     public static void init() throws IOException {
         lastTime = System.nanoTime();

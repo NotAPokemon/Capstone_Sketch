@@ -6,6 +6,7 @@ import java.util.List;
 import dev.korgi.Game;
 import dev.korgi.gui.rendering.WorldSpace;
 import dev.korgi.math.Vector3;
+import dev.korgi.math.Vector4;
 import dev.korgi.networking.NetworkObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
@@ -27,8 +28,12 @@ public class Player extends NetworkObject {
         if (!internal_id.equals(NetworkStream.clientId)) {
             cancelTickEnd();
         }
+
         cameraRotation = WorldSpace.camera.rotation;
         WorldSpace.camera.position = position;
+        WorldSpace.camera.light.position = position;
+        WorldSpace.camera.light.mat.setEmissionPower(1);
+        WorldSpace.camera.light.mat.setEmission(new Vector4(1, 1, 1, 1));
     }
 
     @Override
@@ -51,7 +56,10 @@ public class Player extends NetworkObject {
             position.subtractFrom(right);
         if (pressedKeys.contains("d"))
             position.addTo(right);
-
+        if (pressedKeys.contains(" ") && Game.canFly)
+            position.addTo(new Vector3(0, speed * dt, 0));
+        if (pressedKeys.contains("SHIFT") && Game.canFly)
+            position.subtractFrom(new Vector3(0, speed * dt, 0));
     }
 
     @Override

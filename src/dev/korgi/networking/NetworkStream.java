@@ -339,13 +339,20 @@ public class NetworkStream {
 
     public static Packet getPacket(String internalId, boolean isClient) {
         List<Packet> list = isClient ? clientPackets : serverPackets;
+        List<Packet> packets = new ArrayList<>();
         for (Packet p : list) {
             if (p.getInternalId().equals(internalId)) {
-                list.remove(p);
-                return p;
+                packets.add(p);
             }
         }
-        return null;
+        for (Packet p : packets) {
+            list.remove(p);
+        }
+        if (packets.size() > 0) {
+            return packets.get(packets.size() - 1);
+        } else {
+            return null;
+        }
     }
 
     public static long getPing() {

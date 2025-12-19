@@ -54,10 +54,10 @@ public class WorldSpace {
             vz[i] = (float) v.position.z;
             size[i] = (float) VOXEL_SIZE;
 
-            int r = (int) (v.color.x * 255);
-            int g = (int) (v.color.y * 255);
-            int b = (int) (v.color.z * 255);
-            int a = (int) (v.color.w * 255);
+            int r = (int) (v.getMaterial().getColor().x * 255);
+            int g = (int) (v.getMaterial().getColor().y * 255);
+            int b = (int) (v.getMaterial().getColor().z * 255);
+            int a = (int) (v.getMaterial().getColor().w * 255);
 
             vcolor[i] = (a << 24) | (r << 16) | (g << 8) | b;
         }
