@@ -4,10 +4,21 @@ import java.awt.AWTException;
 import java.awt.Component;
 import java.awt.Point;
 import java.awt.Robot;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import dev.korgi.Game;
 import dev.korgi.gui.rendering.WorldSpace;
+import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import processing.core.PApplet;
@@ -16,6 +27,8 @@ public class Screen extends PApplet {
 
     private static Screen mInstance;
     private Robot robot;
+    private String uiMessage = null;
+    private int uiMessageTimer = 0;
 
     public static Screen getInstance() {
         if (mInstance == null) {
@@ -132,6 +145,13 @@ public class Screen extends PApplet {
         if (Game.isClient) {
             text("Ping: " + (int) NetworkStream.getPing(), 30, 60);
         }
+
+        if (uiMessage != null && uiMessageTimer > 0) {
+            fill(255, 0, 0);
+            textAlign(CENTER, CENTER);
+            text(uiMessage, width / 2, 30);
+            uiMessageTimer--;
+        }
     }
 
     private boolean stopHostingHover = false;
@@ -228,6 +248,11 @@ public class Screen extends PApplet {
 
     }
 
+    public void showMessage(String msg, int durationFrames) {
+        uiMessage = msg;
+        uiMessageTimer = durationFrames;
+    }
+
     private boolean hoverHost = false;
     private boolean hoverJoin = false;
 
@@ -265,20 +290,111 @@ public class Screen extends PApplet {
                     Game.isClient = false;
                     Game.init();
                 } else if (hoverJoin) {
-                    Game.isClient = true;
-                    Game.init();
+                    File accFile = promptAccFile();
+                    if (accFile != null) {
+                        String data = "{}";
+                        try {
+                            byte[] fileBytes = Files.readAllBytes(accFile.toPath());
+                            // Skip first 4 bytes (header)
+                            byte[] jsonBytes = Arrays.copyOfRange(fileBytes, 4, fileBytes.length);
+                            data = new String(jsonBytes, StandardCharsets.UTF_8);
+                        } catch (Exception e) {
+                        }
+                        JSONObject obj = JSONObject.fromJSONString(data);
+                        NetworkStream.clientId = obj.getString("internal_id");
+                        Game.isClient = true;
+                        Game.init();
+                    }
                 }
             } catch (Exception e) {
-
+                e.printStackTrace();
             }
-
         } else if (Game.isClient) {
 
         } else {
             if (stopHostingHover) {
                 exit();
             }
+        }
+    }
 
+    private File promptAccFile() {
+        while (true) { // loop until valid file is selected or created
+            String[] options = { "Select Existing", "Create New", "Cancel" };
+            int choice = JOptionPane.showOptionDialog(
+                    null,
+                    "Choose your .acc file or create a new one.",
+                    "Account File",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE,
+                    null,
+                    options,
+                    options[0]);
+
+            if (choice == 0) { // Select Existing
+                File file = selectExistingAcc();
+                if (file != null)
+                    return file;
+            } else if (choice == 1) { // Create New
+                File file = createNewAcc();
+                if (file != null)
+                    return file;
+            } else { // Cancel
+                showMessage("Join canceled.", 120);
+                return null;
+            }
+        }
+    }
+
+    JFileChooser chooser = new JFileChooser();
+    FileNameExtensionFilter filter = new FileNameExtensionFilter(".acc files", "acc");
+
+    private File selectExistingAcc() {
+        chooser.setDialogTitle("Select your .acc file");
+
+        int result = chooser.showOpenDialog(null);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File file = chooser.getSelectedFile();
+            if (file.getName().endsWith(".acc")) {
+                return file;
+            } else {
+                showMessage("Invalid file selected! Please choose a .acc file.", 180);
+            }
+        } else {
+            showMessage("File selection canceled.", 120);
+        }
+        return null;
+    }
+
+    private File createNewAcc() {
+        String fileName = JOptionPane.showInputDialog("Enter a name for your new .acc file:");
+        if (fileName == null || fileName.isBlank()) {
+            showMessage("Invalid name. Try again.", 120);
+            return null;
+        }
+
+        File newFile = new File(fileName + ".acc");
+        try {
+            if (newFile.createNewFile()) {
+                JSONObject data = new JSONObject();
+                data.set("name", fileName);
+                data.set("internal_id", UUID.randomUUID().toString());
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                out.write(new byte[] { 0x00, (byte) 0xAC, 0x43, 0x43 });
+                byte[] dataBytes = data.toJSONString().getBytes(StandardCharsets.UTF_8);
+                out.write(dataBytes);
+                Files.write(newFile.toPath(), out.toByteArray());
+
+                showMessage("New .acc file created: " + fileName, 180);
+                return newFile;
+            } else {
+                showMessage("File already exists! Select a different name.", 180);
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showMessage("Failed to create file.", 180);
+            return null;
         }
     }
 

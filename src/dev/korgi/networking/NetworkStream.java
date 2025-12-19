@@ -42,7 +42,7 @@ public class NetworkStream {
     private static final Map<Socket, Long> pendingSince = new HashMap<>();
     private static final Map<String, Long> lastPing = new HashMap<>();
 
-    public static String clientId;
+    public static String clientId = null;
     private static long lastPingSent = 0;
     private static long lastRoundTripPing = -1;
 
@@ -71,7 +71,9 @@ public class NetworkStream {
     public static void startClient(String host, int port) throws IOException {
         clientSocket = new Socket(host, port);
         new Thread(() -> listenSocket(clientSocket)).start();
-        clientId = UUID.randomUUID().toString();
+        if (clientId == null) {
+            clientId = UUID.randomUUID().toString();
+        }
         sendHandshake();
         System.out.println("Connected to " + host + ":" + port);
     }
