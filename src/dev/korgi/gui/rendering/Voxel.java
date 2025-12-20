@@ -5,7 +5,7 @@ import dev.korgi.math.Vector4;
 
 public class Voxel {
     public Vector3 position;
-    public Material mat = new Material();
+    private Material mat = new Material();
 
     public Voxel() {
         this.position = new Vector3();

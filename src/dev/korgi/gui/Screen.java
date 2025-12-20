@@ -282,6 +282,8 @@ public class Screen extends PApplet {
         text("Join Game", joinX + buttonWidth / 2, buttonsY + buttonHeight / 2);
     }
 
+    private boolean skip = true;
+
     @Override
     public void mousePressed() {
         if (!Game.isInitialized()) {
@@ -290,6 +292,10 @@ public class Screen extends PApplet {
                     Game.isClient = false;
                     Game.init();
                 } else if (hoverJoin) {
+                    if (skip) {
+                        Game.isClient = true;
+                        Game.init();
+                    }
                     File accFile = promptAccFile();
                     if (accFile != null) {
                         String data = "{}";

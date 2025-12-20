@@ -6,7 +6,6 @@ import java.util.List;
 import dev.korgi.Game;
 import dev.korgi.gui.rendering.WorldSpace;
 import dev.korgi.math.Vector3;
-import dev.korgi.math.Vector4;
 import dev.korgi.networking.NetworkObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
@@ -31,9 +30,6 @@ public class Player extends NetworkObject {
 
         cameraRotation = WorldSpace.camera.rotation;
         WorldSpace.camera.position = position;
-        WorldSpace.camera.light.position = position;
-        WorldSpace.camera.light.mat.setEmissionPower(1);
-        WorldSpace.camera.light.mat.setEmission(new Vector4(1, 1, 1, 1));
     }
 
     @Override
