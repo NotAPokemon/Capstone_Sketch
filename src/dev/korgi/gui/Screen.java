@@ -295,6 +295,7 @@ public class Screen extends PApplet {
                     if (skip) {
                         Game.isClient = true;
                         Game.init();
+                        return;
                     }
                     File accFile = promptAccFile();
                     if (accFile != null) {
