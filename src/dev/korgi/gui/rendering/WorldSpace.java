@@ -34,6 +34,10 @@ public class WorldSpace {
         camera.fov = 50;
     }
 
+    public static void addVoxel(Voxel v) {
+        objects.add(v);
+    }
+
     public static void execute() {
         Screen screen = Screen.getInstance();
         int width = screen.width;
@@ -51,11 +55,15 @@ public class WorldSpace {
         long time = System.nanoTime();
         kernel.precompute(objects, camera);
         kernel.execute(Range.create(screen.pixels.length));
-        if ((System.nanoTime() - time) / 1e9 > 0.1) {
+        if ((System.nanoTime() - time) / 1e9 > 0.05) {
             System.out.println("Warning Kernal Latancy High: " + (System.nanoTime() - time) / 1e9);
         }
 
         screen.updatePixels();
+    }
+
+    public static List<Voxel> getObjects() {
+        return objects;
     }
 
 }

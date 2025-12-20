@@ -1,0 +1,10 @@
+package dev.korgi.math;
+
+public class VectorConstants {
+    public static final Vector4 GREEN = new Vector4(0, 1, 0, 1);
+    public static final Vector4 DARK_GREEN = new Vector4(0, 0.5, 0, 1);
+
+    public static final Vector3 ONE = new Vector3(1, 1, 1);
+    public static final Vector3 ZERO = new Vector3();
+
+}

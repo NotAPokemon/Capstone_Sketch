@@ -25,6 +25,10 @@ public class Vector3 {
         return new Vector3(x - other.x, y - other.y, z - other.z);
     }
 
+    public Vector3 subtract(double x, double y, double z) {
+        return new Vector3(this.x - x, this.y - y, this.z - z);
+    }
+
     public Vector3 subtractFrom(Vector3 other) {
         this.x -= other.x;
         this.y -= other.y;
@@ -32,14 +36,32 @@ public class Vector3 {
         return this;
     }
 
+    public Vector3 subtractFrom(double x, double y, double z) {
+        this.x -= x;
+        this.y -= y;
+        this.z -= z;
+        return this;
+    }
+
     public Vector3 add(Vector3 other) {
         return new Vector3(x + other.x, y + other.y, z + other.z);
+    }
+
+    public Vector3 add(double x, double y, double z) {
+        return new Vector3(this.x + x, this.y + y, this.z + z);
     }
 
     public Vector3 addTo(Vector3 other) {
         this.x += other.x;
         this.y += other.y;
         this.z += other.z;
+        return this;
+    }
+
+    public Vector3 addTo(double x, double y, double z) {
+        this.x += x;
+        this.y += y;
+        this.z += z;
         return this;
     }
 
@@ -58,6 +80,10 @@ public class Vector3 {
         return new Vector3(x * other.x, y * other.y, z * other.z);
     }
 
+    public Vector3 multiply(double x, double y, double z) {
+        return new Vector3(this.x * x, this.y * y, this.z * z);
+    }
+
     public Vector3 multiplyBy(Vector3 other) {
         this.x *= other.x;
         this.y *= other.y;
@@ -65,8 +91,19 @@ public class Vector3 {
         return this;
     }
 
+    public Vector3 multiplyBy(double x, double y, double z) {
+        this.x *= x;
+        this.y *= y;
+        this.z *= z;
+        return this;
+    }
+
     public double dot(Vector3 other) {
         return x * other.x + y * other.y + z * other.z;
+    }
+
+    public double dot(double x, double y, double z) {
+        return this.x * x + this.y * y + this.z * z;
     }
 
     public Vector3 cross(Vector3 other) {
@@ -76,6 +113,13 @@ public class Vector3 {
                 x * other.y - y * other.x);
     }
 
+    public Vector3 cross(double x, double y, double z) {
+        return new Vector3(
+                this.y * z - this.z * y,
+                this.z * x - this.x * z,
+                this.x * y - this.y * x);
+    }
+
     public Vector3 crossOf(Vector3 other) {
         double x = this.y * other.z - this.z * other.y;
         double y = this.z * other.x - this.x * other.z;
@@ -83,6 +127,13 @@ public class Vector3 {
         this.x = x;
         this.y = y;
         this.z = z;
+        return this;
+    }
+
+    public Vector3 crossOf(double x, double y, double z) {
+        this.x = this.y * z - this.z * y;
+        this.y = this.z * x - this.x * z;
+        this.z = this.x * y - this.y * x;
         return this;
     }
 
