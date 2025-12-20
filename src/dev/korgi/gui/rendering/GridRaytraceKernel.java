@@ -20,7 +20,6 @@ public class GridRaytraceKernel extends Kernel {
     private float renderDistance = 100;
 
     private int voxelCount;
-    private int[] vx, vy, vz;
     private int[] vcolor;
     private float[] opacity;
     private int skyColor = 0xFF87CEEB;
@@ -47,29 +46,89 @@ public class GridRaytraceKernel extends Kernel {
         float ndcX = 2f * (px + 0.5f) / width - 1f;
         float ndcY = 1f - 2f * (py + 0.5f) / height;
 
+        // Compute ray direction
         float dx = forwardX + ndcX * aspect * tanFov * rightX + ndcY * tanFov * upX;
         float dy = forwardY + ndcX * aspect * tanFov * rightY + ndcY * tanFov * upY;
         float dz = forwardZ + ndcX * aspect * tanFov * rightZ + ndcY * tanFov * upZ;
 
+        // Normalize
         float invLen = rsqrt(dx * dx + dy * dy + dz * dz);
         dx *= invLen;
         dy *= invLen;
         dz *= invLen;
 
-        int cellX = (int) floor(camX);
-        int cellY = (int) floor(camY);
-        int cellZ = (int) floor(camZ);
+        // Voxel grid bounds
+        float gridMinX = worldMinX;
+        float gridMinY = worldMinY;
+        float gridMinZ = worldMinZ;
+        float gridMaxX = worldMinX + worldSizeX;
+        float gridMaxY = worldMinY + worldSizeY;
+        float gridMaxZ = worldMinZ + worldSizeZ;
 
-        float[] tX = computeDDAParams(camX, dx, cellX);
-        float[] tY = computeDDAParams(camY, dy, cellY);
-        float[] tZ = computeDDAParams(camZ, dz, cellZ);
+        // Ray-box intersection (slab method)
+        float tMin = 0;
+        float tMax = renderDistance;
 
-        float tMaxX = tX[0], tDeltaX = tX[1];
-        int stepX = (int) tX[2];
-        float tMaxY = tY[0], tDeltaY = tY[1];
-        int stepY = (int) tY[2];
-        float tMaxZ = tZ[0], tDeltaZ = tZ[1];
-        int stepZ = (int) tZ[2];
+        // X slab
+        if (dx != 0) {
+            float tx1 = (gridMinX - camX) / dx;
+            float tx2 = (gridMaxX - camX) / dx;
+            tMin = max(tMin, min(tx1, tx2));
+            tMax = min(tMax, max(tx1, tx2));
+        } else if (camX < gridMinX || camX > gridMaxX) {
+            pixels[id] = skyColor; // Ray parallel and outside grid
+            return;
+        }
+
+        // Y slab
+        if (dy != 0) {
+            float ty1 = (gridMinY - camY) / dy;
+            float ty2 = (gridMaxY - camY) / dy;
+            tMin = max(tMin, min(ty1, ty2));
+            tMax = min(tMax, max(ty1, ty2));
+        } else if (camY < gridMinY || camY > gridMaxY) {
+            pixels[id] = skyColor;
+            return;
+        }
+
+        // Z slab
+        if (dz != 0) {
+            float tz1 = (gridMinZ - camZ) / dz;
+            float tz2 = (gridMaxZ - camZ) / dz;
+            tMin = max(tMin, min(tz1, tz2));
+            tMax = min(tMax, max(tz1, tz2));
+        } else if (camZ < gridMinZ || camZ > gridMaxZ) {
+            pixels[id] = skyColor;
+            return;
+        }
+
+        // If no intersection
+        if (tMin > tMax) {
+            pixels[id] = skyColor;
+            return;
+        }
+
+        // Starting point along ray
+        float startX = camX + dx * tMin;
+        float startY = camY + dy * tMin;
+        float startZ = camZ + dz * tMin;
+
+        int cellX = (int) floor(startX);
+        int cellY = (int) floor(startY);
+        int cellZ = (int) floor(startZ);
+
+        // tMaxX/Y/Z and tDeltaX/Y/Z as before, starting from tMin
+        float tMaxX = tMin + ((dx > 0 ? (cellX + 1 - startX) : (cellX - startX)) / dx);
+        float tMaxY = tMin + ((dy > 0 ? (cellY + 1 - startY) : (cellY - startY)) / dy);
+        float tMaxZ = tMin + ((dz > 0 ? (cellZ + 1 - startZ) : (cellZ - startZ)) / dz);
+
+        float tDeltaX = dx != 0 ? Math.abs(1 / dx) : Float.MAX_VALUE;
+        float tDeltaY = dy != 0 ? Math.abs(1 / dy) : Float.MAX_VALUE;
+        float tDeltaZ = dz != 0 ? Math.abs(1 / dz) : Float.MAX_VALUE;
+
+        int stepX = dx > 0 ? 1 : -1;
+        int stepY = dy > 0 ? 1 : -1;
+        int stepZ = dz > 0 ? 1 : -1;
 
         int hitColor = 0;
         float currentOpacity = 1;
@@ -124,13 +183,6 @@ public class GridRaytraceKernel extends Kernel {
                 (z - worldMinZ) * worldSizeX * worldSizeY;
     }
 
-    private float[] computeDDAParams(float rayOrigin, float rayDir, int cell) {
-        float step = rayDir > 0 ? 1 : -1;
-        float tMax = rayDir != 0 ? ((cell + (step > 0 ? 1 : 0)) - rayOrigin) / rayDir : Float.MAX_VALUE;
-        float tDelta = rayDir != 0 ? step / rayDir : Float.MAX_VALUE;
-        return new float[] { tMax, tDelta, step };
-    }
-
     private int blend(int bg, int fg, float alpha) {
         alpha = Math.min(Math.max(alpha, 0f), 1f);
 
@@ -167,7 +219,6 @@ public class GridRaytraceKernel extends Kernel {
         if (voxels.isEmpty())
             return;
 
-        // --- Find the bounds of all voxels
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
@@ -193,25 +244,10 @@ public class GridRaytraceKernel extends Kernel {
                 maxZ = z;
         }
 
-        // --- Include the camera in the bounds
         camX = (float) cam.position.x;
         camY = (float) cam.position.y;
         camZ = (float) cam.position.z;
 
-        if (camX < minX)
-            minX = (int) camX;
-        if (camY < minY)
-            minY = (int) camY;
-        if (camZ < minZ)
-            minZ = (int) camZ;
-        if (camX > maxX)
-            maxX = (int) camX;
-        if (camY > maxY)
-            maxY = (int) camY;
-        if (camZ > maxZ)
-            maxZ = (int) camZ;
-
-        // --- World size
         worldMinX = minX;
         worldMinY = minY;
         worldMinZ = minZ;
@@ -222,15 +258,14 @@ public class GridRaytraceKernel extends Kernel {
         tanFov = (float) Math.tan(Math.toRadians(cam.fov * 0.5f));
         computeCameraBasis((float) cam.rotation.x, (float) cam.rotation.y);
 
-        // --- Initialize voxel arrays
         voxelCount = voxels.size();
-        vx = new int[voxelCount];
-        vy = new int[voxelCount];
-        vz = new int[voxelCount];
-        vcolor = new int[voxelCount];
-        opacity = new float[voxelCount];
+        if (vcolor == null || voxelCount != vcolor.length) {
+            vcolor = new int[voxelCount];
+            opacity = new float[voxelCount];
+        }
 
-        voxelGrid = new int[worldSizeX * worldSizeY * worldSizeZ];
+        if (voxelGrid == null || voxelGrid.length != worldSizeX * worldSizeY * worldSizeZ)
+            voxelGrid = new int[worldSizeX * worldSizeY * worldSizeZ];
         for (int i = 0; i < voxelGrid.length; i++)
             voxelGrid[i] = -1;
 
@@ -245,10 +280,6 @@ public class GridRaytraceKernel extends Kernel {
                     gz < 0 || gz >= worldSizeZ)
                 continue;
 
-            vx[i] = (int) v.position.x;
-            vy[i] = (int) v.position.y;
-            vz[i] = (int) v.position.z;
-
             Vector4 color = v.getMaterial().getColor();
             vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
             opacity[i] = (float) v.getMaterial().getOpacity();
@@ -258,22 +289,18 @@ public class GridRaytraceKernel extends Kernel {
     }
 
     private void computeCameraBasis(float pitchRad, float yawRad) {
-        // --- Forward vector (look direction)
         forwardX = (float) (Math.sin(yawRad) * Math.cos(pitchRad));
         forwardY = (float) Math.sin(pitchRad);
         forwardZ = (float) (Math.cos(yawRad) * Math.cos(pitchRad));
 
-        // --- Right vector (perpendicular to forward on horizontal plane)
         rightX = (float) Math.sin(yawRad - Math.PI / 2.0);
         rightY = 0;
         rightZ = (float) Math.cos(yawRad - Math.PI / 2.0);
 
-        // --- Up vector (cross product of right and forward)
         upX = rightY * forwardZ - rightZ * forwardY;
         upY = rightZ * forwardX - rightX * forwardZ;
         upZ = rightX * forwardY - rightY * forwardX;
 
-        // --- Normalize all vectors
         float fLen = (float) Math.sqrt(forwardX * forwardX + forwardY * forwardY + forwardZ * forwardZ);
         forwardX /= fLen;
         forwardY /= fLen;
