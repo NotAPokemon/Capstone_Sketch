@@ -2,7 +2,7 @@ package dev.korgi;
 
 import java.io.IOException;
 
-import dev.korgi.gui.Screen;
+import dev.korgi.game.rendering.Screen;
 import processing.core.PApplet;
 
 public class Main {

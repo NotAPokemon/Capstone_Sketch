@@ -1,10 +1,10 @@
-package dev.korgi;
+package dev.korgi.game;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import dev.korgi.gui.rendering.WorldSpace;
+import dev.korgi.game.rendering.WorldSpace;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 

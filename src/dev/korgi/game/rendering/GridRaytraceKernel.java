@@ -1,4 +1,4 @@
-package dev.korgi.gui.rendering;
+package dev.korgi.game.rendering;
 
 import com.aparapi.Kernel;
 
@@ -46,16 +46,18 @@ public class GridRaytraceKernel extends Kernel {
         float ndcX = 2f * (px + 0.5f) / width - 1f;
         float ndcY = 1f - 2f * (py + 0.5f) / height;
 
-        // Compute ray direction
         float dx = forwardX + ndcX * aspect * tanFov * rightX + ndcY * tanFov * upX;
         float dy = forwardY + ndcX * aspect * tanFov * rightY + ndcY * tanFov * upY;
         float dz = forwardZ + ndcX * aspect * tanFov * rightZ + ndcY * tanFov * upZ;
 
-        // Normalize
         float invLen = rsqrt(dx * dx + dy * dy + dz * dz);
         dx *= invLen;
         dy *= invLen;
         dz *= invLen;
+
+        float invDx = dx != 0 ? 1.0f / dx : 0.0f;
+        float invDy = dy != 0 ? 1.0f / dy : 0.0f;
+        float invDz = dz != 0 ? 1.0f / dz : 0.0f;
 
         // Voxel grid bounds
         float gridMinX = worldMinX;
@@ -65,25 +67,22 @@ public class GridRaytraceKernel extends Kernel {
         float gridMaxY = worldMinY + worldSizeY;
         float gridMaxZ = worldMinZ + worldSizeZ;
 
-        // Ray-box intersection (slab method)
         float tMin = 0;
         float tMax = renderDistance;
 
-        // X slab
         if (dx != 0) {
-            float tx1 = (gridMinX - camX) / dx;
-            float tx2 = (gridMaxX - camX) / dx;
+            float tx1 = (gridMinX - camX) * invDx;
+            float tx2 = (gridMaxX - camX) * invDx;
             tMin = max(tMin, min(tx1, tx2));
             tMax = min(tMax, max(tx1, tx2));
         } else if (camX < gridMinX || camX > gridMaxX) {
-            pixels[id] = skyColor; // Ray parallel and outside grid
+            pixels[id] = skyColor;
             return;
         }
 
-        // Y slab
         if (dy != 0) {
-            float ty1 = (gridMinY - camY) / dy;
-            float ty2 = (gridMaxY - camY) / dy;
+            float ty1 = (gridMinY - camY) * invDy;
+            float ty2 = (gridMaxY - camY) * invDy;
             tMin = max(tMin, min(ty1, ty2));
             tMax = min(tMax, max(ty1, ty2));
         } else if (camY < gridMinY || camY > gridMaxY) {
@@ -91,10 +90,9 @@ public class GridRaytraceKernel extends Kernel {
             return;
         }
 
-        // Z slab
         if (dz != 0) {
-            float tz1 = (gridMinZ - camZ) / dz;
-            float tz2 = (gridMaxZ - camZ) / dz;
+            float tz1 = (gridMinZ - camZ) * invDz;
+            float tz2 = (gridMaxZ - camZ) * invDz;
             tMin = max(tMin, min(tz1, tz2));
             tMax = min(tMax, max(tz1, tz2));
         } else if (camZ < gridMinZ || camZ > gridMaxZ) {
@@ -102,13 +100,11 @@ public class GridRaytraceKernel extends Kernel {
             return;
         }
 
-        // If no intersection
         if (tMin > tMax) {
             pixels[id] = skyColor;
             return;
         }
 
-        // Starting point along ray
         float startX = camX + dx * tMin;
         float startY = camY + dy * tMin;
         float startZ = camZ + dz * tMin;
@@ -117,14 +113,13 @@ public class GridRaytraceKernel extends Kernel {
         int cellY = (int) floor(startY);
         int cellZ = (int) floor(startZ);
 
-        // tMaxX/Y/Z and tDeltaX/Y/Z as before, starting from tMin
-        float tMaxX = tMin + ((dx > 0 ? (cellX + 1 - startX) : (cellX - startX)) / dx);
-        float tMaxY = tMin + ((dy > 0 ? (cellY + 1 - startY) : (cellY - startY)) / dy);
-        float tMaxZ = tMin + ((dz > 0 ? (cellZ + 1 - startZ) : (cellZ - startZ)) / dz);
+        float tMaxX = tMin + ((dx > 0 ? (cellX + 1 - startX) : (cellX - startX)) * invDx);
+        float tMaxY = tMin + ((dy > 0 ? (cellY + 1 - startY) : (cellY - startY)) * invDy);
+        float tMaxZ = tMin + ((dz > 0 ? (cellZ + 1 - startZ) : (cellZ - startZ)) * invDz);
 
-        float tDeltaX = dx != 0 ? Math.abs(1 / dx) : Float.MAX_VALUE;
-        float tDeltaY = dy != 0 ? Math.abs(1 / dy) : Float.MAX_VALUE;
-        float tDeltaZ = dz != 0 ? Math.abs(1 / dz) : Float.MAX_VALUE;
+        float tDeltaX = dx != 0 ? abs(invDx) : Float.MAX_VALUE;
+        float tDeltaY = dy != 0 ? abs(invDy) : Float.MAX_VALUE;
+        float tDeltaZ = dz != 0 ? abs(invDz) : Float.MAX_VALUE;
 
         int stepX = dx > 0 ? 1 : -1;
         int stepY = dy > 0 ? 1 : -1;
@@ -198,7 +193,7 @@ public class GridRaytraceKernel extends Kernel {
         int g = (int) (gFg * alpha + gBg * (1f - alpha));
         int b = (int) (bFg * alpha + bBg * (1f - alpha));
 
-        return (255 << 24) | (r << 16) | (g << 8) | b; // alpha = 255
+        return (255 << 24) | (r << 16) | (g << 8) | b;
     }
 
     private boolean inBounds(int x, int y, int z) {

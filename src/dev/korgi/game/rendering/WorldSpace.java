@@ -1,11 +1,10 @@
-package dev.korgi.gui.rendering;
+package dev.korgi.game.rendering;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import com.aparapi.Range;
 
-import dev.korgi.gui.Screen;
 import dev.korgi.math.Vector3;
 
 public class WorldSpace {

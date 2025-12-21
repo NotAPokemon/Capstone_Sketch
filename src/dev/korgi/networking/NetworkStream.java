@@ -1,6 +1,6 @@
 package dev.korgi.networking;
 
-import dev.korgi.Game;
+import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
 
 import java.io.*;

@@ -1,4 +1,4 @@
-package dev.korgi.gui.rendering;
+package dev.korgi.game.rendering;
 
 import dev.korgi.math.Vector3;
 

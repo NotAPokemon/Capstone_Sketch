@@ -1,4 +1,4 @@
-package dev.korgi.gui;
+package dev.korgi.game.rendering;
 
 import java.awt.AWTException;
 import java.awt.Component;
@@ -16,8 +16,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import dev.korgi.Game;
-import dev.korgi.gui.rendering.WorldSpace;
+import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;

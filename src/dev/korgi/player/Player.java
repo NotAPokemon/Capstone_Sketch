@@ -3,8 +3,8 @@ package dev.korgi.player;
 import java.util.ArrayList;
 import java.util.List;
 
-import dev.korgi.Game;
-import dev.korgi.gui.rendering.WorldSpace;
+import dev.korgi.game.Game;
+import dev.korgi.game.rendering.WorldSpace;
 import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkObject;
 import dev.korgi.networking.NetworkStream;
