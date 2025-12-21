@@ -4,18 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.physics.Entity;
+import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.rendering.WorldSpace;
 import dev.korgi.math.Vector3;
-import dev.korgi.networking.NetworkObject;
+import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 
-public class Player extends NetworkObject {
+public class Player extends Entity {
 
     public boolean connected;
     public List<String> pressedKeys = new ArrayList<>();
-    private Vector3 cameraRotation = new Vector3();
-    private Vector3 position = new Vector3();
     private int speed = 10;
 
     public Player() {
@@ -28,13 +28,13 @@ public class Player extends NetworkObject {
             cancelTickEnd();
         }
 
-        cameraRotation = WorldSpace.camera.rotation;
+        rotation = WorldSpace.camera.rotation;
         WorldSpace.camera.position = position;
     }
 
     @Override
     protected void server(double dt) {
-        double yaw = cameraRotation.y;
+        double yaw = rotation.y;
 
         Vector3 forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalizeHere().multiplyBy(speed * dt);
 
@@ -56,6 +56,8 @@ public class Player extends NetworkObject {
             position.addTo(new Vector3(0, speed * dt, 0));
         if (pressedKeys.contains("SHIFT") && Game.canFly)
             position.subtractFrom(new Vector3(0, speed * dt, 0));
+
+        position.addTo(velocity);
     }
 
     @Override
@@ -73,6 +75,16 @@ public class Player extends NetworkObject {
         if (!Game.isClient && out.getType() != NetworkStream.BROADCAST) {
             out.network_destination = internal_id;
         }
+    }
+
+    @Override
+    public List<Voxel> createBody() {
+        List<Voxel> voxels = new ArrayList<>();
+        Voxel v = new Voxel(0, 0, 0, VectorConstants.DARK_GREEN);
+        Voxel v2 = new Voxel(0, 1, 0, VectorConstants.DARK_GREEN);
+        voxels.add(v);
+        voxels.add(v2);
+        return voxels;
     }
 
 }

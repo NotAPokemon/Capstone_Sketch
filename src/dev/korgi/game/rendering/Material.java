@@ -18,6 +18,7 @@ public class Material {
     private double normalStrength;
     private Vector4 absorption;
     private boolean doubleSided;
+    private boolean rigid;
 
     public Material() {
         Vector4 blenderGray = new Vector4(0.8, 0.8, 0.8, 1.0);
@@ -51,6 +52,8 @@ public class Material {
         this.absorption = black;
 
         this.doubleSided = false;
+
+        this.rigid = true;
     }
 
     public Vector4 getColor() {
@@ -109,8 +112,12 @@ public class Material {
         return roughnessMap;
     }
 
-    public boolean getDoubleSided() {
+    public boolean isDoubleSided() {
         return doubleSided;
+    }
+
+    public boolean isRigid() {
+        return rigid;
     }
 
     public void setColor(Vector4 color) {
@@ -171,6 +178,10 @@ public class Material {
 
     public void setRoughnessMap(Vector4[][] roughnessMap) {
         this.roughnessMap = roughnessMap;
+    }
+
+    public void setRigid(boolean rigid) {
+        this.rigid = rigid;
     }
 
 }

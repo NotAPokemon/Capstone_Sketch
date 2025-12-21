@@ -24,7 +24,7 @@ public class JSONObject {
             }
         } else {
             Class<?> clazz = obj.getClass();
-            Field[] fields = clazz.getDeclaredFields();
+            List<Field> fields = getAllFields(clazz);
 
             for (Field field : fields) {
                 field.setAccessible(true);
@@ -36,6 +36,20 @@ public class JSONObject {
                 }
             }
         }
+    }
+
+    private static List<Field> getAllFields(Class<?> clazz) {
+        List<Field> fields = new ArrayList<>();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                int mods = field.getModifiers();
+                if (!java.lang.reflect.Modifier.isStatic(mods) && !java.lang.reflect.Modifier.isFinal(mods)) {
+                    fields.add(field);
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return fields;
     }
 
     private Object wrapValue(Object value) {
@@ -349,7 +363,7 @@ public class JSONObject {
             return;
 
         Class<?> clazz = target.getClass();
-        Field[] fields = clazz.getDeclaredFields();
+        List<Field> fields = getAllFields(clazz);
 
         for (Field field : fields) {
             field.setAccessible(true);
@@ -391,9 +405,12 @@ public class JSONObject {
                     }
                     field.set(target, array);
                 } else if (value instanceof JSONObject) {
-                    Object nested = type.getDeclaredConstructor().newInstance();
-                    ((JSONObject) value).fillObject(nested);
-                    field.set(target, nested);
+                    try {
+                        Object nested = type.getDeclaredConstructor().newInstance();
+                        ((JSONObject) value).fillObject(nested);
+                        field.set(target, nested);
+                    } catch (NoSuchMethodException e) {
+                    }
                 } else if (value instanceof Map) {
                     field.set(target, value);
                 } else if (value instanceof List) {

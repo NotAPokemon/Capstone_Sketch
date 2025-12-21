@@ -17,6 +17,7 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
@@ -129,7 +130,7 @@ public class Screen extends PApplet {
 
         if (Game.isClient) {
             handleMouseMovement();
-            WorldSpace.execute();
+            WorldEngine.execute();
             drawOpenClientMenus();
         } else {
             drawServerInfo();

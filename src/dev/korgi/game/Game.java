@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import dev.korgi.game.rendering.WorldSpace;
+import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 
@@ -23,7 +23,7 @@ public class Game {
         } else {
             NetworkStream.startServer(6967);
         }
-        WorldSpace.init();
+        WorldEngine.init();
         initialized = true;
     }
 
