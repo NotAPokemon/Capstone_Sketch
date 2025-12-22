@@ -129,7 +129,10 @@ public class GridRaytraceKernel extends Kernel {
         float currentOpacity = 1;
         float dist = 0;
 
-        while (dist < renderDistance && currentOpacity > 0.01f) {
+        for (int step = 0; step < renderDistance; step++) {
+            if (currentOpacity < 0.01f) {
+                break;
+            }
 
             if (inBounds(cellX, cellY, cellZ)) {
                 int i = voxelGrid[flattenIndex(cellX, cellY, cellZ)];
