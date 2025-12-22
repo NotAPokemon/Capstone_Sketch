@@ -1,73 +1,106 @@
 package dev.korgi.game.physics;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.rendering.Voxel;
-import dev.korgi.game.rendering.WorldSpace;
+import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
+import dev.korgi.networking.NetworkStream;
+import dev.korgi.networking.Packet;
 
 public class WorldEngine {
-    private static List<Voxel> voxels = new ArrayList<>();
-    private static List<Entity> entities = new ArrayList<>();
+
+    private static final WorldStorage world = new WorldStorage();
 
     public static void init() {
-        Voxel v1 = new Voxel(0, 0, 20, 1, 0, 0, 1);
-        voxels.add(v1);
+        for (int x = 0; x < 10; x++) {
+            for (int z = 0; z < 10; z++) {
+                Voxel v = new Voxel(x, -5, z, Math.random(), Math.random(), Math.random(), 1);
+                v.getMaterial().setOpacity(Math.random());
+                world.voxels.add(v);
+            }
+        }
+    }
 
-        Voxel v2 = new Voxel(5, 5, 30, 0, 1, 0, 1);
-        voxels.add(v2);
-
-        Voxel v3 = new Voxel(0, 5, 6, 0, 1, 0, 1);
-        voxels.add(v3);
-
-        Voxel v4 = new Voxel(0, 5, 7, 0, 1, 0, 1);
-        v4.getMaterial().setOpacity(0.5);
-        voxels.add(v4);
+    public static void updateClient() {
+        Packet in = NetworkStream.getPacket("world", true);
+        if (in != null) {
+            in.getData().fillObject(world);
+        }
     }
 
     public static void execute() {
-        for (Entity entity : entities) {
+        // --- Process incoming voxel packets
+
+        List<Packet> in = NetworkStream.getAllPackets("world", false);
+        for (Packet p : in) {
+            JSONObject data = p.getData();
+            if (!data.hasKey("voxel"))
+                continue;
+            Voxel v = new Voxel();
+            data.getJSONObject("voxel").fillObject(v);
+            world.voxels.add(v);
+        }
+
+        // --- Handle entity collisions with world
+        for (Entity entity : world.entities) {
             for (Voxel bodyVoxel : entity.body) {
-                Vector3 voxPos = bodyVoxel.position.add(entity.position);
-                for (Voxel worldVoxel : voxels) {
-                    if (voxelIntersects(voxPos, worldVoxel.position)) {
+                Vector3 bodyWorldPos = bodyVoxel.position.add(entity.position);
+
+                for (Voxel worldVoxel : world.voxels) {
+                    if (voxelIntersects(bodyWorldPos, worldVoxel.position)) {
                         if (worldVoxel.getMaterial().isRigid() && bodyVoxel.getMaterial().isRigid()) {
-                            resolveRigidCollision(entity, voxPos, worldVoxel.position);
+                            Vector3 penetration = getPenetration(
+                                    bodyWorldPos,
+                                    bodyWorldPos.add(1, 1, 1),
+                                    worldVoxel.position,
+                                    worldVoxel.position.add(1, 1, 1));
+
+                            resolveRigidCollision(entity, bodyVoxel, worldVoxel);
+
+                            // Let the entity handle game logic (onGround, etc.)
+                            entity.onCollide(worldVoxel, bodyWorldPos, penetration);
                         }
-                        entity.onCollide(worldVoxel);
                     }
                 }
             }
         }
 
-        for (int i = 0; i < entities.size(); i++) {
-            Entity a = entities.get(i);
-            for (int j = i + 1; j < entities.size(); j++) {
-                Entity b = entities.get(j);
+        // --- Handle entity-entity collisions
+        for (int i = 0; i < world.entities.size(); i++) {
+            Entity a = world.entities.get(i);
+            for (int j = i + 1; j < world.entities.size(); j++) {
+                Entity b = world.entities.get(j);
                 if (entitiesIntersect(a, b)) {
                     a.onCollide(b);
                 }
             }
         }
-        WorldSpace.execute();
+
+        // --- Broadcast world state
+        JSONObject outData = new JSONObject(world);
+        Packet out = new Packet("world", NetworkStream.CLIENT, NetworkStream.BROADCAST, outData);
+        NetworkStream.sendPacket(out);
     }
 
     public static List<Entity> getEntities() {
-        return entities;
+        return world.entities;
     }
 
     public static List<Voxel> getVoxels() {
-        return voxels;
+        return world.voxels;
     }
+
+    // --- Helper Methods ---
 
     private static boolean entitiesIntersect(Entity a, Entity b) {
         for (Voxel va : a.body) {
-            Vector3 voxPos = va.position.add(a.position);
+            Vector3 vaWorld = va.position.add(a.position);
             for (Voxel vb : b.body) {
-                if (voxelIntersects(voxPos, vb.position.add(b.position))) {
+                Vector3 vbWorld = vb.position.add(b.position);
+                if (voxelIntersects(vaWorld, vbWorld)) {
                     if (va.getMaterial().isRigid() && vb.getMaterial().isRigid()) {
-                        resolveRigidCollision(a, voxPos, vb.position.add(b.position));
+                        resolveRigidCollision(a, va, vb);
                     }
                     return true;
                 }
@@ -85,29 +118,36 @@ public class WorldEngine {
                 a.z + 1 > b.z;
     }
 
-    private static Vector3 getPenetration(Vector3 a, Vector3 b) {
-        double dx = Math.min(a.x + 1, b.x + 1) - Math.max(a.x, b.x);
-        double dy = Math.min(a.y + 1, b.y + 1) - Math.max(a.y, b.y);
-        double dz = Math.min(a.z + 1, b.z + 1) - Math.max(a.z, b.z);
+    private static Vector3 getPenetration(Vector3 aMin, Vector3 aMax, Vector3 bMin, Vector3 bMax) {
+        double dx = Math.min(aMax.x, bMax.x) - Math.max(aMin.x, bMin.x);
+        double dy = Math.min(aMax.y, bMax.y) - Math.max(aMin.y, bMin.y);
+        double dz = Math.min(aMax.z, bMax.z) - Math.max(aMin.z, bMin.z);
 
         if (dx <= 0 || dy <= 0 || dz <= 0)
             return null;
-
         return new Vector3(dx, dy, dz);
     }
 
-    private static void resolveRigidCollision(Entity entity, Vector3 bodyWorld, Vector3 worldVoxel) {
-        Vector3 pen = getPenetration(bodyWorld, worldVoxel);
+    private static void resolveRigidCollision(Entity entity, Voxel bodyVoxel, Voxel worldVoxel) {
+        Vector3 bodyWorld = bodyVoxel.position.add(entity.position);
+        Vector3 bodyMin = bodyWorld;
+        Vector3 bodyMax = bodyWorld.add(1, 1, 1);
+
+        Vector3 worldMin = worldVoxel.position;
+        Vector3 worldMax = worldVoxel.position.add(1, 1, 1);
+
+        Vector3 pen = getPenetration(bodyMin, bodyMax, worldMin, worldMax);
         if (pen == null)
             return;
 
+        // Resolve along the smallest penetration axis
         if (pen.x <= pen.y && pen.x <= pen.z) {
-            entity.position.x += bodyWorld.x < worldVoxel.x ? -pen.x : pen.x;
+            entity.position.x += bodyWorld.x < worldVoxel.position.x ? -pen.x : pen.x;
         } else if (pen.y <= pen.x && pen.y <= pen.z) {
-            entity.position.y += bodyWorld.y < worldVoxel.y ? -pen.y : pen.y;
+            entity.position.y += bodyWorld.y < worldVoxel.position.y ? -pen.y : pen.y;
+            entity.velocity.y = 0; // stop vertical movement
         } else {
-            entity.position.z += bodyWorld.z < worldVoxel.z ? -pen.z : pen.z;
+            entity.position.z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
         }
     }
-
 }

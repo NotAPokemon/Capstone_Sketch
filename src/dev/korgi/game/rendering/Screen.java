@@ -121,19 +121,23 @@ public class Screen extends PApplet {
 
     @Override
     public void draw() {
-        if (Game.isInitialized()) {
-            Game.loop();
-        } else {
+        if (!Game.isInitialized()) {
             drawSelector();
             return;
         }
 
         if (Game.isClient) {
             handleMouseMovement();
-            WorldEngine.execute();
+            WorldEngine.updateClient();
+            WorldSpace.execute();
             drawOpenClientMenus();
         } else {
+            WorldEngine.execute();
             drawServerInfo();
+        }
+
+        if (Game.isInitialized()) {
+            Game.loop();
         }
 
         drawHUD();
@@ -317,10 +321,38 @@ public class Screen extends PApplet {
                 e.printStackTrace();
             }
         } else if (Game.isClient) {
+            Player client = Game.getClient();
+            if (client != null && mouseButton == LEFT && !client.pressedKeys.contains("LMB")) {
+                client.pressedKeys.add("LMB");
+            }
 
+            if (client != null && mouseButton == RIGHT && !client.pressedKeys.contains("RMB")) {
+                client.pressedKeys.add("RMB");
+            }
+            if (client != null && mouseButton == CENTER && !client.pressedKeys.contains("WD")) {
+                client.pressedKeys.add("WD");
+            }
         } else {
             if (stopHostingHover) {
                 exit();
+            }
+        }
+    }
+
+    @Override
+    public void mouseReleased() {
+        if (Game.isClient) {
+            Player client = Game.getClient();
+            if (client != null) {
+                if (mouseButton == LEFT) {
+                    client.pressedKeys.remove("LMB");
+                }
+                if (mouseButton == RIGHT) {
+                    client.pressedKeys.remove("RMB");
+                }
+                if (mouseButton == CENTER) {
+                    client.pressedKeys.remove("WD");
+                }
             }
         }
     }

@@ -14,7 +14,8 @@ public class Game {
     public static boolean isClient;
     private static boolean initialized = false;
     private static List<Player> players = new ArrayList<>();
-    public static boolean canFly = true;
+    public static boolean canFly = false;
+    public static final double g = 9.81;
 
     public static void init() throws IOException {
         lastTime = System.nanoTime();
@@ -22,8 +23,8 @@ public class Game {
             NetworkStream.startClient("localhost", 6967);
         } else {
             NetworkStream.startServer(6967);
+            WorldEngine.init();
         }
-        WorldEngine.init();
         initialized = true;
     }
 
@@ -64,6 +65,7 @@ public class Game {
         player.internal_id = internal_id;
         player.connected = true;
         players.add(player);
+        player.addToWorld();
     }
 
     public static boolean isInitialized() {

@@ -17,8 +17,9 @@ public class NetworkStream {
     public static final int SERVER = 1;
 
     // Packet types
-    public static final int INPUT_HANDLE_REQUEST = 0;
     public static final int BROADCAST = -1;
+    public static final int INPUT_HANDLE_REQUEST = 0;
+    public static final int WORLD_UPDATE = 1;
     public static final int HANDSHAKE_REQUEST = 2;
     public static final int HANDSHAKE_RESPONSE = 3;
     public static final int PING = 9;
@@ -355,6 +356,20 @@ public class NetworkStream {
         } else {
             return null;
         }
+    }
+
+    public static List<Packet> getAllPackets(String internalId, boolean isClient) {
+        List<Packet> list = isClient ? clientPackets : serverPackets;
+        List<Packet> packets = new ArrayList<>();
+        for (Packet p : list) {
+            if (p.getInternalId().equals(internalId)) {
+                packets.add(p);
+            }
+        }
+        for (Packet p : packets) {
+            list.remove(p);
+        }
+        return packets;
     }
 
     public static long getPing() {

@@ -16,7 +16,8 @@ public class Player extends Entity {
 
     public boolean connected;
     public List<String> pressedKeys = new ArrayList<>();
-    private int speed = 10;
+    private int speed = 3;
+    private boolean onGround = false;
 
     public Player() {
         setCancelProtocol(() -> !connected);
@@ -54,10 +55,16 @@ public class Player extends Entity {
             position.addTo(right);
         if (pressedKeys.contains(" ") && Game.canFly)
             position.addTo(new Vector3(0, speed * dt, 0));
+        if (pressedKeys.contains(" ") && !Game.canFly && onGround) {
+            velocity.addTo(0, 5, 0);
+            onGround = false;
+        }
         if (pressedKeys.contains("SHIFT") && Game.canFly)
             position.subtractFrom(new Vector3(0, speed * dt, 0));
+        if (!onGround && !Game.canFly)
+            velocity.subtractFrom(0, Game.g * dt, 0);
 
-        position.addTo(velocity);
+        position.addTo(velocity.multiply(dt));
     }
 
     @Override
@@ -67,6 +74,8 @@ public class Player extends Entity {
             in.getData().set("cameraRotation", null);
         } else {
             in.getData().set("position", null);
+            in.getData().set("velocity", null);
+            in.getData().set("onGround", onGround);
         }
     }
 
@@ -78,10 +87,18 @@ public class Player extends Entity {
     }
 
     @Override
+    public void onCollide(Voxel other, Vector3 bodyVoxelWorldPos, Vector3 penetration) {
+        if (penetration != null && penetration.y > 0 && bodyVoxelWorldPos.y < position.y) {
+            onGround = true;
+            velocity.y = 0;
+        }
+    }
+
+    @Override
     public List<Voxel> createBody() {
         List<Voxel> voxels = new ArrayList<>();
         Voxel v = new Voxel(0, 0, 0, VectorConstants.DARK_GREEN);
-        Voxel v2 = new Voxel(0, 1, 0, VectorConstants.DARK_GREEN);
+        Voxel v2 = new Voxel(0, -1, 0, VectorConstants.DARK_GREEN);
         voxels.add(v);
         voxels.add(v2);
         return voxels;

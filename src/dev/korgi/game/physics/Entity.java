@@ -25,7 +25,7 @@ public abstract class Entity extends NetworkObject {
     public void onCollide(Entity other) {
     }
 
-    public void onCollide(Voxel other) {
+    public void onCollide(Voxel other, Vector3 bodyPart, Vector3 penetration) {
     }
 
     public void addToWorld() {
