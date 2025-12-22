@@ -5,6 +5,7 @@ import java.util.List;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
+import dev.korgi.math.Vector4;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 
@@ -13,10 +14,12 @@ public class WorldEngine {
     private static final WorldStorage world = new WorldStorage();
 
     public static void init() {
+        Vector4 color = new Vector4(Math.random(), Math.random(), Math.random(), 1);
+        double opacity = Math.random();
         for (int x = 0; x < 10; x++) {
             for (int z = 0; z < 10; z++) {
-                Voxel v = new Voxel(x, -5, z, Math.random(), Math.random(), Math.random(), 1);
-                v.getMaterial().setOpacity(Math.random());
+                Voxel v = new Voxel(x, -5, z, color);
+                v.getMaterial().setOpacity(opacity);
                 world.voxels.add(v);
             }
         }
@@ -30,8 +33,6 @@ public class WorldEngine {
     }
 
     public static void execute() {
-        // --- Process incoming voxel packets
-
         List<Packet> in = NetworkStream.getAllPackets("world", false);
         for (Packet p : in) {
             JSONObject data = p.getData();
@@ -42,7 +43,6 @@ public class WorldEngine {
             world.voxels.add(v);
         }
 
-        // --- Handle entity collisions with world
         for (Entity entity : world.entities) {
             for (Voxel bodyVoxel : entity.body) {
                 Vector3 bodyWorldPos = bodyVoxel.position.add(entity.position);
@@ -58,7 +58,6 @@ public class WorldEngine {
 
                             resolveRigidCollision(entity, bodyVoxel, worldVoxel);
 
-                            // Let the entity handle game logic (onGround, etc.)
                             entity.onCollide(worldVoxel, bodyWorldPos, penetration);
                         }
                     }
@@ -66,18 +65,14 @@ public class WorldEngine {
             }
         }
 
-        // --- Handle entity-entity collisions
         for (int i = 0; i < world.entities.size(); i++) {
             Entity a = world.entities.get(i);
             for (int j = i + 1; j < world.entities.size(); j++) {
                 Entity b = world.entities.get(j);
-                if (entitiesIntersect(a, b)) {
-                    a.onCollide(b);
-                }
+                entitiesIntersect(a, b);
             }
         }
 
-        // --- Broadcast world state
         JSONObject outData = new JSONObject(world);
         Packet out = new Packet("world", NetworkStream.CLIENT, NetworkStream.BROADCAST, outData);
         NetworkStream.sendPacket(out);
@@ -91,9 +86,7 @@ public class WorldEngine {
         return world.voxels;
     }
 
-    // --- Helper Methods ---
-
-    private static boolean entitiesIntersect(Entity a, Entity b) {
+    private static void entitiesIntersect(Entity a, Entity b) {
         for (Voxel va : a.body) {
             Vector3 vaWorld = va.position.add(a.position);
             for (Voxel vb : b.body) {
@@ -102,11 +95,15 @@ public class WorldEngine {
                     if (va.getMaterial().isRigid() && vb.getMaterial().isRigid()) {
                         resolveRigidCollision(a, va, vb);
                     }
-                    return true;
+                    Vector3 penetration = getPenetration(
+                            vaWorld,
+                            vaWorld.add(1, 1, 1),
+                            vbWorld,
+                            vbWorld.add(1, 1, 1));
+                    a.onCollide(b, vaWorld, vbWorld, penetration);
                 }
             }
         }
-        return false;
     }
 
     private static boolean voxelIntersects(Vector3 a, Vector3 b) {
@@ -140,12 +137,11 @@ public class WorldEngine {
         if (pen == null)
             return;
 
-        // Resolve along the smallest penetration axis
         if (pen.x <= pen.y && pen.x <= pen.z) {
             entity.position.x += bodyWorld.x < worldVoxel.position.x ? -pen.x : pen.x;
         } else if (pen.y <= pen.x && pen.y <= pen.z) {
             entity.position.y += bodyWorld.y < worldVoxel.position.y ? -pen.y : pen.y;
-            entity.velocity.y = 0; // stop vertical movement
+            entity.velocity.y = 0;
         } else {
             entity.position.z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
         }

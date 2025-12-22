@@ -22,7 +22,7 @@ public abstract class Entity extends NetworkObject {
 
     public abstract List<Voxel> createBody();
 
-    public void onCollide(Entity other) {
+    public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
     }
 
     public void onCollide(Voxel other, Vector3 bodyPart, Vector3 penetration) {

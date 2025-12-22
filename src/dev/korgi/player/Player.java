@@ -5,6 +5,7 @@ import java.util.List;
 
 import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
+import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.rendering.WorldSpace;
 import dev.korgi.math.Vector3;
@@ -35,6 +36,22 @@ public class Player extends Entity {
 
     @Override
     protected void server(double dt) {
+        handleKeyPresses(dt);
+        handlePhysics(dt);
+    }
+
+    private void handlePhysics(double dt) {
+        if (!onGround && !Game.canFly)
+            velocity.subtractFrom(0, Game.g * dt, 0);
+
+        position.addTo(velocity.multiply(dt));
+    }
+
+    private void handleKeyPresses(double dt) {
+        speed = 3;
+
+        checkKey("CTRL", () -> speed = 5);
+
         double yaw = rotation.y;
 
         Vector3 forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalizeHere().multiplyBy(speed * dt);
@@ -44,27 +61,33 @@ public class Player extends Entity {
                 0,
                 Math.cos(yaw - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
 
-        // --- Movement
-        if (pressedKeys.contains("w"))
-            position.addTo(forward);
-        if (pressedKeys.contains("s"))
-            position.subtractFrom(forward);
-        if (pressedKeys.contains("a"))
-            position.subtractFrom(right);
-        if (pressedKeys.contains("d"))
-            position.addTo(right);
-        if (pressedKeys.contains(" ") && Game.canFly)
-            position.addTo(new Vector3(0, speed * dt, 0));
-        if (pressedKeys.contains(" ") && !Game.canFly && onGround) {
+        checkKey("w", () -> position.addTo(forward));
+        checkKey("s", () -> position.subtractFrom(forward));
+        checkKey("a", () -> position.subtractFrom(right));
+        checkKey("d", () -> position.addTo(right));
+        checkKey("j", () -> Game.canFly = !Game.canFly);
+        checkKey("RMB", () -> WorldEngine.getVoxels()
+                .add(new Voxel(position.add(0, -1, 0), Math.random(), Math.random(), Math.random(), 1)));
+        checkKey(" ", Game.canFly, () -> position.addTo(new Vector3(0, speed * dt, 0)));
+        checkKey(" ", !Game.canFly && onGround, () -> {
             velocity.addTo(0, 5, 0);
             onGround = false;
-        }
-        if (pressedKeys.contains("SHIFT") && Game.canFly)
-            position.subtractFrom(new Vector3(0, speed * dt, 0));
-        if (!onGround && !Game.canFly)
-            velocity.subtractFrom(0, Game.g * dt, 0);
+        });
+        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(new Vector3(0, speed * dt, 0)));
+    }
 
-        position.addTo(velocity.multiply(dt));
+    private void checkKey(String key, Runnable handler) {
+        if (pressedKeys.contains(key)) {
+            pressedKeys.remove(key);
+            handler.run();
+        }
+    }
+
+    private void checkKey(String key, boolean otherCheck, Runnable handler) {
+        if (pressedKeys.contains(key) && otherCheck) {
+            pressedKeys.remove(key);
+            handler.run();
+        }
     }
 
     @Override
