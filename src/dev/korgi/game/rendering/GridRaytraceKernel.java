@@ -128,12 +128,12 @@ public class GridRaytraceKernel extends Kernel {
         int hitColor = 0;
         float currentOpacity = 1;
         float dist = 0;
+        int steps = 0;
 
-        for (int step = 0; step < renderDistance; step++) {
-            if (currentOpacity < 0.01f) {
+        while (dist < renderDistance && currentOpacity > 0.01f) {
+            if (steps >= renderDistance - 1) {
                 break;
             }
-
             if (inBounds(cellX, cellY, cellZ)) {
                 int i = voxelGrid[flattenIndex(cellX, cellY, cellZ)];
                 if (i >= 0) {
@@ -168,6 +168,7 @@ public class GridRaytraceKernel extends Kernel {
                 break;
             if (cellZ >= worldMinZ + worldSizeZ && stepZ > 0)
                 break;
+            steps++;
         }
 
         hitColor = blend(hitColor, skyColor, currentOpacity);
