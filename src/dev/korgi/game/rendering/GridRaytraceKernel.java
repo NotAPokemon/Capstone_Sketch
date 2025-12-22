@@ -1,31 +1,50 @@
 package dev.korgi.game.rendering;
 
-import com.aparapi.Kernel;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.system.MemoryUtil;
 
 import dev.korgi.math.Vector4;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public class GridRaytraceKernel extends Kernel {
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.glBindBufferBase;
+import static org.lwjgl.opengl.GL42.glMemoryBarrier;
+import static org.lwjgl.opengl.GL43.*;
 
-    private int[] pixels;
+public class GridRaytraceKernel {
+
     private int width, height;
+    private int[] pixels;
 
+    // OpenGL handles
+    private int program;
+    private int pixelSSBO;
+    private int cameraSSBO;
+    private int voxelSSBO;
+    private boolean glInitialized = false;
+    private long hiddenWindow;
+
+    // Camera + voxel data
     private float camX, camY, camZ;
     private float forwardX, forwardY, forwardZ;
     private float rightX, rightY, rightZ;
     private float upX, upY, upZ;
-    private float tanFov;
-
-    private float renderDistance = 100;
-
-    private int voxelCount;
-    private int[] vcolor;
-    private float[] opacity;
-    private int skyColor = 0xFF87CEEB;
 
     private int worldMinX, worldMinY, worldMinZ;
     private int worldSizeX, worldSizeY, worldSizeZ;
+    private int voxelCount;
+    private int[] vcolor;
+    private float[] opacity;
     private int[] voxelGrid;
 
     public GridRaytraceKernel(int[] pixels, int width, int height) {
@@ -34,213 +53,26 @@ public class GridRaytraceKernel extends Kernel {
         this.height = height;
     }
 
-    @Override
-    public void run() {
-        int id = getGlobalId();
-        int px = id % width;
-        int py = id / width;
-        if (py >= height)
-            return;
-
-        float aspect = (float) width / height;
-        float ndcX = 2f * (px + 0.5f) / width - 1f;
-        float ndcY = 1f - 2f * (py + 0.5f) / height;
-
-        float dx = forwardX + ndcX * aspect * tanFov * rightX + ndcY * tanFov * upX;
-        float dy = forwardY + ndcX * aspect * tanFov * rightY + ndcY * tanFov * upY;
-        float dz = forwardZ + ndcX * aspect * tanFov * rightZ + ndcY * tanFov * upZ;
-
-        float invLen = rsqrt(dx * dx + dy * dy + dz * dz);
-        dx *= invLen;
-        dy *= invLen;
-        dz *= invLen;
-
-        float invDx = dx != 0 ? 1.0f / dx : 0.0f;
-        float invDy = dy != 0 ? 1.0f / dy : 0.0f;
-        float invDz = dz != 0 ? 1.0f / dz : 0.0f;
-
-        // Voxel grid bounds
-        float gridMinX = worldMinX;
-        float gridMinY = worldMinY;
-        float gridMinZ = worldMinZ;
-        float gridMaxX = worldMinX + worldSizeX;
-        float gridMaxY = worldMinY + worldSizeY;
-        float gridMaxZ = worldMinZ + worldSizeZ;
-
-        float tMin = 0;
-        float tMax = renderDistance;
-
-        if (dx != 0) {
-            float tx1 = (gridMinX - camX) * invDx;
-            float tx2 = (gridMaxX - camX) * invDx;
-            tMin = max(tMin, min(tx1, tx2));
-            tMax = min(tMax, max(tx1, tx2));
-        } else if (camX < gridMinX || camX > gridMaxX) {
-            pixels[id] = skyColor;
-            return;
-        }
-
-        if (dy != 0) {
-            float ty1 = (gridMinY - camY) * invDy;
-            float ty2 = (gridMaxY - camY) * invDy;
-            tMin = max(tMin, min(ty1, ty2));
-            tMax = min(tMax, max(ty1, ty2));
-        } else if (camY < gridMinY || camY > gridMaxY) {
-            pixels[id] = skyColor;
-            return;
-        }
-
-        if (dz != 0) {
-            float tz1 = (gridMinZ - camZ) * invDz;
-            float tz2 = (gridMaxZ - camZ) * invDz;
-            tMin = max(tMin, min(tz1, tz2));
-            tMax = min(tMax, max(tz1, tz2));
-        } else if (camZ < gridMinZ || camZ > gridMaxZ) {
-            pixels[id] = skyColor;
-            return;
-        }
-
-        if (tMin > tMax) {
-            pixels[id] = skyColor;
-            return;
-        }
-
-        float startX = camX + dx * tMin;
-        float startY = camY + dy * tMin;
-        float startZ = camZ + dz * tMin;
-
-        int cellX = (int) floor(startX);
-        int cellY = (int) floor(startY);
-        int cellZ = (int) floor(startZ);
-
-        float tMaxX = tMin + ((dx > 0 ? (cellX + 1 - startX) : (cellX - startX)) * invDx);
-        float tMaxY = tMin + ((dy > 0 ? (cellY + 1 - startY) : (cellY - startY)) * invDy);
-        float tMaxZ = tMin + ((dz > 0 ? (cellZ + 1 - startZ) : (cellZ - startZ)) * invDz);
-
-        float tDeltaX = dx != 0 ? abs(invDx) : Float.MAX_VALUE;
-        float tDeltaY = dy != 0 ? abs(invDy) : Float.MAX_VALUE;
-        float tDeltaZ = dz != 0 ? abs(invDz) : Float.MAX_VALUE;
-
-        int stepX = dx > 0 ? 1 : -1;
-        int stepY = dy > 0 ? 1 : -1;
-        int stepZ = dz > 0 ? 1 : -1;
-
-        int hitColor = 0;
-        float currentOpacity = 1;
-        float dist = 0;
-        int steps = 0;
-
-        while (dist < renderDistance && currentOpacity > 0.01f) {
-            if (steps >= renderDistance - 1) {
-                break;
-            }
-            if (inBounds(cellX, cellY, cellZ)) {
-                int i = voxelGrid[flattenIndex(cellX, cellY, cellZ)];
-                if (i >= 0) {
-                    hitColor = blend(hitColor, vcolor[i], opacity[i] * currentOpacity);
-                    currentOpacity *= (1 - opacity[i]);
-                }
-            }
-
-            if (tMaxX < tMaxY && tMaxX < tMaxZ) {
-                cellX += stepX;
-                dist = tMaxX;
-                tMaxX += tDeltaX;
-            } else if (tMaxY < tMaxZ) {
-                cellY += stepY;
-                dist = tMaxY;
-                tMaxY += tDeltaY;
-            } else {
-                cellZ += stepZ;
-                dist = tMaxZ;
-                tMaxZ += tDeltaZ;
-            }
-
-            if (cellX < worldMinX && stepX < 0)
-                break;
-            if (cellY < worldMinY && stepY < 0)
-                break;
-            if (cellZ < worldMinZ && stepZ < 0)
-                break;
-            if (cellX >= worldMinX + worldSizeX && stepX > 0)
-                break;
-            if (cellY >= worldMinY + worldSizeY && stepY > 0)
-                break;
-            if (cellZ >= worldMinZ + worldSizeZ && stepZ > 0)
-                break;
-            steps++;
-        }
-
-        hitColor = blend(hitColor, skyColor, currentOpacity);
-
-        pixels[id] = hitColor;
-    }
-
-    private int flattenIndex(int x, int y, int z) {
-        return (x - worldMinX) +
-                (y - worldMinY) * worldSizeX +
-                (z - worldMinZ) * worldSizeX * worldSizeY;
-    }
-
-    private int blend(int bg, int fg, float alpha) {
-        alpha = Math.min(Math.max(alpha, 0f), 1f);
-
-        int rBg = (bg >> 16) & 0xFF;
-        int gBg = (bg >> 8) & 0xFF;
-        int bBg = bg & 0xFF;
-
-        int rFg = (fg >> 16) & 0xFF;
-        int gFg = (fg >> 8) & 0xFF;
-        int bFg = fg & 0xFF;
-
-        int r = (int) (rFg * alpha + rBg * (1f - alpha));
-        int g = (int) (gFg * alpha + gBg * (1f - alpha));
-        int b = (int) (bFg * alpha + bBg * (1f - alpha));
-
-        return (255 << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private boolean inBounds(int x, int y, int z) {
-        return x >= worldMinX && y >= worldMinY && z >= worldMinZ &&
-                x < worldMinX + worldSizeX &&
-                y < worldMinY + worldSizeY &&
-                z < worldMinZ + worldSizeZ;
-    }
-
-    private int rgbToARGB(float r, float g, float b, int a) {
-        int ri = (int) (Math.min(r, 1f) * 255);
-        int gi = (int) (Math.min(g, 1f) * 255);
-        int bi = (int) (Math.min(b, 1f) * 255);
-        return (a << 24) | (ri << 16) | (gi << 8) | bi;
-    }
-
+    // -------------------------------
+    // High-level interface
+    // -------------------------------
     public void precompute(List<Voxel> voxels, Camera cam) {
         if (voxels.isEmpty())
             return;
 
-        int minX = Integer.MAX_VALUE;
-        int minY = Integer.MAX_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        int maxZ = Integer.MIN_VALUE;
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
 
         for (Voxel v : voxels) {
             int x = (int) v.position.x;
             int y = (int) v.position.y;
             int z = (int) v.position.z;
-            if (x < minX)
-                minX = x;
-            if (y < minY)
-                minY = y;
-            if (z < minZ)
-                minZ = z;
-            if (x > maxX)
-                maxX = x;
-            if (y > maxY)
-                maxY = y;
-            if (z > maxZ)
-                maxZ = z;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
         }
 
         camX = (float) cam.position.x;
@@ -254,17 +86,17 @@ public class GridRaytraceKernel extends Kernel {
         worldSizeY = maxY - minY + 1;
         worldSizeZ = maxZ - minZ + 1;
 
-        tanFov = (float) Math.tan(Math.toRadians(cam.fov * 0.5f));
         computeCameraBasis((float) cam.rotation.x, (float) cam.rotation.y);
 
         voxelCount = voxels.size();
-        if (vcolor == null || voxelCount != vcolor.length) {
+        if (vcolor == null || vcolor.length != voxelCount) {
             vcolor = new int[voxelCount];
             opacity = new float[voxelCount];
         }
 
         if (voxelGrid == null || voxelGrid.length != worldSizeX * worldSizeY * worldSizeZ)
             voxelGrid = new int[worldSizeX * worldSizeY * worldSizeZ];
+
         for (int i = 0; i < voxelGrid.length; i++)
             voxelGrid[i] = -1;
 
@@ -274,9 +106,7 @@ public class GridRaytraceKernel extends Kernel {
             int gy = (int) v.position.y - worldMinY;
             int gz = (int) v.position.z - worldMinZ;
 
-            if (gx < 0 || gx >= worldSizeX ||
-                    gy < 0 || gy >= worldSizeY ||
-                    gz < 0 || gz >= worldSizeZ)
+            if (gx < 0 || gx >= worldSizeX || gy < 0 || gy >= worldSizeY || gz >= worldSizeZ)
                 continue;
 
             Vector4 color = v.getMaterial().getColor();
@@ -285,8 +115,124 @@ public class GridRaytraceKernel extends Kernel {
 
             voxelGrid[gx + gy * worldSizeX + gz * worldSizeX * worldSizeY] = i;
         }
+
+        initGL();
+        uploadVoxelGrid();
     }
 
+    public void execute() {
+        uploadCamera();
+        dispatchCompute();
+        readPixels();
+    }
+
+    // -------------------------------
+    // OpenGL backend
+    // -------------------------------
+    private void initGL() {
+        if (glInitialized)
+            return;
+
+        // Hidden GLFW window for context
+        GLFW.glfwInit();
+        GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
+        hiddenWindow = GLFW.glfwCreateWindow(1, 1, "", MemoryUtil.NULL, MemoryUtil.NULL);
+        if (hiddenWindow == MemoryUtil.NULL)
+            throw new RuntimeException("Failed to create hidden GLFW window");
+        GLFW.glfwMakeContextCurrent(hiddenWindow);
+        GL.createCapabilities();
+
+        program = createComputeProgram(loadShader("/raytrace.glsl"));
+
+        pixelSSBO = glGenBuffers();
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, (long) width * height * 4, GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pixelSSBO);
+
+        cameraSSBO = glGenBuffers();
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, cameraSSBO);
+
+        voxelSSBO = glGenBuffers();
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, voxelSSBO);
+
+        glInitialized = true;
+    }
+
+    private int createComputeProgram(String glslSource) {
+        int shader = glCreateShader(GL_COMPUTE_SHADER);
+        glShaderSource(shader, glslSource);
+        glCompileShader(shader);
+        if (glGetShaderi(shader, GL_COMPILE_STATUS) == GL_FALSE)
+            throw new RuntimeException("Shader compile failed: " + glGetShaderInfoLog(shader));
+
+        int program = glCreateProgram();
+        glAttachShader(program, shader);
+        glLinkProgram(program);
+        if (glGetProgrami(program, GL_LINK_STATUS) == GL_FALSE)
+            throw new RuntimeException("Program link failed: " + glGetProgramInfoLog(program));
+
+        glDetachShader(program, shader);
+        glDeleteShader(shader);
+        return program;
+    }
+
+    private static String loadShader(String resourcePath) {
+        StringBuilder sb = new StringBuilder();
+        try (InputStream in = GridRaytraceKernel.class.getResourceAsStream(resourcePath);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null)
+                sb.append(line).append("\n");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load shader: " + resourcePath, e);
+        }
+        return sb.toString();
+    }
+
+    private void uploadCamera() {
+        ByteBuffer buf = BufferUtils.createByteBuffer(64);
+        buf.putFloat(camX).putFloat(camY).putFloat(camZ).putFloat(0);
+        buf.putFloat(forwardX).putFloat(forwardY).putFloat(forwardZ).putFloat(0);
+        buf.putFloat(rightX).putFloat(rightY).putFloat(rightZ).putFloat(0);
+        buf.putFloat(upX).putFloat(upY).putFloat(upZ).putFloat(0);
+        buf.flip();
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cameraSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, buf, GL_DYNAMIC_DRAW);
+    }
+
+    private void uploadVoxelGrid() {
+        IntBuffer buf = BufferUtils.createIntBuffer(voxelGrid.length);
+        buf.put(voxelGrid).flip();
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, voxelSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, buf, GL_DYNAMIC_DRAW);
+    }
+
+    private void dispatchCompute() {
+        glUseProgram(program);
+        int gx = (width + 15) / 16;
+        int gy = (height + 15) / 16;
+        glDispatchCompute(gx, gy, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    }
+
+    private void readPixels() {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelSSBO);
+        ByteBuffer buf = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+        for (int i = 0; i < pixels.length; i++) {
+            int r = buf.get() & 0xFF;
+            int g = buf.get() & 0xFF;
+            int b = buf.get() & 0xFF;
+            int a = buf.get() & 0xFF;
+            pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    }
+
+    // -------------------------------
+    // Utility
+    // -------------------------------
     private void computeCameraBasis(float pitchRad, float yawRad) {
         forwardX = (float) (Math.sin(yawRad) * Math.cos(pitchRad));
         forwardY = (float) Math.sin(pitchRad);
@@ -316,4 +262,20 @@ public class GridRaytraceKernel extends Kernel {
         upZ /= uLen;
     }
 
+    private int rgbToARGB(float r, float g, float b, int a) {
+        int ri = (int) (Math.min(r, 1f) * 255);
+        int gi = (int) (Math.min(g, 1f) * 255);
+        int bi = (int) (Math.min(b, 1f) * 255);
+        return (a << 24) | (ri << 16) | (gi << 8) | bi;
+    }
+
+    // Cleanup context
+    public void cleanup() {
+        glDeleteProgram(program);
+        glDeleteBuffers(pixelSSBO);
+        glDeleteBuffers(cameraSSBO);
+        glDeleteBuffers(voxelSSBO);
+        GLFW.glfwDestroyWindow(hiddenWindow);
+        GLFW.glfwTerminate();
+    }
 }
