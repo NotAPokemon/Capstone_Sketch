@@ -14,4 +14,5 @@
         </attributes>
     </classpathentry>
     <classpathentry kind="lib" path="lib/aparapi-jni-1.4.3.jar"/>
+    <classpathentry kind="lib" path="lib/bcel-6.5.0.jar"/>
 </classpath>
