@@ -5,6 +5,7 @@ import dev.korgi.game.physics.WorldEngine;
 public class WorldSpace {
 
     public static Camera camera = new Camera();
+    private static boolean init = false;
 
     public static void execute() {
         Screen screen = Screen.getInstance();
@@ -16,8 +17,9 @@ public class WorldSpace {
             screen.loadPixels();
         }
 
-        if (resizePixels) {
+        if (resizePixels || !init) {
             NativeGPUKernal.resetSpecs(screen.pixels, width, height);
+            init = true;
         }
 
         long time = System.nanoTime();

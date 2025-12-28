@@ -106,10 +106,9 @@ public class NativeGPUKernal {
             vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
             opacity[i] = (float) v.getMaterial().getOpacity();
 
-            voxelGrid[(int) (g.x + g.y * size.x + g.z * size.x * size.y)] = i;
+            voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
         }
 
-        System.out.println("java side native call");
         KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
                 right.toFloatArray(),
                 up.toFloatArray(), tanFov,
