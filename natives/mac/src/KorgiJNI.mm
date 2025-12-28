@@ -13,14 +13,14 @@ static id<MTLComputePipelineState> pipelineState = nil;
 void initMetal() {
     if (device) return;
     
-    printf("test");
 
     device = MTLCreateSystemDefaultDevice();
     commandQueue = [device newCommandQueue];
 
     // Load shader from default library
     NSError* error = nil;
-    id<MTLLibrary> library = [device newDefaultLibrary];
+    NSString *libPath = @"/Users/arvankadkol/Documents/Github/APCS/Capstone_Sketch/natives/mac/build/Shaders.metallib";
+    id<MTLLibrary> library = [device newLibraryWithFile:libPath error:&error];
     id<MTLFunction> kernelFunc = [library newFunctionWithName:@"raytraceKernel"];
     pipelineState = [device newComputePipelineStateWithFunction:kernelFunc error:&error];
     if (error) {
@@ -29,7 +29,7 @@ void initMetal() {
 }
 
 extern "C"
-JNIEXPORT void JNICALL Java_dev_korgi_game_rendering_NativeGPUKernal_execute(
+JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     JNIEnv* env, jclass cls,
     jintArray pixels,
     jint width, jint height,
@@ -46,8 +46,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_game_rendering_NativeGPUKernal_execute(
     jintArray voxelGrid)
 {
     initMetal();
-    printf("testing");
-    fflush(stdout);
 
     // Convert Java arrays to C pointers
     jint* pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
@@ -84,10 +82,16 @@ JNIEXPORT void JNICALL Java_dev_korgi_game_rendering_NativeGPUKernal_execute(
     id<MTLComputeCommandEncoder> encoder = [commandBuffer computeCommandEncoder];
     [encoder setComputePipelineState:pipelineState];
 
+    uint widthValue = (uint) width;
+    id<MTLBuffer> gridWidthBuffer = [device newBufferWithBytes:&widthValue
+                                                    length:sizeof(uint)
+                                                   options:MTLResourceStorageModeShared];
+
     [encoder setBuffer:pixelsBuffer offset:0 atIndex:0];
     [encoder setBuffer:voxelBuffer offset:0 atIndex:1];
     [encoder setBuffer:colorBuffer offset:0 atIndex:2];
     [encoder setBuffer:opacityBuffer offset:0 atIndex:3];
+    [encoder setBuffer:gridWidthBuffer offset:0 atIndex:4];
     // TODO: pass cam/forward/right/up/tanFov/worldMin/worldSize as Metal buffers or structs
 
     MTLSize threadsPerThreadgroup = MTLSizeMake(8, 8, 1);
