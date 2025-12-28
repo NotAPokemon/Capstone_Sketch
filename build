@@ -1,0 +1,14 @@
+#!/bin/bash
+
+JAVA_HOME=$(/usr/libexec/java_home)
+JNI_INCLUDE="$JAVA_HOME/include"
+JNI_INCLUDE_MAC="$JAVA_HOME/include/darwin"
+
+clang++ -std=c++17 -fobjc-arc -dynamiclib \
+    -framework Metal -framework Foundation -framework QuartzCore \
+    -I"$JNI_INCLUDE" -I"$JNI_INCLUDE_MAC" -I"include" \
+    natives/mac/src/KorgiJNI.mm \
+    -o natives/mac/build/libkorgigl.dylib
+
+
+

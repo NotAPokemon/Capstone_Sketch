@@ -2,6 +2,7 @@ package dev.korgi.game.rendering;
 
 import java.util.List;
 
+import dev.korgi.jni.KorgiJNI;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
 
@@ -13,10 +14,6 @@ public class NativeGPUKernal {
     private static int[] vcolor;
     private static float[] opacity;
     private static int[] voxelGrid;
-
-    static {
-        System.loadLibrary("korgigl");
-    }
 
     public static void resetSpecs(int[] pixels, int width, int height) {
         NativeGPUKernal.pixels = pixels;
@@ -112,7 +109,9 @@ public class NativeGPUKernal {
             voxelGrid[(int) (g.x + g.y * size.x + g.z * size.x * size.y)] = i;
         }
 
-        execute(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(), right.toFloatArray(),
+        System.out.println("java side native call");
+        KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
+                right.toFloatArray(),
                 up.toFloatArray(), tanFov,
                 voxelCount,
                 vcolor, opacity,
@@ -120,9 +119,5 @@ public class NativeGPUKernal {
                 size.toIntArray(), voxelGrid);
 
     }
-
-    private static native void execute(int[] pixels, int w, int h, float[] cam, float[] foward, float[] right,
-            float[] up, float tanFov, int voxCount, int[] color, float[] opacity, int[] worldMin, int[] worldSize,
-            int[] voxelGrid);
 
 }
