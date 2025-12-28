@@ -1,12 +1,10 @@
 package dev.korgi.game.rendering;
 
-import com.aparapi.Kernel;
-
 import dev.korgi.math.Vector4;
 
 import java.util.List;
 
-public class GridRaytraceKernel extends Kernel {
+public class GridRaytraceKernel {
 
     private int[] pixels;
     private int width, height;
@@ -34,7 +32,36 @@ public class GridRaytraceKernel extends Kernel {
         this.height = height;
     }
 
-    @Override
+    private int getGlobalId() {
+        return 0;
+    }
+
+    private float rsqrt(float val) {
+        return 1f / (float) Math.sqrt(val);
+    }
+
+    private float max(float a, float b) {
+        if (a > b) {
+            return a;
+        }
+        return b;
+    }
+
+    private float min(float a, float b) {
+        if (a > b) {
+            return b;
+        }
+        return a;
+    }
+
+    private float abs(float val) {
+        return val < 0 ? -val : val;
+    }
+
+    private float floor(float val) {
+        return (float) Math.floor(val);
+    }
+
     public void run() {
         int id = getGlobalId();
         int px = id % width;
@@ -214,7 +241,11 @@ public class GridRaytraceKernel extends Kernel {
         return (a << 24) | (ri << 16) | (gi << 8) | bi;
     }
 
-    public void precompute(List<Voxel> voxels, Camera cam) {
+    public void execute(List<Voxel> voxels, Camera cam) {
+        precompute(voxels, cam);
+    }
+
+    private void precompute(List<Voxel> voxels, Camera cam) {
         if (voxels.isEmpty())
             return;
 
