@@ -1,0 +1,106 @@
+#!/bin/bash
+set -e
+
+EXIT_CODE=0
+
+trap 'EXIT_CODE=$?; goto_exit' ERR
+
+goto_exit() {
+    echo -e ""
+    echo -e "\033[38;2;204;204;0m---------- Exit Code: $EXIT_CODE ----------\033[0m"
+    exit $EXIT_CODE
+}
+
+PROJECT_DIR=$(pwd)
+BIN_DIR="$PROJECT_DIR/bin"
+
+# Default extra flags
+EXTRA_FLAGS=""
+
+# Process optional -e flag and shift arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -e)
+            EXTRA_FLAGS="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Extract source directories from .classpath
+SRC_DIRS=$(xmllint --xpath "//classpath/classpathentry[@kind='src']/@path" "$PROJECT_DIR/.classpath" 2>/dev/null | \
+    sed -E 's/path="([^"]+)"/\1/g' | tr ' ' '\n')
+
+# Extract libraries from .classpath
+LIBS=$(xmllint --xpath "//classpath/classpathentry[@kind='lib']/@path" "$PROJECT_DIR/.classpath" 2>/dev/null | \
+    sed -E "s|path=\"([^\"]+)\"|$PROJECT_DIR/\1|g" | tr ' ' ':')
+
+# Include jars in lib folder
+if [ -d "$PROJECT_DIR/lib" ]; then
+    for JAR in "$PROJECT_DIR/lib"/*.jar; do
+        if [ -n "$LIBS" ]; then
+            LIBS="$LIBS:$JAR"
+        else
+            LIBS="$JAR"
+        fi
+    done
+fi
+
+mkdir -p "$BIN_DIR"
+
+# Gather all Java sources
+> sources.txt
+for SRC in $SRC_DIRS; do
+    find "$PROJECT_DIR/$SRC" -name "*.java" >> sources.txt
+done
+
+echo -e "\033[38;2;204;204;0mCompiling\033[0m"
+if [ -n "$LIBS" ]; then
+    javac -d "$BIN_DIR" -cp "$LIBS" @sources.txt
+else
+    javac -d "$BIN_DIR" @sources.txt
+fi
+rm sources.txt
+
+# Copy non-Java resources
+for SRC in $SRC_DIRS; do
+    rsync -a --exclude='*.java' "$PROJECT_DIR/$SRC/" "$BIN_DIR/"
+done
+
+# Auto-detect main class
+MAIN_CLASS=""
+for SRC in $SRC_DIRS; do
+    for FILE in $(find "$PROJECT_DIR/$SRC" -name "*.java"); do
+        if grep -q "public static void main(String" "$FILE"; then
+            PACKAGE=$(grep "^package " "$FILE" | sed 's/package //;s/;//')
+            CLASSNAME=$(basename "$FILE" .java)
+            if [ -n "$PACKAGE" ]; then
+                MAIN_CLASS="$PACKAGE.$CLASSNAME"
+            else
+                MAIN_CLASS="$CLASSNAME"
+            fi
+            break 2
+        fi
+    done
+done
+
+if [ -z "$MAIN_CLASS" ]; then
+    echo "error: Could not determine main class automatically."
+    exit 1
+fi
+
+echo -e "\033[38;2;204;204;0mRunning $MAIN_CLASS\033[0m"
+echo -e ""
+echo -e "\033[38;2;204;204;0m------------- Output -------------\033[0m"
+echo -e ""
+
+if [ -n "$LIBS" ]; then
+    java $EXTRA_FLAGS -cp "$BIN_DIR:$LIBS" "$MAIN_CLASS"
+else
+    java $EXTRA_FLAGS -cp "$BIN_DIR" "$MAIN_CLASS"
+fi
+
+goto_exit

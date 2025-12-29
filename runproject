@@ -4,4 +4,4 @@ abs_path=$(pwd)
 target_path="$abs_path/natives/mac/build"
 
 ./build > /dev/null 2>&1
-runjava -e -Djava.library.path=$target_path
+./runjava -e -Djava.library.path=$target_path
