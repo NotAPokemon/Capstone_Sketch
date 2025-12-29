@@ -1,49 +1,80 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <jni.h>
+#include "dev_korgi_jni_KorgiJNI.h"
+#include <vector>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include "dev_korgi_jni_KorgiJNI.h"
 
-// Helper: read shader source
-std::string readFile(const char* path) {
+static GLuint computeProgram = 0;
+static GLuint pixelsBuffer = 0;
+static GLuint voxelBuffer = 0;
+static GLuint colorBuffer = 0;
+static GLuint opacityBuffer = 0;
+
+static bool initGL(int width, int height) {
+    static bool initialized = false;
+    if (initialized) return true;
+
+    if (!glfwInit()) {
+        std::cerr << "GLFW Init failed" << std::endl;
+        return false;
+    }
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    GLFWwindow* window = glfwCreateWindow(width, height, "Offscreen", NULL, NULL);
+    if (!window) {
+        std::cerr << "GLFW Window creation failed" << std::endl;
+        glfwTerminate();
+        return false;
+    }
+
+    glfwMakeContextCurrent(window);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cerr << "GLAD Init failed" << std::endl;
+        return false;
+    }
+
+    initialized = true;
+    return true;
+}
+
+GLuint compileComputeShader(const std::string& path) {
     std::ifstream file(path);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open shader file: " << path << std::endl;
-        return "";
+    if (!file) {
+        std::cerr << "Shader not found: " << path << std::endl;
+        return 0;
     }
     std::stringstream ss;
     ss << file.rdbuf();
-    return ss.str();
-}
-
-// Helper: compile compute shader
-GLuint compileComputeShader(const char* path) {
-    std::string srcStr = readFile(path);
-    const char* src = srcStr.c_str();
+    std::string src = ss.str();
+    const char* csrc = src.c_str();
 
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
-    glShaderSource(shader, 1, &src, nullptr);
+    glShaderSource(shader, 1, &csrc, nullptr);
     glCompileShader(shader);
 
-    GLint success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char info[512];
-        glGetShaderInfoLog(shader, 512, nullptr, info);
-        std::cerr << "Compute shader compile error: " << info << std::endl;
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (!status) {
+        char log[1024];
+        glGetShaderInfoLog(shader, 1024, nullptr, log);
+        std::cerr << "Compute shader compile error:\n" << log << std::endl;
+        return 0;
     }
 
     GLuint program = glCreateProgram();
     glAttachShader(program, shader);
     glLinkProgram(program);
 
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        char info[512];
-        glGetProgramInfoLog(program, 512, nullptr, info);
-        std::cerr << "Program link error: " << info << std::endl;
+    glGetProgramiv(program, GL_LINK_STATUS, &status);
+    if (!status) {
+        char log[1024];
+        glGetProgramInfoLog(program, 1024, nullptr, log);
+        std::cerr << "Shader link error:\n" << log << std::endl;
+        return 0;
     }
 
     glDeleteShader(shader);
@@ -67,158 +98,89 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray worldSizeArray,
     jintArray voxelGrid
 ) {
-    // -------------------------
-    // 1. Get pointers from Java
-    // -------------------------
+    if (!initGL(width, height)) return;
+
+    if (!computeProgram) {
+        computeProgram = compileComputeShader("C:\\Users\\every\\Documents\\Github\\Capstone_Sketch\\natives\\win\\src\\Shaders.comp.glsl");
+        if (!computeProgram) return;
+    }
+
     jint* pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
-    jfloat* camPtr = env->GetFloatArrayElements(cam, nullptr);
-    jfloat* forwardPtr = env->GetFloatArrayElements(forward, nullptr);
-    jfloat* rightPtr = env->GetFloatArrayElements(right, nullptr);
-    jfloat* upPtr = env->GetFloatArrayElements(up, nullptr);
     jint* colorPtr = env->GetIntArrayElements(color, nullptr);
     jfloat* opacityPtr = env->GetFloatArrayElements(opacity, nullptr);
     jint* worldMin = env->GetIntArrayElements(worldMinArray, nullptr);
     jint* worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
     jint* voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
+    jfloat* camPtr = env->GetFloatArrayElements(cam, nullptr);
+    jfloat* forwardPtr = env->GetFloatArrayElements(forward, nullptr);
+    jfloat* rightPtr = env->GetFloatArrayElements(right, nullptr);
+    jfloat* upPtr = env->GetFloatArrayElements(up, nullptr);
 
-    // -------------------------
-    // 2. Init GLFW + hidden window
-    // -------------------------
-    if (!glfwInit()) {
-        std::cerr << "Failed to init GLFW" << std::endl;
-        return;
-    }
+    if (!pixelsBuffer) glGenBuffers(1, &pixelsBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * width * height, pixelsPtr, GL_DYNAMIC_DRAW);
 
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    if (!voxelBuffer) glGenBuffers(1, &voxelBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, voxelBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * worldSize[0]*worldSize[1]*worldSize[2], voxelGridPtr, GL_STATIC_DRAW);
 
-    GLFWwindow* window = glfwCreateWindow(1, 1, "Hidden", nullptr, nullptr);
-    if (!window) {
-        std::cerr << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return;
-    }
+    if (!colorBuffer) glGenBuffers(1, &colorBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, colorBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * voxCount, colorPtr, GL_STATIC_DRAW);
 
-    glfwMakeContextCurrent(window);
+    if (!opacityBuffer) glGenBuffers(1, &opacityBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, opacityBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * voxCount, opacityPtr, GL_STATIC_DRAW);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Failed to init GLAD" << std::endl;
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return;
-    }
-
-    // -------------------------
-    // 3. Compile compute shader
-    // -------------------------
-    GLuint computeProgram = compileComputeShader(
-        "C:\\Users\\every\\Documents\\Github\\Capstone_Sketch\\natives\\win\\src\\Shaders.comp.glsl"
-    );
     glUseProgram(computeProgram);
 
-    // -------------------------
-    // 4. Create SSBOs
-    // -------------------------
-    GLuint pixelsBuffer, voxelBuffer, colorBuffer, opacityBuffer;
-
-    glGenBuffers(1, &pixelsBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, width * height * sizeof(int), pixelsPtr, GL_DYNAMIC_COPY);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pixelsBuffer);
-
-    int voxelGridSize = worldSize[0] * worldSize[1] * worldSize[2];
-    glGenBuffers(1, &voxelBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, voxelBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, voxelGridSize * sizeof(int), voxelGridPtr, GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, voxelBuffer);
-
-    glGenBuffers(1, &colorBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, colorBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, voxCount * sizeof(int), colorPtr, GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, colorBuffer);
-
-    glGenBuffers(1, &opacityBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, opacityBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, voxCount * sizeof(float), opacityPtr, GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, opacityBuffer);
 
-    // -------------------------
-    // 5. Pack RayParams and send to SSBO
-    // -------------------------
-    struct RayParams {
-        float cam[3];
-        float forward[3];
-        float right[3];
-        float up[3];
-        float tanFov;
-        int voxelCount;
-        int worldMin[3];
-        int worldSize[3];
-    } params;
+    GLint loc_cam = glGetUniformLocation(computeProgram, "cam");
+    GLint loc_forward = glGetUniformLocation(computeProgram, "forward");
+    GLint loc_right = glGetUniformLocation(computeProgram, "right");
+    GLint loc_up = glGetUniformLocation(computeProgram, "up");
+    GLint loc_tanFov = glGetUniformLocation(computeProgram, "tanFov");
+    GLint loc_voxCount = glGetUniformLocation(computeProgram, "voxCount");
+    GLint loc_worldMin = glGetUniformLocation(computeProgram, "worldMin");
+    GLint loc_worldSize = glGetUniformLocation(computeProgram, "worldSize");
+    GLint loc_width = glGetUniformLocation(computeProgram, "width");
+    GLint loc_height = glGetUniformLocation(computeProgram, "height");
 
-    params.cam[0] = camPtr[0]; params.cam[1] = camPtr[1]; params.cam[2] = camPtr[2];
-    params.forward[0] = forwardPtr[0]; params.forward[1] = forwardPtr[1]; params.forward[2] = forwardPtr[2];
-    params.right[0] = rightPtr[0]; params.right[1] = rightPtr[1]; params.right[2] = rightPtr[2];
-    params.up[0] = upPtr[0]; params.up[1] = upPtr[1]; params.up[2] = upPtr[2];
-    params.tanFov = tanFov;
-    params.voxelCount = voxCount;
-    params.worldMin[0] = worldMin[0]; params.worldMin[1] = worldMin[1]; params.worldMin[2] = worldMin[2];
-    params.worldSize[0] = worldSize[0]; params.worldSize[1] = worldSize[1]; params.worldSize[2] = worldSize[2];
+    glUniform3f(loc_cam, camPtr[0], camPtr[1], camPtr[2]);
+    glUniform3f(loc_forward, forwardPtr[0], forwardPtr[1], forwardPtr[2]);
+    glUniform3f(loc_right, rightPtr[0], rightPtr[1], rightPtr[2]);
+    glUniform3f(loc_up, upPtr[0], upPtr[1], upPtr[2]);
+    glUniform1f(loc_tanFov, tanFov);
+    glUniform1i(loc_voxCount, voxCount);
+    glUniform3i(loc_worldMin, worldMin[0], worldMin[1], worldMin[2]);
+    glUniform3i(loc_worldSize, worldSize[0], worldSize[1], worldSize[2]);
+    glUniform1i(loc_width, width);
+    glUniform1i(loc_height, height);
 
-    GLuint paramsBuffer;
-    glGenBuffers(1, &paramsBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, paramsBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(RayParams), &params, GL_STATIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, paramsBuffer);
-
-    // -------------------------
-    // 6. Set width/height uniforms
-    // -------------------------
-    GLint loc = glGetUniformLocation(computeProgram, "width"); glUniform1i(loc, width);
-    loc = glGetUniformLocation(computeProgram, "height"); glUniform1i(loc, height);
-
-    // -------------------------
-    // 7. Dispatch compute shader
-    // -------------------------
-    int workgroupX = (width + 7) / 8;
-    int workgroupY = (height + 7) / 8;
-    glDispatchCompute(workgroupX, workgroupY, 1);
+    GLuint workGroupSizeX = 8;
+    GLuint workGroupSizeY = 8;
+    GLuint groupsX = (width + workGroupSizeX - 1) / workGroupSizeX;
+    GLuint groupsY = (height + workGroupSizeY - 1) / workGroupSizeY;
+    glDispatchCompute(groupsX, groupsY, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    // -------------------------
-    // 8. Copy pixels back
-    // -------------------------
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
-    int* ptr = (int*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
-    memcpy(pixelsPtr, ptr, width * height * sizeof(int));
+    void* ptr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+    memcpy(pixelsPtr, ptr, sizeof(jint) * width * height);
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
-    // -------------------------
-    // 9. Cleanup
-    // -------------------------
-    glDeleteBuffers(1, &pixelsBuffer);
-    glDeleteBuffers(1, &voxelBuffer);
-    glDeleteBuffers(1, &colorBuffer);
-    glDeleteBuffers(1, &opacityBuffer);
-    glDeleteBuffers(1, &paramsBuffer);
-    glDeleteProgram(computeProgram);
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
-    // -------------------------
-    // 10. Release Java arrays
-    // -------------------------
     env->ReleaseIntArrayElements(pixels, pixelsPtr, 0);
-    env->ReleaseFloatArrayElements(cam, camPtr, 0);
-    env->ReleaseFloatArrayElements(forward, forwardPtr, 0);
-    env->ReleaseFloatArrayElements(right, rightPtr, 0);
-    env->ReleaseFloatArrayElements(up, upPtr, 0);
     env->ReleaseIntArrayElements(color, colorPtr, 0);
     env->ReleaseFloatArrayElements(opacity, opacityPtr, 0);
     env->ReleaseIntArrayElements(worldMinArray, worldMin, 0);
     env->ReleaseIntArrayElements(worldSizeArray, worldSize, 0);
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
+    env->ReleaseFloatArrayElements(cam, camPtr, 0);
+    env->ReleaseFloatArrayElements(forward, forwardPtr, 0);
+    env->ReleaseFloatArrayElements(right, rightPtr, 0);
+    env->ReleaseFloatArrayElements(up, upPtr, 0);
 }
