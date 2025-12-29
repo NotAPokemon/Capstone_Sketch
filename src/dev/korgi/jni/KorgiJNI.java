@@ -7,9 +7,7 @@ public class KorgiJNI {
         if (os.contains("mac")) {
             System.loadLibrary("korgikompute-mac");
         } else if (os.contains("win")) {
-            System.load(
-                    "C:\\Users\\every\\Documents\\Github\\Capstone_Sketch\\natives\\win\\build\\korgikompute-win.dll");
-
+            System.loadLibrary("korgikompute-win");
         } else if (os.contains("nux")) {
             System.loadLibrary("korgikompute-linux");
         } else {

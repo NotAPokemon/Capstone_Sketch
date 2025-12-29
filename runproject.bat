@@ -1,3 +1,6 @@
-@echo on
+@echo off
 
-runjava.bat -e -Djava.library.path=%cd%\natives\win\build
+
+set "DIR=%cd%"
+set "DIR=%DIR:\=/%"
+runjava.bat -e "-Djava.library.path=%DIR%/natives/win/build"

@@ -12,7 +12,10 @@ IF NOT EXIST "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
 C:\msys64\mingw64\bin\clang -m64 -c "%SRC_DIR%/glad.c" -I"%INCLUDE%" -o glad.o
 
-c:\msys64\mingw64\bin\clang++ -m64 -std=c++17 -shared "%SRC_DIR%/KorgiJNI.cpp" glad.o -Iinclude -I"%INCLUDE%" -I"%JNI_INCLUDE%" -I"%JNI_INCLUDE_WIN%" -L "%LIB_DIR%" -lglfw3 -luser32 -lgdi32 -lkernel32 -lwinmm -lshell32 -lopengl32 -lgdi32 -luser32 -lkernel32 -lwinmm -lshell32 -lole32 -ladvapi32 -o "%BUILD_DIR%\korgikompute-win.dll"
+C:\msys64\mingw64\bin\clang++ -m64 -static -std=c++17 -shared "%SRC_DIR%/KorgiJNI.cpp" glad.o ^
+    -I"%INCLUDE%" -I"%JNI_INCLUDE%" -I"%JNI_INCLUDE_WIN%" -I"include" ^
+    -L"%LIB_DIR%" -lglfw3 -luser32 -lgdi32 -lkernel32 -lwinmm -lshell32 -lopengl32 -lole32 -ladvapi32 ^
+    -o "%BUILD_DIR%\korgikompute-win.dll"
 
 del glad.o
 
