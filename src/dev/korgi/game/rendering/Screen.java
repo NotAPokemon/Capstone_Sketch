@@ -440,7 +440,6 @@ public class Screen extends PApplet {
     @Override
     public void exit() {
         if (Game.isClient) {
-            WorldSpace.kernel.dispose();
         }
         super.exit();
     }

@@ -312,13 +312,17 @@ public class NetworkStream {
 
     private static void handlePingTimeouts() {
         long now = System.currentTimeMillis();
-        lastPing.entrySet().removeIf(e -> {
-            if (now - e.getValue() > PING_TIMEOUT_MS) {
-                disconnectClient(e.getKey());
-                return true;
-            }
-            return false;
-        });
+        try {
+            lastPing.entrySet().removeIf(e -> {
+                if (now - e.getValue() > PING_TIMEOUT_MS) {
+                    disconnectClient(e.getKey());
+                    return true;
+                }
+                return false;
+            });
+        } catch (ConcurrentModificationException e) {
+        }
+
     }
 
     // ========================

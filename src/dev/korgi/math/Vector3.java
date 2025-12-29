@@ -157,4 +157,32 @@ public class Vector3 {
         return this;
     }
 
+    public int[] toIntArray() {
+        return new int[] {
+                (int) x,
+                (int) y,
+                (int) z
+        };
+    }
+
+    public float[] toFloatArray() {
+        return new float[] {
+                (float) x,
+                (float) y,
+                (float) z
+        };
+    }
+
+    public double[] toArray() {
+        return new double[] {
+                x,
+                y,
+                z
+        };
+    }
+
+    public double multiplyComp() {
+        return x * y * z;
+    }
+
 }
