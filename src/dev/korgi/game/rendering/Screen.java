@@ -17,7 +17,6 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import dev.korgi.game.Game;
-import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
@@ -125,25 +124,10 @@ public class Screen extends PApplet {
             drawSelector();
             return;
         }
-
-        if (Game.isClient) {
-            handleMouseMovement();
-            WorldEngine.updateClient();
-            WorldSpace.execute();
-            drawOpenClientMenus();
-        } else {
-            WorldEngine.execute();
-            drawServerInfo();
-        }
-
-        if (Game.isInitialized()) {
-            Game.loop();
-        }
-
-        drawHUD();
+        Game.loop(this);
     }
 
-    private void drawHUD() {
+    public void drawHUD() {
         fill(255);
         text("FPS: " + (int) frameRate, 30, 50);
         if (Game.isClient) {
@@ -160,7 +144,7 @@ public class Screen extends PApplet {
 
     private boolean stopHostingHover = false;
 
-    private void drawOpenClientMenus() {
+    public void drawOpenClientMenus() {
         fill(255);
         int size = 10;
         int gap = 4;
@@ -184,7 +168,7 @@ public class Screen extends PApplet {
 
     }
 
-    private void handleMouseMovement() {
+    public void handleMouseMovement() {
         noCursor();
         Point p = ((Component) surface.getNative()).getLocationOnScreen();
         if (firstMouse) {
@@ -206,7 +190,7 @@ public class Screen extends PApplet {
 
     }
 
-    private void drawServerInfo() {
+    public void drawServerInfo() {
         background(50);
 
         int buttonWidth = 200;

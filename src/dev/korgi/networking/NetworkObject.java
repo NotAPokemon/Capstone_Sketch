@@ -2,6 +2,7 @@ package dev.korgi.networking;
 
 import java.util.function.Supplier;
 
+import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
 
 public abstract class NetworkObject {
@@ -10,8 +11,8 @@ public abstract class NetworkObject {
     private boolean canceledTickEnd = false;
     private Supplier<Boolean> cancelTick;
 
-    public void loop(double dt, boolean isClient) {
-        Packet incomming_packet = NetworkStream.getPacket(internal_id, isClient);
+    public void loop(double dt) {
+        Packet incomming_packet = NetworkStream.getPacket(internal_id, Game.isClient);
         if (incomming_packet != null) {
             handleInPacket(incomming_packet);
             incomming_packet.getData().fillObject(this);
@@ -19,7 +20,7 @@ public abstract class NetworkObject {
         if (cancelTick != null && cancelTick.get()) {
             return;
         }
-        if (isClient) {
+        if (Game.isClient) {
             client(dt);
         } else {
             server(dt);
@@ -29,12 +30,6 @@ public abstract class NetworkObject {
             canceledTickEnd = false;
             return;
         }
-
-        JSONObject outData = new JSONObject(this);
-        Packet outPacket = new Packet(internal_id, isClient ? NetworkStream.SERVER : NetworkStream.CLIENT,
-                isClient ? NetworkStream.INPUT_HANDLE_REQUEST : NetworkStream.BROADCAST, outData);
-        handleOutPacket(outPacket);
-        NetworkStream.sendPacket(outPacket);
 
     }
 
@@ -52,6 +47,14 @@ public abstract class NetworkObject {
 
     protected void handleInPacket(Packet in) {
 
+    }
+
+    public void sendOut() {
+        JSONObject outData = new JSONObject(this);
+        Packet outPacket = new Packet(internal_id, Game.isClient ? NetworkStream.SERVER : NetworkStream.CLIENT,
+                Game.isClient ? NetworkStream.INPUT_HANDLE_REQUEST : NetworkStream.BROADCAST, outData);
+        handleOutPacket(outPacket);
+        NetworkStream.sendPacket(outPacket);
     }
 
     protected abstract void client(double dt);
