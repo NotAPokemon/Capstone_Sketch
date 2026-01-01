@@ -101,6 +101,15 @@ public class WorldEngine {
         return world;
     }
 
+    public static Voxel voxelAt(Vector3 pos) {
+        for (Voxel v : world.voxels) {
+            if (voxelIntersects(v.position, pos)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
     private static void entitiesIntersect(Entity a, Entity b) {
         for (Voxel va : a.body) {
             Vector3 vaWorld = va.position.add(a.position);

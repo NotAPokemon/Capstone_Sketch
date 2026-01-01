@@ -61,6 +61,8 @@ public class Player extends Entity {
                 0,
                 Math.cos(yaw - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
 
+        Vector3 originalPos = position.copy();
+
         checkKey("w", () -> position.addTo(forward));
         checkKey("s", () -> position.subtractFrom(forward));
         checkKey("a", () -> position.subtractFrom(right));
@@ -73,6 +75,10 @@ public class Player extends Entity {
             onGround = false;
         });
         checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(0, speed * dt, 0));
+
+        if (!originalPos.equals(position)) {
+            onGround = WorldEngine.voxelAt(position.subtract(0, 1, 0)) != null;
+        }
     }
 
     private void checkKey(String key, Runnable handler) {
