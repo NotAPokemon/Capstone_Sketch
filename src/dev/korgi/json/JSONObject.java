@@ -244,9 +244,6 @@ public class JSONObject {
         return null;
     }
 
-    // ========================
-    // Typed getters for array/list values
-    // ========================
     @SuppressWarnings("unchecked")
     public List<String> getStringList(String key) {
         Object value = values.get(key);
@@ -302,39 +299,50 @@ public class JSONObject {
         return null;
     }
 
-    // ========================
-    // Adders for single values and list forms
-    // ========================
     public void addString(String key, String value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addInt(String key, int value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addDouble(String key, double value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addBoolean(String key, boolean value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addLong(String key, long value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addFloat(String key, float value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     public void addChar(String key, char value) {
-        addToList(key, value);
+        if (!hasKey(key)) {
+            set(key, value);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    private <T> void addToList(String key, T value) {
+    public <T> void addToList(String key, T value) {
         Object existing = values.get(key);
         List<Object> list;
         if (existing instanceof List) {
@@ -350,9 +358,6 @@ public class JSONObject {
         values.put(key, list);
     }
 
-    // ========================
-    // JSON string deserialization
-    // ========================
     public static JSONObject fromJSONString(String json) throws RuntimeException {
         JSONParser parser = new JSONParser(json);
         return parser.parseObject();
@@ -484,9 +489,6 @@ public class JSONObject {
         return result;
     }
 
-    // ========================
-    // Internal simple JSON parser
-    // ========================
     private static class JSONParser {
         private final String json;
         private int pos = 0;

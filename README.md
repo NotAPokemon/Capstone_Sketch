@@ -13,6 +13,7 @@
 # Instructions
 
 - Ensure the port 6967 is not used by another program before running these steps
+- if the port is being used change the config file and tell people joining the server to do so aswell
 
 ## Singleplayer
 
@@ -35,6 +36,19 @@
    - On windows open powershell and run `(Invoke-WebRequest ifconfig.me/ip).Content.Trim()`
    - On Mac run `curl ifconfig.me`
 
-4. To join a server go to [Game.java](./src/dev/korgi/game/Game.java) and edit line 24 change `localhost` to the sever IP given by the host
+4. To join a server go to [config.json](./src/resources/)
 
-5. Then do steps 3-5 from the single player instructions
+5. create a config.json if not already there
+
+6. set the key `ip` to the server IP given by the host (you may also need to change the port if the host is not using 6967)
+
+7. Then do steps 3-5 from the single player instructions
+
+example config:
+
+```
+{
+  "port": 6967,
+  "ip": "localhost"
+}
+```

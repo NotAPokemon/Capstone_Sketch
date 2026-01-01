@@ -1,12 +1,15 @@
 package dev.korgi.game;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Screen;
 import dev.korgi.game.rendering.WorldSpace;
+import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 
@@ -17,13 +20,35 @@ public class Game {
     private static boolean initialized = false;
     private static List<Player> players = new ArrayList<>();
     public static boolean canFly = false;
+    private static JSONObject config;
+
+    private static void loadConfigDefaults() {
+        if (config == null) {
+            config = new JSONObject();
+        }
+        config.addString("ip", "localhost");
+        config.addInt("port", 6967);
+    }
 
     public static void init() throws IOException {
+        InputStream in = JSONObject.class
+                .getClassLoader()
+                .getResourceAsStream("resources/config.json");
+
+        if (in == null) {
+            System.out.println("Warning: No config.json found using defaults");
+        } else {
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            config = JSONObject.fromJSONString(json);
+        }
+
+        loadConfigDefaults();
+
         lastTime = System.nanoTime();
         if (isClient) {
-            NetworkStream.startClient("localhost", 6967);
+            NetworkStream.startClient(config.getString("ip"), config.getInt("port"));
         } else {
-            NetworkStream.startServer(6967);
+            NetworkStream.startServer(config.getInt("port"));
             WorldEngine.init();
         }
         initialized = true;
