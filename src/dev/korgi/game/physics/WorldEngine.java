@@ -21,13 +21,24 @@ public class WorldEngine {
             for (int z = 0; z < 10; z++) {
                 Voxel v = new Voxel(x, -5, z, color);
                 v.getMaterial().setOpacity(opacity);
-                world.voxels.add(v);
+                addVoxel(v);
             }
         }
     }
 
+    public static void addEntity(Entity e) {
+        world.entities.add(e);
+        world.updated = true;
+    }
+
+    public static void addVoxel(Voxel v) {
+        world.voxels.add(v);
+        world.updated = true;
+    }
+
     public static void addRandomVoxel(Vector3 pos) {
-        getVoxels().add(new Voxel(pos, Math.random(), Math.random(), Math.random(), 1));
+        world.voxels.add(new Voxel(pos, Math.random(), Math.random(), Math.random(), 1));
+        world.updated = true;
     }
 
     public static void updateClient() {
@@ -78,17 +89,16 @@ public class WorldEngine {
             }
         }
 
-        JSONObject outData = new JSONObject(world);
-        Packet out = new Packet("world", NetworkStream.CLIENT, NetworkStream.BROADCAST, outData);
-        NetworkStream.sendPacket(out);
+        if (world.updated) {
+            world.updated = false;
+            JSONObject outData = new JSONObject(world);
+            Packet out = new Packet("world", NetworkStream.CLIENT, NetworkStream.BROADCAST, outData);
+            NetworkStream.sendPacket(out);
+        }
     }
 
-    public static List<Entity> getEntities() {
-        return world.entities;
-    }
-
-    public static List<Voxel> getVoxels() {
-        return world.voxels;
+    public static WorldStorage getWorld() {
+        return world;
     }
 
     private static void entitiesIntersect(Entity a, Entity b) {

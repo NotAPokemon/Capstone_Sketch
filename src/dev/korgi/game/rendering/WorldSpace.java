@@ -23,7 +23,7 @@ public class WorldSpace {
         }
 
         long time = System.nanoTime();
-        NativeGPUKernal.execute(WorldEngine.getVoxels(), camera);
+        NativeGPUKernal.execute(WorldEngine.getWorld().voxels, camera);
         if ((System.nanoTime() - time) / 1e9 > 0.05) {
             System.out.println("Warning Kernal Latancy High: " + (System.nanoTime() - time) / 1e9);
         }

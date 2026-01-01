@@ -29,7 +29,7 @@ public abstract class Entity extends NetworkObject {
     }
 
     public void addToWorld() {
-        WorldEngine.getEntities().add(this);
+        WorldEngine.addEntity(this);
     }
 
 }
