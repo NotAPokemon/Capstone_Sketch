@@ -17,7 +17,6 @@ public class Game {
     private static boolean initialized = false;
     private static List<Player> players = new ArrayList<>();
     public static boolean canFly = false;
-    public static final double g = 9.81;
 
     public static void init() throws IOException {
         lastTime = System.nanoTime();

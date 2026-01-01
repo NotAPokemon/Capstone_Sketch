@@ -8,5 +8,6 @@ import dev.korgi.game.rendering.Voxel;
 public class WorldStorage {
     public List<Voxel> voxels = new ArrayList<>();
     public List<Entity> entities = new ArrayList<>();
+    public boolean updated;
 
 }

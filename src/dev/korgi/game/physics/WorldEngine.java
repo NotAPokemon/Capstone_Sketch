@@ -12,6 +12,7 @@ import dev.korgi.networking.Packet;
 public class WorldEngine {
 
     private static final WorldStorage world = new WorldStorage();
+    public static final double g = 9.80665;
 
     public static void init() {
         Vector4 color = new Vector4(Math.random(), Math.random(), Math.random(), 1);
@@ -23,6 +24,10 @@ public class WorldEngine {
                 world.voxels.add(v);
             }
         }
+    }
+
+    public static void addRandomVoxel(Vector3 pos) {
+        getVoxels().add(new Voxel(pos, Math.random(), Math.random(), Math.random(), 1));
     }
 
     public static void updateClient() {

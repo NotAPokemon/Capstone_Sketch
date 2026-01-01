@@ -185,4 +185,20 @@ public class Vector3 {
         return x * y * z;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Vector4 v) {
+            return v.x == x && v.y == y && v.z == z;
+        } else if (obj instanceof Vector3 v) {
+            return v.x == x && v.y == y && v.z == z;
+        } else if (obj instanceof Vector2 v) {
+            return v.x == x && v.y == y;
+        }
+        return false;
+    }
+
+    public Vector3 copy() {
+        return new Vector3(x, y, z);
+    }
+
 }

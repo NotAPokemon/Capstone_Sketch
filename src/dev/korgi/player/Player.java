@@ -42,7 +42,7 @@ public class Player extends Entity {
 
     private void handlePhysics(double dt) {
         if (!onGround && !Game.canFly)
-            velocity.subtractFrom(0, Game.g * dt, 0);
+            velocity.subtractFrom(0, WorldEngine.g * dt, 0);
 
         position.addTo(velocity.multiply(dt));
     }
@@ -66,14 +66,13 @@ public class Player extends Entity {
         checkKey("a", () -> position.subtractFrom(right));
         checkKey("d", () -> position.addTo(right));
         checkKey("j", () -> Game.canFly = !Game.canFly);
-        checkKey("RMB", () -> WorldEngine.getVoxels()
-                .add(new Voxel(position.add(0, -1, 0), Math.random(), Math.random(), Math.random(), 1)));
-        checkKey(" ", Game.canFly, () -> position.addTo(new Vector3(0, speed * dt, 0)));
+        checkKey("RMB", () -> WorldEngine.addRandomVoxel(position.add(0, -1, 0)));
+        checkKey(" ", Game.canFly, () -> position.addTo(0, speed * dt, 0));
         checkKey(" ", !Game.canFly && onGround, () -> {
             velocity.addTo(0, 5, 0);
             onGround = false;
         });
-        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(new Vector3(0, speed * dt, 0)));
+        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(0, speed * dt, 0));
     }
 
     private void checkKey(String key, Runnable handler) {
@@ -120,7 +119,7 @@ public class Player extends Entity {
     @Override
     public List<Voxel> createBody() {
         List<Voxel> voxels = new ArrayList<>();
-        Voxel v = new Voxel(0, 0, 0, VectorConstants.DARK_GREEN);
+        Voxel v = new Voxel(VectorConstants.DARK_GREEN);
         Voxel v2 = new Voxel(0, -1, 0, VectorConstants.DARK_GREEN);
         voxels.add(v);
         voxels.add(v2);
