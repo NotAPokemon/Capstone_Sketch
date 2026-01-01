@@ -6,10 +6,10 @@ struct RayParams {
     float3 forward;
     float3 right;
     float3 up;
-    float tanFov;
-    int voxelCount;
     int3 worldMin;
     int3 worldSize;
+    float tanFov;
+    int voxelCount;
 };
 
 // Buffers 0-3: pixels, voxelGrid, colors, opacity

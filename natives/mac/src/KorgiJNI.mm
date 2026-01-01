@@ -9,10 +9,10 @@ struct RayParams {
     simd_float3 forward;
     simd_float3 right;
     simd_float3 up;
-    float tanFov;
-    int32_t voxelCount;
     simd_int3 worldMin;
     simd_int3 worldSize;
+    float tanFov;
+    int32_t voxelCount;
 };
 
 static id<MTLDevice> device = nil;
