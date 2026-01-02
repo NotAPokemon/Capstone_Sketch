@@ -12,10 +12,16 @@ public abstract class NetworkObject {
     private Supplier<Boolean> cancelTick;
 
     public void loop(double dt) {
+        if (NetworkStream.frameCount >= 50) {
+            NetworkStream.frameCount = 0;
+            NetworkStream.packetCount = 0;
+        }
+        NetworkStream.frameCount++;
         Packet incomming_packet = NetworkStream.getPacket(internal_id, Game.isClient);
         if (incomming_packet != null) {
             handleInPacket(incomming_packet);
             incomming_packet.getData().fillObject(this);
+            NetworkStream.packetCount++;
         }
         if (cancelTick != null && cancelTick.get()) {
             return;

@@ -32,4 +32,16 @@ public abstract class Entity extends NetworkObject {
         WorldEngine.addEntity(this);
     }
 
+    public Vector3 getPosition() {
+        return position;
+    }
+
+    public Vector3 getVelocity() {
+        return velocity;
+    }
+
+    public List<Voxel> getBody() {
+        return body;
+    }
+
 }

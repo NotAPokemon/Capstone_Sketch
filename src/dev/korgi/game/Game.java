@@ -3,11 +3,14 @@ package dev.korgi.game;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Screen;
 import dev.korgi.game.rendering.WorldSpace;
 import dev.korgi.json.JSONObject;
+import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 
@@ -82,19 +85,17 @@ public class Game {
             p.sendOut();
         }
 
-        Player client = getClient();
-        if (client == null)
-            return;
-        if (client.pressedKeys.contains("LMB")) {
-            client.pressedKeys.remove("LMB");
-            client.pressedKeys.add("LMB_HOLD");
-        }
+        withClient((p) -> {
+            if (p.pressedKeys.contains("LMB")) {
+                p.pressedKeys.remove("LMB");
+                p.pressedKeys.add("LMB_HOLD");
+            }
 
-        if (client.pressedKeys.contains("RMB")) {
-            client.pressedKeys.remove("RMB");
-            client.pressedKeys.add("RMB_HOLD");
-        }
-
+            if (p.pressedKeys.contains("RMB")) {
+                p.pressedKeys.remove("RMB");
+                p.pressedKeys.add("RMB_HOLD");
+            }
+        });
     }
 
     public static void networkStartLoop() {
@@ -124,6 +125,20 @@ public class Game {
 
     public static boolean isInitialized() {
         return initialized;
+    }
+
+    public static void withClient(Consumer<Player> operation) {
+        Player client = getClient();
+        if (client != null) {
+            operation.accept(client);
+        }
+    }
+
+    public static void withClient(BiConsumer<Player, Vector3> operation) {
+        Player client = getClient();
+        if (client != null) {
+            operation.accept(client, client.getPosition());
+        }
     }
 
 }

@@ -47,6 +47,9 @@ public class NetworkStream {
     private static long lastPingSent = 0;
     private static long lastRoundTripPing = -1;
 
+    public static double frameCount = 0;
+    public static double packetCount = 0;
+
     // Incoming queue
     private static final Queue<Incoming> incoming = new ConcurrentLinkedQueue<>();
 

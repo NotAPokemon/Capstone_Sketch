@@ -130,9 +130,6 @@ public class Screen extends PApplet {
     public void drawHUD() {
         fill(255);
         text("FPS: " + (int) frameRate, 30, 50);
-        if (Game.isClient) {
-            text("Ping: " + (int) NetworkStream.getPing(), 30, 60);
-        }
 
         if (uiMessage != null && uiMessageTimer > 0) {
             fill(255, 0, 0);
@@ -166,6 +163,13 @@ public class Screen extends PApplet {
 
         noStroke();
 
+        text("Ping: " + (int) NetworkStream.getPing(), 30, 65);
+        text("Sync Rate: " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 62,
+                80);
+
+        Game.withClient((p, pos) -> {
+            text("XYZ: %.1f / %.1f / %.1f".formatted(pos.x, pos.y, pos.z), width / 2, 40);
+        });
     }
 
     public void handleMouseMovement() {
