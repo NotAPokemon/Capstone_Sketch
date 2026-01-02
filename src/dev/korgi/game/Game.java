@@ -81,6 +81,20 @@ public class Game {
         for (Player p : players) {
             p.sendOut();
         }
+
+        Player client = getClient();
+        if (client == null)
+            return;
+        if (client.pressedKeys.contains("LMB")) {
+            client.pressedKeys.remove("LMB");
+            client.pressedKeys.add("LMB_HOLD");
+        }
+
+        if (client.pressedKeys.contains("RMB")) {
+            client.pressedKeys.remove("RMB");
+            client.pressedKeys.add("RMB_HOLD");
+        }
+
     }
 
     public static void networkStartLoop() {

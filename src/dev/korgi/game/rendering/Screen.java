@@ -306,11 +306,13 @@ public class Screen extends PApplet {
             }
         } else if (Game.isClient) {
             Player client = Game.getClient();
-            if (client != null && mouseButton == LEFT && !client.pressedKeys.contains("LMB")) {
+            if (client != null && mouseButton == LEFT && !client.pressedKeys.contains("LMB") && !client.pressedKeys
+                    .contains("LMB_HOLD")) {
                 client.pressedKeys.add("LMB");
             }
 
-            if (client != null && mouseButton == RIGHT && !client.pressedKeys.contains("RMB")) {
+            if (client != null && mouseButton == RIGHT && !client.pressedKeys.contains("RMB") && !client.pressedKeys
+                    .contains("RMB_HOLD")) {
                 client.pressedKeys.add("RMB");
             }
             if (client != null && mouseButton == CENTER && !client.pressedKeys.contains("WD")) {
@@ -329,10 +331,10 @@ public class Screen extends PApplet {
             Player client = Game.getClient();
             if (client != null) {
                 if (mouseButton == LEFT) {
-                    client.pressedKeys.remove("LMB");
+                    client.pressedKeys.remove("LMB_HOLD");
                 }
                 if (mouseButton == RIGHT) {
-                    client.pressedKeys.remove("RMB");
+                    client.pressedKeys.remove("RMB_HOLD");
                 }
                 if (mouseButton == CENTER) {
                     client.pressedKeys.remove("WD");
