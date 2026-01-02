@@ -1,8 +1,6 @@
 package dev.korgi.game;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +22,7 @@ public class Game {
 
     private static void loadConfigDefaults() {
         if (config == null) {
+            System.out.println("Warning no config.json found using default config");
             config = new JSONObject();
         }
         config.addString("ip", "localhost");
@@ -31,16 +30,8 @@ public class Game {
     }
 
     public static void init() throws IOException {
-        InputStream in = JSONObject.class
-                .getClassLoader()
-                .getResourceAsStream("resources/config.json");
 
-        if (in == null) {
-            System.out.println("Warning: No config.json found using defaults");
-        } else {
-            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            config = JSONObject.fromJSONString(json);
-        }
+        config = JSONObject.fromResource("config");
 
         loadConfigDefaults();
 

@@ -1,7 +1,10 @@
 package dev.korgi.json;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class JSONObject {
@@ -185,9 +188,6 @@ public class JSONObject {
                 .replace("\t", "\\t");
     }
 
-    // ========================
-    // Typed getters for single values
-    // ========================
     public String getString(String key) {
         Object value = values.get(key);
         return value != null ? value.toString() : null;
@@ -361,6 +361,23 @@ public class JSONObject {
     public static JSONObject fromJSONString(String json) throws RuntimeException {
         JSONParser parser = new JSONParser(json);
         return parser.parseObject();
+    }
+
+    public static JSONObject fromResource(String name) {
+        try {
+            InputStream in = JSONObject.class
+                    .getClassLoader()
+                    .getResourceAsStream("resources/%s.json".formatted(name));
+
+            if (in != null) {
+                String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                return JSONObject.fromJSONString(json);
+            }
+        } catch (IOException e) {
+            throw new Error(e);
+        }
+
+        return null;
     }
 
     public void fillObject(Object target) {
