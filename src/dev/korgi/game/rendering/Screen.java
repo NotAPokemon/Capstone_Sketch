@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +22,7 @@ import dev.korgi.json.JSONObject;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import processing.core.PApplet;
+import processing.event.MouseEvent;
 
 public class Screen extends PApplet {
 
@@ -130,6 +132,8 @@ public class Screen extends PApplet {
     public void drawHUD() {
         fill(255);
         text("FPS: " + (int) frameRate, 30, 50);
+        text("Sync Rate: " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 62,
+                80);
 
         if (uiMessage != null && uiMessageTimer > 0) {
             fill(255, 0, 0);
@@ -164,8 +168,6 @@ public class Screen extends PApplet {
         noStroke();
 
         text("Ping: " + (int) NetworkStream.getPing(), 30, 65);
-        text("Sync Rate: " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 62,
-                80);
 
         Game.withClient((p, pos) -> {
             text("XYZ: %.1f / %.1f / %.1f".formatted(pos.x, pos.y, pos.z), width / 2, 40);
@@ -186,58 +188,116 @@ public class Screen extends PApplet {
 
         robot.mouseMove((int) (p.x + width / 2), (int) (p.y + height / 2));
 
-        WorldSpace.camera.rotation.y -= deltaX * mouseSensitivity;
-        WorldSpace.camera.rotation.x -= deltaY * mouseSensitivity;
+        Graphics.camera.rotation.y -= deltaX * mouseSensitivity;
+        Graphics.camera.rotation.x -= deltaY * mouseSensitivity;
 
-        WorldSpace.camera.rotation.x = Math.max((float) -Math.PI / 2,
-                Math.min((float) Math.PI / 2, WorldSpace.camera.rotation.x));
+        Graphics.camera.rotation.x = Math.max((float) -Math.PI / 2,
+                Math.min((float) Math.PI / 2, Graphics.camera.rotation.x));
 
     }
+
+    String[] playerOptions;
+    Integer[] playerColors;
+    boolean dropdownOpen = false;
+    int selectedIndex = -1;
+
+    // Scroll variables
+    int scrollOffset = 0;
+    int maxVisibleItems = 5; // max items visible without scrolling
+
+    // Layout constants
+    int buttonWidth = 200;
+    int buttonHeight = 50;
+    int dropdownWidth = 220;
+    int dropdownHeight = 40;
+    int spacing = 20; // vertical spacing between UI elements
+    int colorBoxSize = 30;
 
     public void drawServerInfo() {
         background(50);
 
-        int buttonWidth = 200;
-        int buttonHeight = 60;
-        int hostX = width / 2 - buttonWidth - 20;
-        int buttonsY = height / 4 - buttonHeight / 2;
+        // Compute positions relative to center
+        int centerX = width / 2;
+        int topY = height / 4;
+
+        // Stop Hosting button
+        int hostX = centerX - buttonWidth / 2;
+        int hostY = topY;
 
         stopHostingHover = mouseX > hostX && mouseX < hostX + buttonWidth &&
-                mouseY > buttonsY && mouseY < buttonsY + buttonHeight;
+                mouseY > hostY && mouseY < hostY + buttonHeight;
 
         fill(stopHostingHover ? 100 : 200);
-        rect(hostX, buttonsY, buttonWidth, buttonHeight, 10);
+        rect(hostX, hostY, buttonWidth, buttonHeight, 10);
         fill(0);
         textAlign(CENTER, CENTER);
-        text("Stop Hosting", hostX + buttonWidth / 2, buttonsY + buttonHeight / 2);
+        text("Stop Hosting", hostX + buttonWidth / 2, hostY + buttonHeight / 2);
 
+        // Prepare player dropdown
         List<Player> players = Game.getPlayers();
-        int centerX = width / 2;
-        int centerY = height / 2;
-        int radius = 200; // radius of circle layout
-        int playerCount = players.size();
+        List<String> connectedPlayers = new ArrayList<>();
+        List<Integer> colors = new ArrayList<>();
+        for (Player p : players) {
+            if (p.connected) {
+                connectedPlayers.add(p.internal_id.substring(0, 8));
+                int hash = p.internal_id.hashCode();
+                int r = (hash >> 16) & 0xFF;
+                int g = (hash >> 8) & 0xFF;
+                int b = hash & 0xFF;
+                colors.add(color(r, g, b));
+            }
+        }
+        playerOptions = connectedPlayers.toArray(new String[0]);
+        playerColors = colors.toArray(new Integer[0]);
 
-        for (int i = 0; i < playerCount; i++) {
-            Player player = players.get(i);
-            float angle = map(i, 0, playerCount, 0, TWO_PI);
-            float px = centerX + cos(angle) * radius;
-            float py = centerY + sin(angle) * radius;
+        // Dropdown position below Stop Hosting button
+        int dropdownX = centerX - dropdownWidth / 2;
+        int dropdownY = hostY + buttonHeight + spacing;
 
-            // Generate a consistent random color based on UUID
-            int hash = player.internal_id.hashCode();
-            int r = (hash >> 16) & 0xFF;
-            int g = (hash >> 8) & 0xFF;
-            int b = hash & 0xFF;
+        // Draw main dropdown box
+        fill(200);
+        rect(dropdownX, dropdownY, dropdownWidth, dropdownHeight, 5);
+        fill(0);
+        textAlign(LEFT, CENTER);
+        String label = (selectedIndex >= 0) ? playerOptions[selectedIndex] : "Select Player";
+        text(label, dropdownX + 10 + colorBoxSize, dropdownY + dropdownHeight / 2);
 
-            fill(r, g, b);
-            ellipse(px, py, 50, 50); // draw player circle
-
-            // Draw first 8 characters of UUID
-            fill(255);
-            textAlign(CENTER, CENTER);
-            text(player.internal_id.substring(0, 8), px, py);
+        // Draw selected player color box
+        if (selectedIndex >= 0) {
+            fill(playerColors[selectedIndex]);
+            rect(dropdownX + 10, dropdownY + 5, colorBoxSize, dropdownHeight - 10, 5);
         }
 
+        // Draw dropdown items if open
+        if (dropdownOpen) {
+            int totalItems = playerOptions.length;
+            int visibleItems = min(maxVisibleItems, totalItems);
+            int start = scrollOffset;
+            int end = min(scrollOffset + visibleItems, totalItems);
+
+            for (int i = start; i < end; i++) {
+                int itemY = dropdownY + dropdownHeight * (i - start + 1);
+                fill(mouseX > dropdownX && mouseX < dropdownX + dropdownWidth &&
+                        mouseY > itemY && mouseY < itemY + dropdownHeight ? 150 : 220);
+                rect(dropdownX, itemY, dropdownWidth, dropdownHeight, 5);
+
+                // Draw color box
+                fill(playerColors[i]);
+                rect(dropdownX + 10, itemY + 5, colorBoxSize, dropdownHeight - 10, 5);
+
+                // Draw text
+                fill(0);
+                text(playerOptions[i], dropdownX + 10 + colorBoxSize, itemY + dropdownHeight / 2);
+            }
+        }
+    }
+
+    public void mouseWheel(MouseEvent event) {
+        if (dropdownOpen) {
+            float e = event.getCount();
+            scrollOffset -= e;
+            scrollOffset = constrain(scrollOffset, 0, max(0, playerOptions.length - maxVisibleItems));
+        }
     }
 
     public void showMessage(String msg, int durationFrames) {
@@ -309,21 +369,51 @@ public class Screen extends PApplet {
                 e.printStackTrace();
             }
         } else if (Game.isClient) {
-            Player client = Game.getClient();
-            if (client != null && mouseButton == LEFT && !client.pressedKeys.contains("LMB") && !client.pressedKeys
-                    .contains("LMB_HOLD")) {
-                client.pressedKeys.add("LMB");
+            Game.withClient((client) -> {
+                if (mouseButton == LEFT && !client.pressedKeys.contains("LMB") && !client.pressedKeys
+                        .contains("LMB_HOLD")) {
+                    client.pressedKeys.add("LMB");
+                }
+                if (mouseButton == RIGHT && !client.pressedKeys.contains("RMB") && !client.pressedKeys
+                        .contains("RMB_HOLD")) {
+                    client.pressedKeys.add("RMB");
+                }
+                if (mouseButton == CENTER && !client.pressedKeys.contains("WD")) {
+                    client.pressedKeys.add("WD");
+                }
+            });
+
+        } else {
+            // Dropdown position
+            int centerX = width / 2;
+            int hostY = height / 4;
+            int dropdownX = centerX - dropdownWidth / 2;
+            int dropdownY = hostY + buttonHeight + spacing;
+
+            if (mouseX > dropdownX && mouseX < dropdownX + dropdownWidth &&
+                    mouseY > dropdownY && mouseY < dropdownY + dropdownHeight) {
+                dropdownOpen = !dropdownOpen;
+            } else if (dropdownOpen) {
+                int visibleItems = min(maxVisibleItems, playerOptions.length);
+                int start = scrollOffset;
+                int end = min(scrollOffset + visibleItems, playerOptions.length);
+                for (int i = start; i < end; i++) {
+                    int itemY = dropdownY + dropdownHeight * (i - start + 1);
+                    if (mouseX > dropdownX && mouseX < dropdownX + dropdownWidth &&
+                            mouseY > itemY && mouseY < itemY + dropdownHeight) {
+                        selectedIndex = i;
+                        dropdownOpen = false;
+                        break;
+                    }
+                }
+            } else {
+                dropdownOpen = false;
             }
 
-            if (client != null && mouseButton == RIGHT && !client.pressedKeys.contains("RMB") && !client.pressedKeys
-                    .contains("RMB_HOLD")) {
-                client.pressedKeys.add("RMB");
-            }
-            if (client != null && mouseButton == CENTER && !client.pressedKeys.contains("WD")) {
-                client.pressedKeys.add("WD");
-            }
-        } else {
-            if (stopHostingHover) {
+            int hostX = centerX - buttonWidth / 2;
+            int hostYButton = hostY;
+            if (mouseX > hostX && mouseX < hostX + buttonWidth &&
+                    mouseY > hostYButton && mouseY < hostYButton + buttonHeight) {
                 exit();
             }
         }
@@ -331,20 +421,17 @@ public class Screen extends PApplet {
 
     @Override
     public void mouseReleased() {
-        if (Game.isClient) {
-            Player client = Game.getClient();
-            if (client != null) {
-                if (mouseButton == LEFT) {
-                    client.pressedKeys.remove("LMB_HOLD");
-                }
-                if (mouseButton == RIGHT) {
-                    client.pressedKeys.remove("RMB_HOLD");
-                }
-                if (mouseButton == CENTER) {
-                    client.pressedKeys.remove("WD");
-                }
+        Game.withClient((client) -> {
+            if (mouseButton == LEFT) {
+                client.pressedKeys.remove("LMB_HOLD");
             }
-        }
+            if (mouseButton == RIGHT) {
+                client.pressedKeys.remove("RMB_HOLD");
+            }
+            if (mouseButton == CENTER) {
+                client.pressedKeys.remove("WD");
+            }
+        });
     }
 
     private File promptAccFile() {

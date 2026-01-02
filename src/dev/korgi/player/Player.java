@@ -7,7 +7,7 @@ import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
-import dev.korgi.game.rendering.WorldSpace;
+import dev.korgi.game.rendering.Graphics;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -30,8 +30,8 @@ public class Player extends Entity {
             cancelTickEnd();
         }
 
-        rotation = WorldSpace.camera.rotation;
-        WorldSpace.camera.position = position;
+        rotation = Graphics.camera.rotation;
+        Graphics.camera.position = position;
     }
 
     @Override

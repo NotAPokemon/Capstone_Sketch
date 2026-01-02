@@ -2,12 +2,12 @@ package dev.korgi.game.rendering;
 
 import dev.korgi.game.physics.WorldEngine;
 
-public class WorldSpace {
+public class Graphics {
 
     public static Camera camera = new Camera();
     private static boolean init = false;
 
-    public static void execute() {
+    public static void display() {
         Screen screen = Screen.getInstance();
         int width = screen.width;
         int height = screen.height;

@@ -2,6 +2,7 @@ package dev.korgi.networking;
 
 import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
+import dev.korgi.player.Player;
 
 import java.io.*;
 import java.net.*;
@@ -298,9 +299,6 @@ public class NetworkStream {
         }
     }
 
-    // ========================
-    // Timeouts
-    // ========================
     private static void handleHandshakeTimeouts() {
         long now = System.currentTimeMillis();
         pendingSockets.removeIf(s -> {
@@ -328,10 +326,22 @@ public class NetworkStream {
 
     }
 
-    // ========================
-    // Utilities
-    // ========================
     private static void disconnectClient(String id) {
+        List<Player> players = Game.getPlayers();
+        boolean isPlayer = false;
+        for (Player p : players) {
+
+            if (p.internal_id.equals(id)) {
+                if (!p.connected) {
+                    return;
+                }
+                p.connected = false;
+                isPlayer = true;
+            }
+        }
+        if (!isPlayer) {
+            return;
+        }
         Socket s = clientSockets.remove(id);
         if (s != null)
             close(s);

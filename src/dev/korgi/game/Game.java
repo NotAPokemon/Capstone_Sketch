@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Screen;
-import dev.korgi.game.rendering.WorldSpace;
+import dev.korgi.game.rendering.Graphics;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkStream;
@@ -68,7 +68,7 @@ public class Game {
         if (Game.isClient) {
             screen.handleMouseMovement();
             WorldEngine.updateClient();
-            WorldSpace.execute();
+            Graphics.display();
             screen.drawOpenClientMenus();
         } else {
             WorldEngine.execute();
@@ -128,6 +128,8 @@ public class Game {
     }
 
     public static void withClient(Consumer<Player> operation) {
+        if (!Game.isClient)
+            return;
         Player client = getClient();
         if (client != null) {
             operation.accept(client);
