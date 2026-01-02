@@ -1,11 +1,15 @@
 package dev.korgi.game.physics;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import dev.korgi.game.Game;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
+import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 
@@ -15,7 +19,7 @@ public class WorldEngine {
     public static final double g = 9.80665;
 
     public static void init() {
-        Vector4 color = new Vector4(Math.random(), Math.random(), Math.random(), 1);
+        Vector4 color = new Vector4(Vector3.random());
         double opacity = Math.random();
         for (int x = 0; x < 10; x++) {
             for (int z = 0; z < 10; z++) {
@@ -37,7 +41,7 @@ public class WorldEngine {
     }
 
     public static void addRandomVoxel(Vector3 pos) {
-        world.voxels.add(new Voxel(pos, Math.random(), Math.random(), Math.random(), 1));
+        world.voxels.add(new Voxel(pos, new Vector4(Vector3.random())));
         world.updated = true;
     }
 
@@ -45,6 +49,32 @@ public class WorldEngine {
         Packet in = NetworkStream.getPacket("world", true);
         if (in != null) {
             in.getData().fillObject(world);
+        }
+    }
+
+    public static boolean canPlaceVoxel(Vector3 pos) {
+        for (Entity entity : world.entities) {
+            for (Voxel body : entity.body) {
+                if (voxelIntersects(entity.position.add(body.position), pos)) {
+                    return false;
+                }
+            }
+
+        }
+        if (voxelAt(pos) != null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static void removeVoxel(Voxel v) {
+        if (v != null) {
+            world.voxels.remove(v);
+            world.updated = true;
+            Game.getPlayers().forEach((p) -> {
+                p.checkGravity();
+            });
         }
     }
 
@@ -68,9 +98,9 @@ public class WorldEngine {
                         if (worldVoxel.getMaterial().isRigid() && bodyVoxel.getMaterial().isRigid()) {
                             Vector3 penetration = getPenetration(
                                     bodyWorldPos,
-                                    bodyWorldPos.add(1, 1, 1),
+                                    bodyWorldPos.add(VectorConstants.ONE),
                                     worldVoxel.position,
-                                    worldVoxel.position.add(1, 1, 1));
+                                    worldVoxel.position.add(VectorConstants.ONE));
 
                             resolveRigidCollision(entity, bodyVoxel, worldVoxel);
 
@@ -102,8 +132,12 @@ public class WorldEngine {
     }
 
     public static Voxel voxelAt(Vector3 pos) {
+        Vector3 posInt = pos.floor();
+
         for (Voxel v : world.voxels) {
-            if (voxelIntersects(v.position, pos)) {
+            Vector3 posInt2 = v.position.floor();
+
+            if (posInt.equals(posInt2)) {
                 return v;
             }
         }
@@ -121,16 +155,16 @@ public class WorldEngine {
                     }
                     Vector3 penetration = getPenetration(
                             vaWorld,
-                            vaWorld.add(1, 1, 1),
+                            vaWorld.add(VectorConstants.ONE),
                             vbWorld,
-                            vbWorld.add(1, 1, 1));
+                            vbWorld.add(VectorConstants.ONE));
                     a.onCollide(b, vaWorld, vbWorld, penetration);
                 }
             }
         }
     }
 
-    private static boolean voxelIntersects(Vector3 a, Vector3 b) {
+    public static boolean voxelIntersects(Vector3 a, Vector3 b) {
         return a.x < b.x + 1 &&
                 a.x + 1 > b.x &&
                 a.y < b.y + 1 &&
@@ -140,22 +174,22 @@ public class WorldEngine {
     }
 
     private static Vector3 getPenetration(Vector3 aMin, Vector3 aMax, Vector3 bMin, Vector3 bMax) {
-        double dx = Math.min(aMax.x, bMax.x) - Math.max(aMin.x, bMin.x);
-        double dy = Math.min(aMax.y, bMax.y) - Math.max(aMin.y, bMin.y);
-        double dz = Math.min(aMax.z, bMax.z) - Math.max(aMin.z, bMin.z);
+        Vector3 min = Vector3.min(aMax, bMax);
+        Vector3 max = Vector3.max(aMin, bMin);
+        Vector3 d = min.subtract(max);
 
-        if (dx <= 0 || dy <= 0 || dz <= 0)
+        if (!d.equals(d.abs()) || d.equals(VectorConstants.ZERO))
             return null;
-        return new Vector3(dx, dy, dz);
+        return d;
     }
 
     private static void resolveRigidCollision(Entity entity, Voxel bodyVoxel, Voxel worldVoxel) {
         Vector3 bodyWorld = bodyVoxel.position.add(entity.position);
         Vector3 bodyMin = bodyWorld;
-        Vector3 bodyMax = bodyWorld.add(1, 1, 1);
+        Vector3 bodyMax = bodyWorld.add(VectorConstants.ONE);
 
         Vector3 worldMin = worldVoxel.position;
-        Vector3 worldMax = worldVoxel.position.add(1, 1, 1);
+        Vector3 worldMax = worldVoxel.position.add(VectorConstants.ONE);
 
         Vector3 pen = getPenetration(bodyMin, bodyMax, worldMin, worldMax);
         if (pen == null)
@@ -170,4 +204,51 @@ public class WorldEngine {
             entity.position.z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
         }
     }
+
+    private static long voxelKey(int x, int y, int z) {
+        return (((long) (x & 0xFFFFF)) << 40)
+                | (((long) (y & 0xFFFFF)) << 20)
+                | ((long) (z & 0xFFFFF));
+    }
+
+    public static Hit trace(Vector3 origin, Vector3 dir, double maxDist) {
+        double stepSize = 0.05;
+        double traveled = 0.0;
+
+        Map<Long, Voxel> voxelMap = new HashMap<>();
+        for (Voxel v : world.voxels) {
+            voxelMap.put(voxelKey((int) v.position.x, (int) v.position.y, (int) v.position.z), v);
+        }
+
+        Vector3 pos = origin.copy();
+        Vector3 prev = pos.copy();
+
+        while (traveled <= maxDist) {
+            Vector3 voxPos = pos.floor();
+
+            Voxel v = voxelMap.get(voxelKey((int) voxPos.x, (int) voxPos.y, (int) voxPos.z));
+            if (v != null) {
+                Hit hit = new Hit();
+                hit.hit = v;
+                hit.dist = traveled;
+
+                Vector3 dMin = prev.subtract(voxPos).absValue();
+                Vector3 dMax = prev.subtract(voxPos.add(VectorConstants.ONE)).absValue();
+
+                double min = Vector3.min(dMin, dMax).min();
+
+                hit.face = (int) dMin.compare(min, new Vector4(1, 3, 5, hit.face));
+                hit.face = (int) dMax.compare(min, new Vector4(0, 2, 4, hit.face));
+
+                return hit;
+            }
+
+            prev.copyFrom(pos);
+            pos.addTo(dir.multiply(stepSize));
+            traveled += stepSize;
+        }
+
+        return null;
+    }
+
 }

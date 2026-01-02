@@ -201,4 +201,77 @@ public class Vector3 {
         return new Vector3(x, y, z);
     }
 
+    public Vector3 floor() {
+        return new Vector3(Math.floor(x), Math.floor(y), Math.floor(z));
+    }
+
+    public Vector3 floorMe() {
+        x = Math.floor(x);
+        y = Math.floor(y);
+        z = Math.floor(z);
+        return this;
+    }
+
+    public Vector3 abs() {
+        return new Vector3(Math.abs(x), Math.abs(y), Math.abs(z));
+    }
+
+    public Vector3 absValue() {
+        x = Math.abs(x);
+        y = Math.abs(y);
+        z = Math.abs(z);
+        return this;
+    }
+
+    public Vector3 copyFrom(Vector3 other) {
+        this.x = other.x;
+        this.y = other.y;
+        this.z = other.z;
+        return this;
+    }
+
+    public Vector3 copyFrom(double x, double y, double z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        return this;
+    }
+
+    public double min() {
+        return Math.min(Math.min(x, y), z);
+    }
+
+    public double max() {
+        return Math.max(Math.max(x, y), z);
+    }
+
+    public double compare(double value, Vector4 results) {
+        if (x == value) {
+            return results.x;
+        } else if (y == value) {
+            return results.y;
+        } else if (z == value) {
+            return results.z;
+        } else {
+            return results.w;
+        }
+    }
+
+    public static Vector3 min(Vector3 a, Vector3 b) {
+        return new Vector3(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z));
+    }
+
+    public static Vector3 max(Vector3 a, Vector3 b) {
+        return new Vector3(Math.max(a.x, b.x), Math.max(a.y, b.y), Math.max(a.z, b.z));
+    }
+
+    public static Vector3 random() {
+        return new Vector3(Math.random(), Math.random(), Math.random());
+    }
+
+    @Override
+    public String toString() {
+        return "(%.3f, %.3f, %.3f)".formatted(x, y, z);
+    }
+
 }

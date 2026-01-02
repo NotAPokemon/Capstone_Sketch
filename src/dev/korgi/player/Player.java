@@ -2,9 +2,11 @@ package dev.korgi.player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
+import dev.korgi.game.physics.Hit;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.rendering.Graphics;
@@ -52,14 +54,13 @@ public class Player extends Entity {
 
         checkKey("CTRL", () -> speed = 5);
 
-        double yaw = rotation.y;
-
-        Vector3 forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalizeHere().multiplyBy(speed * dt);
+        Vector3 forward = new Vector3(Math.sin(rotation.y), 0, Math.cos(
+                rotation.y)).normalizeHere().multiplyBy(speed * dt);
 
         Vector3 right = new Vector3(
-                Math.sin(yaw - Math.PI / 2),
+                Math.sin(rotation.y - Math.PI / 2),
                 0,
-                Math.cos(yaw - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
+                Math.cos(rotation.y - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
 
         Vector3 originalPos = position.copy();
 
@@ -68,7 +69,20 @@ public class Player extends Entity {
         checkKey("a", () -> position.subtractFrom(right));
         checkKey("d", () -> position.addTo(right));
         checkKey("j", () -> Game.canFly = !Game.canFly);
-        checkKey("RMB", () -> WorldEngine.addRandomVoxel(position.add(0, -1, 0)));
+        checkKey("RMB", () -> {
+            withHit((hit) -> {
+                Vector3 newPos = hit.getFaceWithOffset();
+                if (WorldEngine.canPlaceVoxel(newPos)) {
+                    WorldEngine.addRandomVoxel(newPos);
+                }
+            }, 5);
+        });
+        checkKey("LMB", () -> {
+            withHit((hit) -> {
+                Vector3 breakPos = hit.getVoxelPos();
+                WorldEngine.removeVoxel(WorldEngine.voxelAt(breakPos));
+            }, 5);
+        });
         checkKey(" ", Game.canFly, () -> position.addTo(0, speed * dt, 0));
         checkKey(" ", !Game.canFly && onGround, () -> {
             velocity.addTo(0, 5, 0);
@@ -77,7 +91,7 @@ public class Player extends Entity {
         checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(0, speed * dt, 0));
 
         if (!originalPos.equals(position)) {
-            onGround = WorldEngine.voxelAt(position.subtract(0, 1, 0)) != null;
+            checkGravity();
         }
     }
 
@@ -93,6 +107,22 @@ public class Player extends Entity {
             pressedKeys.remove(key);
             handler.run();
         }
+    }
+
+    private void withHit(Consumer<Hit> action, double maxDist) {
+        Vector3 dir = new Vector3(
+                Math.sin(rotation.y) * Math.cos(rotation.x),
+                Math.sin(rotation.x),
+                Math.cos(rotation.y) * Math.cos(rotation.x)).normalizeHere();
+        Vector3 origin = position.copy();
+        Hit hit = WorldEngine.trace(origin, dir, maxDist);
+        if (hit != null) {
+            action.accept(hit);
+        }
+    }
+
+    public void checkGravity() {
+        onGround = WorldEngine.voxelAt(position.subtract(0, 1, 0)) != null;
     }
 
     @Override
