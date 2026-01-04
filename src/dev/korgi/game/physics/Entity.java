@@ -1,6 +1,7 @@
 package dev.korgi.game.physics;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.math.Vector3;
@@ -42,6 +43,18 @@ public abstract class Entity extends NetworkObject {
 
     public List<Voxel> getBody() {
         return body;
+    }
+
+    protected void withHit(Consumer<Hit> action, double maxDist) {
+        Vector3 dir = new Vector3(
+                Math.sin(rotation.y) * Math.cos(rotation.x),
+                Math.sin(rotation.x),
+                Math.cos(rotation.y) * Math.cos(rotation.x)).normalizeHere();
+        Vector3 origin = position.copy();
+        Hit hit = WorldEngine.trace(origin, dir, maxDist);
+        if (hit != null) {
+            action.accept(hit);
+        }
     }
 
 }

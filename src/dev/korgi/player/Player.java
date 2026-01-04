@@ -2,11 +2,9 @@ package dev.korgi.player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
-import dev.korgi.game.physics.Hit;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.rendering.Graphics;
@@ -106,18 +104,6 @@ public class Player extends Entity {
         if (pressedKeys.contains(key) && otherCheck) {
             pressedKeys.remove(key);
             handler.run();
-        }
-    }
-
-    private void withHit(Consumer<Hit> action, double maxDist) {
-        Vector3 dir = new Vector3(
-                Math.sin(rotation.y) * Math.cos(rotation.x),
-                Math.sin(rotation.x),
-                Math.cos(rotation.y) * Math.cos(rotation.x)).normalizeHere();
-        Vector3 origin = position.copy();
-        Hit hit = WorldEngine.trace(origin, dir, maxDist);
-        if (hit != null) {
-            action.accept(hit);
         }
     }
 
