@@ -15,7 +15,7 @@ public class KorgiJNI {
         }
     }
 
-    public static native void __executeKernal__(int[] pixels, int w, int h, float[] cam, float[] foward, float[] right,
+    public static native void executeKernal(int[] pixels, int w, int h, float[] cam, float[] foward, float[] right,
             float[] up, float tanFov, int voxCount, int[] color, float[] opacity, int[] worldMin, int[] worldSize,
             int[] voxelGrid);
 

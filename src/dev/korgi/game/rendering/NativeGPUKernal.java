@@ -109,7 +109,7 @@ public class NativeGPUKernal {
             voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
         }
 
-        KorgiJNI.__executeKernal__(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
+        KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
                 right.toFloatArray(),
                 up.toFloatArray(), tanFov,
                 voxelCount,
