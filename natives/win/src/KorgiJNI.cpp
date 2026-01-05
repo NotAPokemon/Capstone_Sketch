@@ -13,18 +13,22 @@ static GLuint voxelBuffer = 0;
 static GLuint colorBuffer = 0;
 static GLuint opacityBuffer = 0;
 
-static bool initGL(int width, int height) {
+static bool initGL(int width, int height)
+{
     static bool initialized = false;
-    if (initialized) return true;
+    if (initialized)
+        return true;
 
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         std::cerr << "GLFW Init failed" << std::endl;
         return false;
     }
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    GLFWwindow* window = glfwCreateWindow(width, height, "Offscreen", NULL, NULL);
-    if (!window) {
+    GLFWwindow *window = glfwCreateWindow(width, height, "Offscreen", NULL, NULL);
+    if (!window)
+    {
         std::cerr << "GLFW Window creation failed" << std::endl;
         glfwTerminate();
         return false;
@@ -32,7 +36,8 @@ static bool initGL(int width, int height) {
 
     glfwMakeContextCurrent(window);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
         std::cerr << "GLAD Init failed" << std::endl;
         return false;
     }
@@ -41,16 +46,18 @@ static bool initGL(int width, int height) {
     return true;
 }
 
-GLuint compileComputeShader(const std::string& path) {
+GLuint compileComputeShader(const std::string &path)
+{
     std::ifstream file(path);
-    if (!file) {
+    if (!file)
+    {
         std::cerr << "Shader not found: " << path << std::endl;
         return 0;
     }
     std::stringstream ss;
     ss << file.rdbuf();
     std::string src = ss.str();
-    const char* csrc = src.c_str();
+    const char *csrc = src.c_str();
 
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
     glShaderSource(shader, 1, &csrc, nullptr);
@@ -58,10 +65,12 @@ GLuint compileComputeShader(const std::string& path) {
 
     GLint status;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (!status) {
+    if (!status)
+    {
         char log[1024];
         glGetShaderInfoLog(shader, 1024, nullptr, log);
-        std::cerr << "Compute shader compile error:\n" << log << std::endl;
+        std::cerr << "Compute shader compile error:\n"
+                  << log << std::endl;
         return 0;
     }
 
@@ -70,10 +79,12 @@ GLuint compileComputeShader(const std::string& path) {
     glLinkProgram(program);
 
     glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (!status) {
+    if (!status)
+    {
         char log[1024];
         glGetProgramInfoLog(program, 1024, nullptr, log);
-        std::cerr << "Shader link error:\n" << log << std::endl;
+        std::cerr << "Shader link error:\n"
+                  << log << std::endl;
         return 0;
     }
 
@@ -81,9 +92,24 @@ GLuint compileComputeShader(const std::string& path) {
     return program;
 }
 
-extern "C"
-JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
-    JNIEnv* env, jclass cls,
+std::string toString(JNIEnv *env, jstring jstr)
+{
+    if (jstr == nullptr)
+        return {};
+
+    const char *utf = env->GetStringUTFChars(jstr, nullptr);
+    if (!utf)
+        return {};
+
+    std::string result(utf);
+
+    env->ReleaseStringUTFChars(jstr, utf);
+
+    return result;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
+    JNIEnv *env, jclass cls,
     jintArray pixels,
     jint width, jint height,
     jfloatArray cam,
@@ -96,39 +122,47 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jfloatArray opacity,
     jintArray worldMinArray,
     jintArray worldSizeArray,
-    jintArray voxelGrid
-) {
-    if (!initGL(width, height)) return;
+    jintArray voxelGrid,
+    jstring path)
+{
+    if (!initGL(width, height))
+        return;
 
-    if (!computeProgram) {
-        computeProgram = compileComputeShader("C:\\Users\\every\\Documents\\Github\\Capstone_Sketch\\natives\\win\\src\\Shaders.comp.glsl");
-        if (!computeProgram) return;
+    if (!computeProgram)
+    {
+        computeProgram = compileComputeShader(toString(env, path));
+        if (!computeProgram)
+            return;
     }
 
-    jint* pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
-    jint* colorPtr = env->GetIntArrayElements(color, nullptr);
-    jfloat* opacityPtr = env->GetFloatArrayElements(opacity, nullptr);
-    jint* worldMin = env->GetIntArrayElements(worldMinArray, nullptr);
-    jint* worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
-    jint* voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
-    jfloat* camPtr = env->GetFloatArrayElements(cam, nullptr);
-    jfloat* forwardPtr = env->GetFloatArrayElements(forward, nullptr);
-    jfloat* rightPtr = env->GetFloatArrayElements(right, nullptr);
-    jfloat* upPtr = env->GetFloatArrayElements(up, nullptr);
+    jint *pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
+    jint *colorPtr = env->GetIntArrayElements(color, nullptr);
+    jfloat *opacityPtr = env->GetFloatArrayElements(opacity, nullptr);
+    jint *worldMin = env->GetIntArrayElements(worldMinArray, nullptr);
+    jint *worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
+    jint *voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
+    jfloat *camPtr = env->GetFloatArrayElements(cam, nullptr);
+    jfloat *forwardPtr = env->GetFloatArrayElements(forward, nullptr);
+    jfloat *rightPtr = env->GetFloatArrayElements(right, nullptr);
+    jfloat *upPtr = env->GetFloatArrayElements(up, nullptr);
 
-    if (!pixelsBuffer) glGenBuffers(1, &pixelsBuffer);
+    if (!pixelsBuffer)
+        glGenBuffers(1, &pixelsBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * width * height, pixelsPtr, GL_DYNAMIC_DRAW);
 
-    if (!voxelBuffer) glGenBuffers(1, &voxelBuffer);
+    if (!voxelBuffer)
+        glGenBuffers(1, &voxelBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, voxelBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * worldSize[0]*worldSize[1]*worldSize[2], voxelGridPtr, GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * worldSize[0] * worldSize[1] * worldSize[2], voxelGridPtr, GL_STATIC_DRAW);
 
-    if (!colorBuffer) glGenBuffers(1, &colorBuffer);
+    if (!colorBuffer)
+        glGenBuffers(1, &colorBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, colorBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * voxCount, colorPtr, GL_STATIC_DRAW);
 
-    if (!opacityBuffer) glGenBuffers(1, &opacityBuffer);
+    if (!opacityBuffer)
+        glGenBuffers(1, &opacityBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, opacityBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * voxCount, opacityPtr, GL_STATIC_DRAW);
 
@@ -169,7 +203,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
-    void* ptr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+    void *ptr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
     memcpy(pixelsPtr, ptr, sizeof(jint) * width * height);
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 

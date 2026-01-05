@@ -19,20 +19,37 @@ static id<MTLDevice> device = nil;
 static id<MTLCommandQueue> commandQueue = nil;
 static id<MTLComputePipelineState> pipelineState = nil;
 
-void initMetal() {
+void initMetal(NSString* path) {
     if (device) return;
 
     device = MTLCreateSystemDefaultDevice();
     commandQueue = [device newCommandQueue];
 
     NSError* error = nil;
-    NSString *libPath = @"/Users/arvankadkol/Documents/Github/APCS/Capstone_Sketch/natives/mac/build/Shaders.metallib";
-    id<MTLLibrary> library = [device newLibraryWithFile:libPath error:&error];
+    id<MTLLibrary> library = [device newLibraryWithFile:path error:&error];
     id<MTLFunction> kernelFunc = [library newFunctionWithName:@"raytraceKernel"];
     pipelineState = [device newComputePipelineStateWithFunction:kernelFunc error:&error];
     if (error) {
         NSLog(@"Failed to create pipeline: %@", error);
     }
+}
+
+NSString* JString_to_NSString(JNIEnv* env, jstring javaString) {
+    if (javaString == NULL) {
+        return nil;
+    }
+
+    const char *utf8Chars = (env)->GetStringUTFChars(javaString, NULL);
+    if (utf8Chars == NULL) {
+        return nil;
+    }
+
+    NSString *objectiveCString = [NSString stringWithUTF8String:utf8Chars];
+
+
+    (env)->ReleaseStringUTFChars(javaString, utf8Chars);
+
+    return objectiveCString;
 }
 
 extern "C"
@@ -50,9 +67,11 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jfloatArray opacity,
     jintArray worldMinArray,
     jintArray worldSizeArray,
-    jintArray voxelGrid
+    jintArray voxelGrid,
+    jstring path
 ) {
-    initMetal();
+
+    initMetal(JString_to_NSString(env, path));
 
     jint* pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
     jfloat* camPtr = env->GetFloatArrayElements(cam, nullptr);

@@ -5,15 +5,15 @@
 #ifndef _Included_dev_korgi_jni_KorgiJNI
 #define _Included_dev_korgi_jni_KorgiJNI
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
-/*
- * Class:     dev_korgi_jni_KorgiJNI
- * Method:    executeKernal
- * Signature: ([III[F[F[F[FFI[I[F[I[I[I)V
- */
-JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal
-  (JNIEnv *, jclass, jintArray, jint, jint, jfloatArray, jfloatArray, jfloatArray, jfloatArray, jfloat, jint, jintArray, jfloatArray, jintArray, jintArray, jintArray);
+  /*
+   * Class:     dev_korgi_jni_KorgiJNI
+   * Method:    executeKernal
+   * Signature: ([III[F[F[F[FFI[I[F[I[I[I)V
+   */
+  JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(JNIEnv *, jclass, jintArray, jint, jint, jfloatArray, jfloatArray, jfloatArray, jfloatArray, jfloat, jint, jintArray, jfloatArray, jintArray, jintArray, jintArray, jstring);
 
 #ifdef __cplusplus
 }

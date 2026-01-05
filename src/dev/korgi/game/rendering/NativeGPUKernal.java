@@ -109,13 +109,23 @@ public class NativeGPUKernal {
             voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
         }
 
+        String path = System.getProperty("user.dir");
+
+        String os = System.getProperty("os.name").toLowerCase();
+
+        if (os.contains("mac")) {
+            path += "/natives/mac/build/Shaders.metallib";
+        } else if (os.contains("win")) {
+            path += "\\natives\\win\\src\\Shaders.comp.glsl";
+        }
+
         KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
                 right.toFloatArray(),
                 up.toFloatArray(), tanFov,
                 voxelCount,
                 vcolor, opacity,
                 min.toIntArray(),
-                size.toIntArray(), voxelGrid);
+                size.toIntArray(), voxelGrid, path);
 
     }
 
