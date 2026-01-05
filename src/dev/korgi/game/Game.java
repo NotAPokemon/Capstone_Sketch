@@ -30,6 +30,7 @@ public class Game {
         }
         config.addString("ip", "localhost");
         config.addInt("port", 6967);
+        config.addFloat("fov", 60);
     }
 
     public static void init() throws IOException {
@@ -46,6 +47,9 @@ public class Game {
             WorldEngine.init();
         }
         initialized = true;
+        if (isClient) {
+            Graphics.camera.fov = config.getFloat("fov");
+        }
     }
 
     public static List<Player> getPlayers() {

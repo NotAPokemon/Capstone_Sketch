@@ -49,6 +49,7 @@ example config:
 ```
 {
   "port": 6967,
-  "ip": "localhost"
+  "ip": "localhost",
+  "fov": 50
 }
 ```
