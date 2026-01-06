@@ -5,6 +5,7 @@ public class VectorConstants {
     public static final Vector4 DARK_GREEN = new Vector4(0, 0.5, 0, 1);
 
     public static final Vector3 ONE = new Vector3(1, 1, 1);
+    public static final Vector3 HALF = new Vector3(0.5, 0.5, 0.5);
     public static final Vector3 ZERO = new Vector3();
 
 }

@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.math.Vector3;
+import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkObject;
 
 public abstract class Entity extends NetworkObject {
@@ -50,7 +51,7 @@ public abstract class Entity extends NetworkObject {
                 Math.sin(rotation.y) * Math.cos(rotation.x),
                 Math.sin(rotation.x),
                 Math.cos(rotation.y) * Math.cos(rotation.x)).normalizeHere();
-        Vector3 origin = position.copy();
+        Vector3 origin = position.add(VectorConstants.HALF);
         Hit hit = WorldEngine.trace(origin, dir, maxDist);
         if (hit != null) {
             action.accept(hit);

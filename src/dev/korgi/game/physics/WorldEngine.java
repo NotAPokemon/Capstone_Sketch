@@ -97,10 +97,10 @@ public class WorldEngine {
                     if (voxelIntersects(bodyWorldPos, worldVoxel.position)) {
                         if (worldVoxel.getMaterial().isRigid() && bodyVoxel.getMaterial().isRigid()) {
                             Vector3 penetration = getPenetration(
-                                    bodyWorldPos,
-                                    bodyWorldPos.add(VectorConstants.ONE),
-                                    worldVoxel.position,
-                                    worldVoxel.position.add(VectorConstants.ONE));
+                                    bodyWorldPos.subtract(VectorConstants.HALF),
+                                    bodyWorldPos.add(VectorConstants.HALF),
+                                    worldVoxel.position.subtract(VectorConstants.HALF),
+                                    worldVoxel.position.add(VectorConstants.HALF));
 
                             resolveRigidCollision(entity, bodyVoxel, worldVoxel);
 
@@ -154,10 +154,10 @@ public class WorldEngine {
                         resolveRigidCollision(a, va, vb);
                     }
                     Vector3 penetration = getPenetration(
-                            vaWorld,
-                            vaWorld.add(VectorConstants.ONE),
-                            vbWorld,
-                            vbWorld.add(VectorConstants.ONE));
+                            vaWorld.subtract(VectorConstants.HALF),
+                            vaWorld.add(VectorConstants.HALF),
+                            vbWorld.subtract(VectorConstants.HALF),
+                            vbWorld.add(VectorConstants.HALF));
                     a.onCollide(b, vaWorld, vbWorld, penetration);
                 }
             }
@@ -185,11 +185,11 @@ public class WorldEngine {
 
     private static void resolveRigidCollision(Entity entity, Voxel bodyVoxel, Voxel worldVoxel) {
         Vector3 bodyWorld = bodyVoxel.position.add(entity.position);
-        Vector3 bodyMin = bodyWorld;
-        Vector3 bodyMax = bodyWorld.add(VectorConstants.ONE);
+        Vector3 bodyMin = bodyWorld.subtract(VectorConstants.HALF);
+        Vector3 bodyMax = bodyWorld.add(VectorConstants.HALF);
 
-        Vector3 worldMin = worldVoxel.position;
-        Vector3 worldMax = worldVoxel.position.add(VectorConstants.ONE);
+        Vector3 worldMin = worldVoxel.position.subtract(VectorConstants.HALF);
+        Vector3 worldMax = worldVoxel.position.add(VectorConstants.HALF);
 
         Vector3 pen = getPenetration(bodyMin, bodyMax, worldMin, worldMax);
         if (pen == null)

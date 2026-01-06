@@ -31,7 +31,7 @@ public class Player extends Entity {
         }
 
         rotation = Graphics.camera.rotation;
-        Graphics.camera.position = position;
+        Graphics.camera.position = position.add(VectorConstants.HALF);
     }
 
     @Override
