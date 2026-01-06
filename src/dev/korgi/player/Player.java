@@ -42,7 +42,7 @@ public class Player extends Entity {
 
     private void handlePhysics(double dt) {
         if (!onGround && !Game.canFly)
-            velocity.subtractFrom(0, WorldEngine.g * dt, 0);
+            velocity.addTo(VectorConstants.DOWN.multiply(WorldEngine.g * dt));
 
         position.addTo(velocity.multiply(dt));
     }
@@ -61,6 +61,8 @@ public class Player extends Entity {
                 Math.cos(rotation.y - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
 
         Vector3 originalPos = position.copy();
+
+        Vector3 amt = VectorConstants.UP.multiply(speed * dt);
 
         checkKey("w", () -> position.addTo(forward));
         checkKey("s", () -> position.subtractFrom(forward));
@@ -81,12 +83,12 @@ public class Player extends Entity {
                 WorldEngine.removeVoxel(WorldEngine.voxelAt(breakPos));
             }, 5);
         });
-        checkKey(" ", Game.canFly, () -> position.addTo(0, speed * dt, 0));
+        checkKey(" ", Game.canFly, () -> position.addTo(amt));
         checkKey(" ", !Game.canFly && onGround, () -> {
-            velocity.addTo(0, 5, 0);
+            velocity.addTo(VectorConstants.UP.multiply(5));
             onGround = false;
         });
-        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(0, speed * dt, 0));
+        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(amt));
 
         if (!originalPos.equals(position)) {
             checkGravity();
