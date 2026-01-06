@@ -108,7 +108,7 @@ public class Player extends Entity {
     }
 
     public void checkGravity() {
-        onGround = WorldEngine.voxelAt(position.subtract(0, 1, 0)) != null;
+        onGround = WorldEngine.voxelAt(position.add(VectorConstants.DOWN)) != null;
     }
 
     @Override
@@ -142,7 +142,7 @@ public class Player extends Entity {
     public List<Voxel> createBody() {
         List<Voxel> voxels = new ArrayList<>();
         Voxel v = new Voxel(VectorConstants.DARK_GREEN);
-        Voxel v2 = new Voxel(0, -1, 0, VectorConstants.DARK_GREEN);
+        Voxel v2 = new Voxel(VectorConstants.DOWN, VectorConstants.DARK_GREEN);
         voxels.add(v);
         voxels.add(v2);
         return voxels;
