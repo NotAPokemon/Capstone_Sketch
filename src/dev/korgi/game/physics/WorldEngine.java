@@ -78,6 +78,28 @@ public class WorldEngine {
         }
     }
 
+    public static void validatePosition(Entity e) {
+        for (Voxel bodyVoxel : e.body) {
+            Vector3 bodyWorldPos = bodyVoxel.position.add(e.position);
+
+            for (Voxel worldVoxel : world.voxels) {
+                if (voxelIntersects(bodyWorldPos, worldVoxel.position)) {
+                    if (worldVoxel.getMaterial().isRigid() && bodyVoxel.getMaterial().isRigid()) {
+                        Vector3 penetration = getPenetration(
+                                bodyWorldPos.subtract(VectorConstants.HALF),
+                                bodyWorldPos.add(VectorConstants.HALF),
+                                worldVoxel.position.subtract(VectorConstants.HALF),
+                                worldVoxel.position.add(VectorConstants.HALF));
+
+                        resolveRigidCollision(e, bodyVoxel, worldVoxel);
+
+                        e.onCollide(worldVoxel, bodyWorldPos, penetration);
+                    }
+                }
+            }
+        }
+    }
+
     public static void execute() {
         List<Packet> in = NetworkStream.getAllPackets("world", false);
         for (Packet p : in) {
@@ -87,28 +109,6 @@ public class WorldEngine {
             Voxel v = new Voxel();
             data.getJSONObject("voxel").fillObject(v);
             world.voxels.add(v);
-        }
-
-        for (Entity entity : world.entities) {
-            for (Voxel bodyVoxel : entity.body) {
-                Vector3 bodyWorldPos = bodyVoxel.position.add(entity.position);
-
-                for (Voxel worldVoxel : world.voxels) {
-                    if (voxelIntersects(bodyWorldPos, worldVoxel.position)) {
-                        if (worldVoxel.getMaterial().isRigid() && bodyVoxel.getMaterial().isRigid()) {
-                            Vector3 penetration = getPenetration(
-                                    bodyWorldPos.subtract(VectorConstants.HALF),
-                                    bodyWorldPos.add(VectorConstants.HALF),
-                                    worldVoxel.position.subtract(VectorConstants.HALF),
-                                    worldVoxel.position.add(VectorConstants.HALF));
-
-                            resolveRigidCollision(entity, bodyVoxel, worldVoxel);
-
-                            entity.onCollide(worldVoxel, bodyWorldPos, penetration);
-                        }
-                    }
-                }
-            }
         }
 
         for (int i = 0; i < world.entities.size(); i++) {
@@ -199,7 +199,6 @@ public class WorldEngine {
             entity.position.x += bodyWorld.x < worldVoxel.position.x ? -pen.x : pen.x;
         } else if (pen.y <= pen.x && pen.y <= pen.z) {
             entity.position.y += bodyWorld.y < worldVoxel.position.y ? -pen.y : pen.y;
-            entity.velocity.y = 0;
         } else {
             entity.position.z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
         }

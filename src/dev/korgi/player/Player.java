@@ -45,6 +45,12 @@ public class Player extends Entity {
             velocity.addTo(VectorConstants.DOWN.multiply(WorldEngine.g * dt));
 
         position.addTo(velocity.multiply(dt));
+        WorldEngine.validatePosition(this);
+
+        if (position.y < -80) {
+            position.copyFrom(WorldEngine.getWorld().voxels.get(0).position.add(VectorConstants.HALF)
+                    .addTo(VectorConstants.UP.multiply(2)));
+        }
     }
 
     private void handleKeyPresses(double dt) {
@@ -98,14 +104,26 @@ public class Player extends Entity {
     private void checkKey(String key, Runnable handler) {
         if (pressedKeys.contains(key)) {
             pressedKeys.remove(key);
+            Vector3 pos = position.copy();
             handler.run();
+            if (!pos.equals(position)) {
+                WorldEngine.validatePosition(this);
+            }
         }
     }
 
     private void checkKey(String key, boolean otherCheck, Runnable handler) {
         if (pressedKeys.contains(key) && otherCheck) {
             pressedKeys.remove(key);
+            Vector3 pos = position.copy();
             handler.run();
+            if (!pos.equals(position)) {
+                Vector3 delta = position.subtract(pos).multiplyBy(0.5);
+                position.subtractFrom(delta);
+                checkGravity();
+                position.addTo(delta);
+                WorldEngine.validatePosition(this);
+            }
         }
     }
 
@@ -138,6 +156,7 @@ public class Player extends Entity {
             onGround = true;
             velocity.y = 0;
         }
+
     }
 
     @Override
