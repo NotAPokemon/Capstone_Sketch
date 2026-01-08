@@ -164,6 +164,8 @@ public class Player extends Entity {
         List<Voxel> voxels = new ArrayList<>();
         Voxel v = new Voxel(VectorConstants.DARK_GREEN);
         Voxel v2 = new Voxel(VectorConstants.DOWN, VectorConstants.DARK_GREEN);
+        v.getMaterial().setEntity(true);
+        v2.getMaterial().setEntity(true);
         voxels.add(v);
         voxels.add(v2);
         return voxels;
