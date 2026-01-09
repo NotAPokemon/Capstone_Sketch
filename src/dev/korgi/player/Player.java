@@ -80,7 +80,7 @@ public class Player extends Entity {
             withHit((hit) -> {
                 Vector3 newPos = hit.getFaceWithOffset();
                 if (WorldEngine.canPlaceVoxel(newPos)) {
-                    WorldEngine.addVoxelWithTexture(newPos, TextureAtlas.MINECRAFT_GRASS_BLOCK);
+                    WorldEngine.addVoxelWithTexture(newPos, TextureAtlas.TEST_BLOCK);
                 }
             }, 5);
         });
