@@ -14,6 +14,21 @@ public class TextureAtlas {
         this.atlas = new int[size][widthPerTexture][height];
     }
 
+    /**
+     * [ ] - 32x32 square
+     * 
+     * Minecraft-style layout (common convention):
+     *
+     * [ ][T][ ][ ]
+     * [W][F][E][B]
+     * [ ][B][ ][ ]
+     * [ ][ ][ ][ ]
+     * 
+     * Or
+     * 
+     * +X, -X, +Y, -Y, +Z, -Z
+     * [W][E][T][B][F][B]
+     */
     public void addTexture(int id, BufferedImage img) {
         BufferedImage src;
 
@@ -21,18 +36,6 @@ public class TextureAtlas {
             src = new BufferedImage(widthPerTexture, height, BufferedImage.TYPE_INT_ARGB);
 
             int t = 32;
-
-            /*
-             * Minecraft-style layout (common convention):
-             *
-             * [ ][TOP][ ][ ]
-             * [W][FR][E][ ]
-             * [ ][BOT][ ][ ]
-             * [ ][ ][ ][ ]
-             */
-
-            // Face order your renderer expects:
-            // +X, -X, +Y, -Y, +Z, -Z
 
             BufferedImage[] faces = new BufferedImage[] {
                     img.getSubimage(64, 32, t, t),
