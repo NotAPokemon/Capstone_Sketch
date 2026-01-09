@@ -201,26 +201,22 @@ public class Screen extends PApplet {
     boolean dropdownOpen = false;
     int selectedIndex = -1;
 
-    // Scroll variables
     int scrollOffset = 0;
-    int maxVisibleItems = 5; // max items visible without scrolling
+    int maxVisibleItems = 5;
 
-    // Layout constants
     int buttonWidth = 200;
     int buttonHeight = 50;
     int dropdownWidth = 220;
     int dropdownHeight = 40;
-    int spacing = 20; // vertical spacing between UI elements
+    int spacing = 20;
     int colorBoxSize = 30;
 
     public void drawServerInfo() {
         background(50);
 
-        // Compute positions relative to center
         int centerX = width / 2;
         int topY = height / 4;
 
-        // Stop Hosting button
         int hostX = centerX - buttonWidth / 2;
         int hostY = topY;
 
@@ -250,11 +246,9 @@ public class Screen extends PApplet {
         playerOptions = connectedPlayers.toArray(new String[0]);
         playerColors = colors.toArray(new Integer[0]);
 
-        // Dropdown position below Stop Hosting button
         int dropdownX = centerX - dropdownWidth / 2;
         int dropdownY = hostY + buttonHeight + spacing;
 
-        // Draw main dropdown box
         fill(200);
         rect(dropdownX, dropdownY, dropdownWidth, dropdownHeight, 5);
         fill(0);
@@ -262,13 +256,11 @@ public class Screen extends PApplet {
         String label = (selectedIndex >= 0) ? playerOptions[selectedIndex] : "Select Player";
         text(label, dropdownX + 10 + colorBoxSize, dropdownY + dropdownHeight / 2);
 
-        // Draw selected player color box
         if (selectedIndex >= 0) {
             fill(playerColors[selectedIndex]);
             rect(dropdownX + 10, dropdownY + 5, colorBoxSize, dropdownHeight - 10, 5);
         }
 
-        // Draw dropdown items if open
         if (dropdownOpen) {
             int totalItems = playerOptions.length;
             int visibleItems = min(maxVisibleItems, totalItems);
@@ -281,11 +273,9 @@ public class Screen extends PApplet {
                         mouseY > itemY && mouseY < itemY + dropdownHeight ? 150 : 220);
                 rect(dropdownX, itemY, dropdownWidth, dropdownHeight, 5);
 
-                // Draw color box
                 fill(playerColors[i]);
                 rect(dropdownX + 10, itemY + 5, colorBoxSize, dropdownHeight - 10, 5);
 
-                // Draw text
                 fill(0);
                 text(playerOptions[i], dropdownX + 10 + colorBoxSize, itemY + dropdownHeight / 2);
             }
@@ -346,6 +336,7 @@ public class Screen extends PApplet {
                 } else if (hoverJoin) {
                     if (skip) {
                         Game.isClient = true;
+                        NativeGPUKernal.loadTextureMap();
                         Game.init();
                         return;
                     }

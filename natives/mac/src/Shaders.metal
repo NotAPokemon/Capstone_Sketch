@@ -17,13 +17,15 @@ struct RayParams {
 // Buffer 5: width
 // Buffer 6: height
 kernel void raytraceKernel(
-    device int* pixels        [[buffer(0)]],
-    device int* voxelGrid     [[buffer(1)]],
-    device int* colors        [[buffer(2)]],
-    device float* opacity     [[buffer(3)]],
-    device RayParams& params  [[buffer(4)]],
-    device int* widthBuf     [[buffer(5)]],
-    device int* heightBuf    [[buffer(6)]],
+    device int* pixels          [[buffer(0)]],
+    device int* voxelGrid       [[buffer(1)]],
+    device int* colors          [[buffer(2)]],
+    device float* opacity       [[buffer(3)]],
+    device RayParams& params    [[buffer(4)]],
+    device int* widthBuf        [[buffer(5)]],
+    device int* heightBuf       [[buffer(6)]],
+    device int* textureLocation [[buffer(7)]],
+    device int* textureAtlas    [[buffer(8)]],
     uint2 gid                 [[thread_position_in_grid]]
 ) {
     int width = widthBuf[0];
@@ -112,6 +114,8 @@ kernel void raytraceKernel(
     int maxSteps = 500;
     int steps = 0;
     float t = tMin;
+    int hitFace = -1;
+    float3 hitPos = 0;
 
     while (t < tMax && opacityAccum > 0.01f && steps < maxSteps) {
         if (all(cell >= int3(params.worldMin)) &&
@@ -125,28 +129,80 @@ kernel void raytraceKernel(
                 int c = colors[voxelIdx];
                 float a = opacity[voxelIdx] * opacityAccum;
 
-                int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0f - a));
-                int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0f - a));
-                int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0f - a));
-                hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                float u = 0.0f;
+                float v = 0.0f;
 
-                opacityAccum *= (1.0f - opacity[voxelIdx]);
+                float3 local = hitPos - floor(hitPos);
+
+                switch (hitFace) {
+                    case 0: // +X
+                    case 1: // -X
+                        u = local.z;
+                        v = 1.0f - local.y;
+                        break;
+
+                    case 2: // -Y
+                    case 3: // +Y
+                        u = local.x;
+                        v = 1.0f - local.z;
+                        break;
+
+                    case 4: // +Z
+                    case 5: // -Z
+                        u = local.x;
+                        v = 1.0f - local.y;
+                        break;
+                }
+
+                int texId = textureLocation[voxelIdx];
+
+                if (texId != -1 && hitFace >= 0){
+                    int iu = clamp(int(u * 32), 0, 32 - 1);
+                    int iv = clamp(int(v * 32), 0, 32 - 1);
+
+                    int x = hitFace * 32 + iu;
+                    int base = texId * 192 * 32;
+
+                    int texel = textureAtlas[
+                        base + iv * 192 + x
+                    ];
+
+                    hitColor = texel;
+                    opacityAccum *= 0.0f;
+                } else {
+                    int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0f - a));
+                    int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0f - a));
+                    int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0f - a));
+                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+
+                    opacityAccum *= (1.0f - opacity[voxelIdx]);
+                }
             }
         }
 
+        float tHit;
+
         if (tMaxVals.x <= tMaxVals.y && tMaxVals.x <= tMaxVals.z) {
+            tHit = tMaxVals.x;
             cell.x += step.x;
-            t = tMaxVals.x;
             tMaxVals.x += tDelta.x;
-        } else if (tMaxVals.y <= tMaxVals.z) {
-            cell.y += step.y;
-            t = tMaxVals.y;
-            tMaxVals.y += tDelta.y;
-        } else {
-            cell.z += step.z;
-            t = tMaxVals.z;
-            tMaxVals.z += tDelta.z;
+            hitFace = (step.x > 0) ? 0 : 1;
         }
+        else if (tMaxVals.y <= tMaxVals.z) {
+            tHit = tMaxVals.y;
+            cell.y += step.y;
+            tMaxVals.y += tDelta.y;
+            hitFace = (step.y > 0) ? 3 : 2;
+        }
+        else {
+            tHit = tMaxVals.z;
+            cell.z += step.z;
+            tMaxVals.z += tDelta.z;
+            hitFace = (step.z > 0) ? 4 : 5;
+        }
+
+        t = tHit;
+        hitPos = params.cam + dir * tHit;
 
         steps++;
     }

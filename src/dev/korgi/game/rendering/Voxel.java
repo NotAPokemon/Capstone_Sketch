@@ -11,6 +11,10 @@ public class Voxel {
         this.position = new Vector3();
     }
 
+    public Voxel(Vector3 pos) {
+        this.position = pos;
+    }
+
     public Voxel(Vector4 color) {
         this();
         this.mat.setColor(color);

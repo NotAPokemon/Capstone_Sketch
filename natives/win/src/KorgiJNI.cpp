@@ -12,6 +12,8 @@ static GLuint pixelsBuffer = 0;
 static GLuint voxelBuffer = 0;
 static GLuint colorBuffer = 0;
 static GLuint opacityBuffer = 0;
+static GLuint textureLocationBuffer = 0;
+static GLuint textureAtlasBuffer = 0;
 
 static bool initGL(int width, int height)
 {
@@ -123,7 +125,9 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray worldMinArray,
     jintArray worldSizeArray,
     jintArray voxelGrid,
-    jstring path)
+    jstring path,
+    jintArray textureLocation,
+    jintArray textureAtlas)
 {
     if (!initGL(width, height))
         return;
@@ -145,6 +149,8 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jfloat *forwardPtr = env->GetFloatArrayElements(forward, nullptr);
     jfloat *rightPtr = env->GetFloatArrayElements(right, nullptr);
     jfloat *upPtr = env->GetFloatArrayElements(up, nullptr);
+    jint *textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
+    jint *textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
 
     if (!pixelsBuffer)
         glGenBuffers(1, &pixelsBuffer);
@@ -166,12 +172,26 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, opacityBuffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * voxCount, opacityPtr, GL_STATIC_DRAW);
 
+    if (!textureLocationBuffer)
+        glGenBuffers(1, &textureLocationBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, textureLocationBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * voxCount, textureLocationPtr, GL_STATIC_DRAW);
+
+    jsize length = env->GetArrayLength(textureAtlas);
+
+    if (!textureAtlasBuffer)
+        glGenBuffers(1, &textureAtlasBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, textureAtlasBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * length, textureAtlasPtr, GL_STATIC_DRAW);
+
     glUseProgram(computeProgram);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pixelsBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, voxelBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, colorBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, opacityBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, textureLocationBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, textureAtlasBuffer);
 
     GLint loc_cam = glGetUniformLocation(computeProgram, "cam");
     GLint loc_forward = glGetUniformLocation(computeProgram, "forward");
@@ -217,4 +237,6 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     env->ReleaseFloatArrayElements(forward, forwardPtr, 0);
     env->ReleaseFloatArrayElements(right, rightPtr, 0);
     env->ReleaseFloatArrayElements(up, upPtr, 0);
+    env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
+    env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
 }

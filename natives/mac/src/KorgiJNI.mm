@@ -68,7 +68,9 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray worldMinArray,
     jintArray worldSizeArray,
     jintArray voxelGrid,
-    jstring path
+    jstring path,
+    jintArray textureLocation,
+    jintArray textureAtlas
 ) {
 
     initMetal(JString_to_NSString(env, path));
@@ -83,6 +85,8 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jint* worldMin = env->GetIntArrayElements(worldMinArray, nullptr);
     jint* worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
     jint* voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
+    jint* textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
+    jint* textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
 
     // Buffers
     id<MTLBuffer> pixelsBuffer = [device newBufferWithBytes:pixelsPtr
@@ -99,6 +103,17 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
 
     id<MTLBuffer> opacityBuffer = [device newBufferWithBytes:opacityPtr
                                                      length:sizeof(float)*voxCount
+                                                    options:MTLResourceStorageModeShared];
+
+    id<MTLBuffer> textureLocationBuffer = [device newBufferWithBytes:textureLocationPtr
+                                                     length:sizeof(jint)*voxCount
+                                                    options:MTLResourceStorageModeShared];
+                                                
+    jsize length = env->GetArrayLength(textureAtlas);
+
+
+    id<MTLBuffer> textureAtlasBuffer = [device newBufferWithBytes:textureAtlasPtr
+                                                     length:sizeof(jint)*length
                                                     options:MTLResourceStorageModeShared];
 
     RayParams params;
@@ -132,6 +147,8 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     [encoder setBuffer:paramsBuffer offset:0 atIndex:4];
     [encoder setBuffer:widthBuffer offset:0 atIndex:5];
     [encoder setBuffer:heightBuffer offset:0 atIndex:6];
+    [encoder setBuffer:textureLocationBuffer offset:0 atIndex:7];
+    [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:8];
 
     MTLSize threadsPerThreadgroup = MTLSizeMake(8,8,1);
     MTLSize threadgroups = MTLSizeMake((width+7)/8, (height+7)/8,1);
@@ -153,4 +170,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     env->ReleaseIntArrayElements(worldMinArray, worldMin, 0);
     env->ReleaseIntArrayElements(worldSizeArray, worldSize, 0);
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
+    env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
+    env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
 }

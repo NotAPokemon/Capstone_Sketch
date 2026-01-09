@@ -25,6 +25,7 @@ public class WorldEngine {
             for (int z = 0; z < 10; z++) {
                 Voxel v = new Voxel(x, -5, z, color);
                 v.getMaterial().setOpacity(opacity);
+                v.getMaterial().setTextureLocation(0);
                 addVoxel(v);
             }
         }
@@ -42,6 +43,13 @@ public class WorldEngine {
 
     public static void addRandomVoxel(Vector3 pos) {
         world.voxels.add(new Voxel(pos, new Vector4(Vector3.random())));
+        world.updated = true;
+    }
+
+    public static void addVoxelWithTexture(Vector3 pos, int texture) {
+        Voxel v = new Voxel(pos);
+        v.getMaterial().setTextureLocation(texture);
+        world.voxels.add(v);
         world.updated = true;
     }
 

@@ -8,6 +8,7 @@ import dev.korgi.game.physics.Entity;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.rendering.Graphics;
+import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -79,7 +80,7 @@ public class Player extends Entity {
             withHit((hit) -> {
                 Vector3 newPos = hit.getFaceWithOffset();
                 if (WorldEngine.canPlaceVoxel(newPos)) {
-                    WorldEngine.addRandomVoxel(newPos);
+                    WorldEngine.addVoxelWithTexture(newPos, TextureAtlas.MINECRAFT_GRASS_BLOCK);
                 }
             }, 5);
         });
@@ -164,8 +165,6 @@ public class Player extends Entity {
         List<Voxel> voxels = new ArrayList<>();
         Voxel v = new Voxel(VectorConstants.DARK_GREEN);
         Voxel v2 = new Voxel(VectorConstants.DOWN, VectorConstants.DARK_GREEN);
-        v.getMaterial().setEntity(true);
-        v2.getMaterial().setEntity(true);
         voxels.add(v);
         voxels.add(v2);
         return voxels;

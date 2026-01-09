@@ -1,28 +1,21 @@
 package dev.korgi.game.rendering;
 
-import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
-import dev.korgi.math.VectorConstants;
 
 public class Material {
     private double opacity;
     private Vector4 color;
     private boolean rigid;
-    private Vector3 size;
-    private boolean isEntity;
+    private Integer textureLocation;
 
     public Material() {
-        Vector4 blenderGray = new Vector4(0.8, 0.8, 0.8, 1.0);
-
-        this.color = blenderGray;
+        this.color = new Vector4(0.8, 0.8, 0.8, 1.0);
 
         this.opacity = 1.0;
 
         this.rigid = true;
 
-        this.size = VectorConstants.ONE;
-
-        this.isEntity = false;
+        this.textureLocation = -1;
     }
 
     public Vector4 getColor() {
@@ -33,16 +26,12 @@ public class Material {
         return opacity;
     }
 
+    public Integer getTextureLocation() {
+        return textureLocation;
+    }
+
     public boolean isRigid() {
         return rigid;
-    }
-
-    public Vector3 getSize() {
-        return size;
-    }
-
-    public boolean isEntity() {
-        return isEntity;
     }
 
     public void setColor(Vector4 color) {
@@ -57,12 +46,8 @@ public class Material {
         this.rigid = rigid;
     }
 
-    public void setSize(Vector3 size) {
-        this.size = size;
-    }
-
-    public void setEntity(boolean isEntity) {
-        this.isEntity = isEntity;
+    public void setTextureLocation(Integer textureLocation) {
+        this.textureLocation = textureLocation;
     }
 
 }

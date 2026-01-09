@@ -13,7 +13,7 @@ extern "C"
    * Method:    executeKernal
    * Signature: ([III[F[F[F[FFI[I[F[I[I[I)V
    */
-  JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(JNIEnv *, jclass, jintArray, jint, jint, jfloatArray, jfloatArray, jfloatArray, jfloatArray, jfloat, jint, jintArray, jfloatArray, jintArray, jintArray, jintArray, jstring);
+  JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(JNIEnv *, jclass, jintArray, jint, jint, jfloatArray, jfloatArray, jfloatArray, jfloatArray, jfloat, jint, jintArray, jfloatArray, jintArray, jintArray, jintArray, jstring, jintArray, jintArray);
 
 #ifdef __cplusplus
 }

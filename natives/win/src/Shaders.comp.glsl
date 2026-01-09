@@ -18,6 +18,14 @@ layout(std430, binding = 3) buffer Opacity {
     float opacity[];
 };
 
+layout(std430, binding = 4) buffer textureLocation {
+    int textureLocation[];
+};
+
+layout(std430, binding = 5) buffer textureAtlas {
+    int textureAtlas[];
+};
+
 // Uniforms
 uniform vec3 cam;
 uniform vec3 forward;
@@ -93,6 +101,9 @@ void main() {
 
     ivec3 worldMax = worldMin + worldSize;
 
+    int hitFace = -1;
+    vec3 hitPos = 0;
+
     while (t < tMax && opacityAccum > 0.01 && steps < maxSteps) {
         if (all(greaterThanEqual(cell, worldMin)) && all(lessThan(cell, worldMax))) {
             int voxelIdx = voxelGrid[(cell.x - worldMin.x)
@@ -102,29 +113,78 @@ void main() {
                 int c = colors[voxelIdx];
                 float a = opacity[voxelIdx] * opacityAccum;
 
-                int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0 - a));
-                int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0 - a));
-                int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0 - a));
-                hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                float u = 0.0;
+                float v = 0.0;
 
-                opacityAccum *= (1.0 - opacity[voxelIdx]);
+                vec3 local = hitPos - floor(hitPos);
+
+                switch (hitFace) {
+                    case 0: // +X
+                    case 1: // -X
+                        u = local.z;
+                        v = 1.0 - local.y;
+                        break;
+
+                    case 2: // -Y
+                    case 3: // +Y
+                        u = local.x;
+                        v = 1.0 - local.z;
+                        break;
+
+                    case 4: // +Z
+                    case 5: // -Z
+                        u = local.x;
+                        v = 1.0 - local.y;
+                        break;
+                }
+
+                int texId = textureLocation[voxelIdx];
+
+                if (texId != -1 && hitFace >= 0){
+                    int iu = clamp(int(u * 32), 0, 32 - 1);
+                    int iv = clamp(int(v * 32), 0, 32 - 1);
+
+                    int x = hitFace * 32 + iu;
+                    int base = texId * 192 * 32;
+
+                    int texel = textureAtlas[
+                        base + iv * 192 + x
+                    ];
+
+                    hitColor = texel;
+                    opacityAccum *= 0.0f;
+                } else {
+                    int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0 - a));
+                    int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0 - a));
+                    int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0 - a));
+                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+
+                    opacityAccum *= (1.0 - opacity[voxelIdx]);
+                }
             }
         }
 
+        float tHit;
+
         // Step along the ray
         if (tMaxVals.x <= tMaxVals.y && tMaxVals.x <= tMaxVals.z) {
+            tHit = tMaxVals.x;
             cell.x += step.x;
-            t = tMaxVals.x;
             tMaxVals.x += tDelta.x;
+            hitFace = (step.x > 0) ? 0 : 1;
         } else if (tMaxVals.y <= tMaxVals.z) {
+            tHit = tMaxVals.y;
             cell.y += step.y;
-            t = tMaxVals.y;
             tMaxVals.y += tDelta.y;
+            hitFace = (step.y > 0) ? 3 : 2;
         } else {
+            tHit = tMaxVals.z;
             cell.z += step.z;
-            t = tMaxVals.z;
             tMaxVals.z += tDelta.z;
+            hitFace = (step.z > 0) ? 4 : 5;
         }
+        t = tHit;
+        hitPos = cam + dir * tHit;
         steps++;
     }
 
