@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -46,7 +48,8 @@ public class JSONObject {
         while (clazz != null && clazz != Object.class) {
             for (Field field : clazz.getDeclaredFields()) {
                 int mods = field.getModifiers();
-                if (!java.lang.reflect.Modifier.isStatic(mods) && !java.lang.reflect.Modifier.isFinal(mods)) {
+                if (!Modifier.isStatic(mods) && !Modifier.isFinal(mods)
+                        && !field.isAnnotationPresent(JSONIgnore.class)) {
                     fields.add(field);
                 }
             }
@@ -398,6 +401,18 @@ public class JSONObject {
             if (value == null)
                 continue;
 
+            if (field.isAnnotationPresent(JSONFillOverride.class)) {
+                JSONFillOverride annotation = field.getAnnotation(JSONFillOverride.class);
+                String override = annotation.value();
+                try {
+                    target.getClass().getMethod(override, Object.class).invoke(target, value);
+                    continue;
+                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+                        | NoSuchMethodException | SecurityException e) {
+                    e.printStackTrace();
+                }
+            }
+
             try {
                 Class<?> type = field.getType();
 
@@ -504,6 +519,10 @@ public class JSONObject {
             }
         }
         return result;
+    }
+
+    public Map<String, Object> getValues() {
+        return values;
     }
 
     private static class JSONParser {

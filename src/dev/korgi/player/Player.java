@@ -49,7 +49,7 @@ public class Player extends Entity {
         WorldEngine.validatePosition(this);
 
         if (position.y < -80) {
-            position.copyFrom(WorldEngine.getWorld().voxels.get(0).position.add(VectorConstants.HALF)
+            position.copyFrom(WorldEngine.getWorld().getFlat().get(0).position.add(VectorConstants.HALF)
                     .addTo(VectorConstants.UP.multiply(2)));
         }
     }
@@ -157,7 +157,6 @@ public class Player extends Entity {
             onGround = true;
             velocity.y = 0;
         }
-
     }
 
     @Override

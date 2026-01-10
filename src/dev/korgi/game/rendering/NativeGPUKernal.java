@@ -76,8 +76,12 @@ public class NativeGPUKernal {
     }
 
     private static void precompute(List<Voxel> voxels, Camera camera) {
-        if (voxels.isEmpty())
+        if (voxels.isEmpty()) {
+            for (int i = 0; i < pixels.length; i++) {
+                pixels[i] = 0xFF87CEEB;
+            }
             return;
+        }
 
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
