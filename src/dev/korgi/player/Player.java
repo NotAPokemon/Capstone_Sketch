@@ -7,8 +7,10 @@ import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
+import dev.korgi.json.JSONIgnore;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
+import dev.korgi.math.Cooldown;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -21,8 +23,15 @@ public class Player extends Entity {
     private int speed = 3;
     private boolean onGround = false;
 
+    @JSONIgnore
+    private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
+
     public Player() {
         setCancelProtocol(() -> !connected);
+        if (!Game.isClient) {
+            Cooldown.createCooldown("m", 0.1);
+            Cooldown.createCooldown("j", 0.1);
+        }
     }
 
     @Override
@@ -75,12 +84,22 @@ public class Player extends Entity {
         checkKey("s", () -> position.subtractFrom(forward));
         checkKey("a", () -> position.subtractFrom(right));
         checkKey("d", () -> position.addTo(right));
-        checkKey("j", () -> Game.canFly = !Game.canFly);
+        checkKey("j", () -> Game.canFly = !Game.canFly, 0.1);
+        checkKey("m", () -> {
+                if (selectedBlock == TextureAtlas.DUNGEON_BLOCK) {
+                    selectedBlock = TextureAtlas.GALAXY_BLOCK;
+                } else {
+                    selectedBlock = TextureAtlas.DUNGEON_BLOCK;
+                }
+        }, 0.2);
+        checkKey("f", Game.canFly,  () -> {
+            System.out.println();
+        }, 0.1);
         checkKey("RMB", () -> {
             withHit((hit) -> {
                 Vector3 newPos = hit.getFaceWithOffset();
                 if (WorldEngine.canPlaceVoxel(newPos)) {
-                    WorldEngine.addVoxelWithTexture(newPos, TextureAtlas.TEST_BLOCK);
+                    WorldEngine.addVoxelWithTexture(newPos, selectedBlock);
                 }
             }, 5);
         });
@@ -113,7 +132,36 @@ public class Player extends Entity {
         }
     }
 
+    private void checkKey(String key, Runnable handler, double cd) {
+        if (pressedKeys.contains(key)) {
+            Cooldown.ensure(key, cd);
+            Cooldown.use(key, () -> {
+                pressedKeys.remove(key);
+                Vector3 pos = position.copy();
+                handler.run();
+                if (!pos.equals(position)) {
+                    WorldEngine.validatePosition(this);
+                }
+            });
+        }
+    }
+
     private void checkKey(String key, boolean otherCheck, Runnable handler) {
+        if (pressedKeys.contains(key) && otherCheck) {
+            pressedKeys.remove(key);
+            Vector3 pos = position.copy();
+            handler.run();
+            if (!pos.equals(position)) {
+                Vector3 delta = position.subtract(pos).multiplyBy(0.5);
+                position.subtractFrom(delta);
+                checkGravity();
+                position.addTo(delta);
+                WorldEngine.validatePosition(this);
+            }
+        }
+    }
+
+    private void checkKey(String key, boolean otherCheck, Runnable handler, double cd) {
         if (pressedKeys.contains(key) && otherCheck) {
             pressedKeys.remove(key);
             Vector3 pos = position.copy();
