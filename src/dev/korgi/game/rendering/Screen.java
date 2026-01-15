@@ -4,6 +4,7 @@ import java.awt.AWTException;
 import java.awt.Component;
 import java.awt.Point;
 import java.awt.Robot;
+import java.awt.event.MouseMotionAdapter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +44,10 @@ public class Screen extends PApplet {
         size(900, 600);
     }
 
+    private int rawMouseX = -1;
+    private int rawMouseY = -1;
+
+
     @Override
     public void setup() {
         frameRate(60);
@@ -52,6 +57,23 @@ public class Screen extends PApplet {
         } catch (AWTException e) {
             e.printStackTrace();
         }
+        Component window = (Component) surface.getNative();
+
+        window.addMouseMotionListener(new MouseMotionAdapter() {
+             @Override
+             public void mouseMoved(java.awt.event.MouseEvent e) {
+                rawMouseX = e.getX();
+                rawMouseY = e.getY();
+             }
+
+             @Override
+             public void mouseDragged(java.awt.event.MouseEvent e) {
+                 mouseMoved(e);
+             }
+
+        
+        });
+
     }
 
     @Override
@@ -183,8 +205,8 @@ public class Screen extends PApplet {
             return;
         }
 
-        float deltaX = mouseX - width / 2;
-        float deltaY = mouseY - height / 2;
+        float deltaX = rawMouseX - width / 2;
+        float deltaY = rawMouseY - height / 2;
 
         robot.mouseMove((int) (p.x + width / 2), (int) (p.y + height / 2));
 
