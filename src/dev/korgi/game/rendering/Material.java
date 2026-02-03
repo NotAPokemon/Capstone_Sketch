@@ -7,6 +7,7 @@ public class Material {
     private Vector4 color;
     private boolean rigid;
     private Integer textureLocation;
+    private int size = 1;
 
     public Material() {
         this.color = new Vector4(0.8, 0.8, 0.8, 1.0);
@@ -16,6 +17,8 @@ public class Material {
         this.rigid = true;
 
         this.textureLocation = -1;
+
+        this.size = 1;
     }
 
     public Vector4 getColor() {
@@ -34,6 +37,10 @@ public class Material {
         return rigid;
     }
 
+    public int getSize() {
+        return size;
+    }
+
     public void setColor(Vector4 color) {
         this.color = color;
     }
@@ -48,6 +55,20 @@ public class Material {
 
     public void setTextureLocation(Integer textureLocation) {
         this.textureLocation = textureLocation;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public Material copy() {
+        Material m = new Material();
+        m.setColor(this.color);
+        m.setOpacity(this.opacity);
+        m.setRigid(this.rigid);
+        m.setTextureLocation(this.textureLocation);
+        m.setSize(this.size);
+        return m;
     }
 
 }

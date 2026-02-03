@@ -47,7 +47,6 @@ public class Screen extends PApplet {
     private int rawMouseX = -1;
     private int rawMouseY = -1;
 
-
     @Override
     public void setup() {
         frameRate(60);
@@ -60,18 +59,17 @@ public class Screen extends PApplet {
         Component window = (Component) surface.getNative();
 
         window.addMouseMotionListener(new MouseMotionAdapter() {
-             @Override
-             public void mouseMoved(java.awt.event.MouseEvent e) {
+            @Override
+            public void mouseMoved(java.awt.event.MouseEvent e) {
                 rawMouseX = e.getX();
                 rawMouseY = e.getY();
-             }
+            }
 
-             @Override
-             public void mouseDragged(java.awt.event.MouseEvent e) {
-                 mouseMoved(e);
-             }
+            @Override
+            public void mouseDragged(java.awt.event.MouseEvent e) {
+                mouseMoved(e);
+            }
 
-        
         });
 
     }
@@ -81,9 +79,14 @@ public class Screen extends PApplet {
         if (Game.isClient) {
             Player client = Game.getClient();
             String k = normalizeKey();
-            if (k != null && client != null && !client.pressedKeys.contains(k)) {
+            if (k != null && client != null && !client.pressedKeys.contains(k + "_HOLD")
+                    && !client.pressedKeys.contains(k)) {
                 client.pressedKeys.add(k);
+            } else if (client.pressedKeys.contains(k)) {
+                client.pressedKeys.remove(k);
+                client.pressedKeys.add(k + "_HOLD");
             }
+
         }
     }
 
@@ -123,6 +126,7 @@ public class Screen extends PApplet {
         if (Game.isClient) {
             Player client = Game.getClient();
             if (client != null) {
+                client.pressedKeys.remove(normalizeKey() + "_HOLD");
                 client.pressedKeys.remove(normalizeKey());
             }
         }

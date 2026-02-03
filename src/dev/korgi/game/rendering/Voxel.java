@@ -11,6 +11,11 @@ public class Voxel {
         this.position = new Vector3();
     }
 
+    public Voxel(Vector3 pos, Material mat) {
+        this.position = pos;
+        this.mat = mat;
+    }
+
     public Voxel(Vector3 pos) {
         this.position = pos;
     }
@@ -51,5 +56,9 @@ public class Voxel {
 
     public Material getMaterial() {
         return mat;
+    }
+
+    public Voxel copy() {
+        return new Voxel(position.copy(), mat.copy());
     }
 }

@@ -11,6 +11,7 @@ public class TextureAtlas {
     public static final int MINECRAFT_GRASS_BLOCK = 0;
     public static final int DUNGEON_BLOCK = 1;
     public static final int GALAXY_BLOCK = 2;
+    public static final int amt = 3;
 
     public TextureAtlas(int size) {
         this.atlas = new int[size][widthPerTexture][height];

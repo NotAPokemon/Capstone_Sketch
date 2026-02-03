@@ -84,17 +84,11 @@ public class Player extends Entity {
         checkKey("s", () -> position.subtractFrom(forward));
         checkKey("a", () -> position.subtractFrom(right));
         checkKey("d", () -> position.addTo(right));
-        checkKey("j", () -> Game.canFly = !Game.canFly, 0.1);
+        checkKey("j", () -> Game.canFly = !Game.canFly, true);
         checkKey("m", () -> {
-                if (selectedBlock == TextureAtlas.DUNGEON_BLOCK) {
-                    selectedBlock = TextureAtlas.GALAXY_BLOCK;
-                } else {
-                    selectedBlock = TextureAtlas.DUNGEON_BLOCK;
-                }
-        }, 0.2);
-        checkKey("f", Game.canFly,  () -> {
-            System.out.println();
-        }, 0.1);
+            selectedBlock += 1;
+            selectedBlock %= TextureAtlas.amt;
+        }, true);
         checkKey("RMB", () -> {
             withHit((hit) -> {
                 Vector3 newPos = hit.getFaceWithOffset();
@@ -102,19 +96,25 @@ public class Player extends Entity {
                     WorldEngine.addVoxelWithTexture(newPos, selectedBlock);
                 }
             }, 5);
-        });
+        }, true);
         checkKey("LMB", () -> {
             withHit((hit) -> {
                 Vector3 breakPos = hit.getVoxelPos();
                 WorldEngine.removeVoxel(WorldEngine.voxelAt(breakPos));
             }, 5);
-        });
-        checkKey(" ", Game.canFly, () -> position.addTo(amt));
-        checkKey(" ", !Game.canFly && onGround, () -> {
-            velocity.addTo(VectorConstants.UP.multiply(5));
+        }, true);
+        checkKey(" ", () -> {
+            if (!Game.canFly && onGround) {
+                velocity.addTo(VectorConstants.UP.multiply(5));
+            } else if (Game.canFly) {
+                position.addTo(amt);
+            }
             onGround = false;
         });
-        checkKey("SHIFT", Game.canFly, () -> position.subtractFrom(amt));
+        checkKey("SHIFT", () -> {
+            if (Game.canFly)
+                position.subtractFrom(amt);
+        });
 
         if (!originalPos.equals(position)) {
             checkGravity();
@@ -122,7 +122,7 @@ public class Player extends Entity {
     }
 
     private void checkKey(String key, Runnable handler) {
-        if (pressedKeys.contains(key)) {
+        if (pressedKeys.contains(key) || pressedKeys.contains(key + "_HOLD")) {
             pressedKeys.remove(key);
             Vector3 pos = position.copy();
             handler.run();
@@ -132,45 +132,12 @@ public class Player extends Entity {
         }
     }
 
-    private void checkKey(String key, Runnable handler, double cd) {
-        if (pressedKeys.contains(key)) {
-            Cooldown.ensure(key, cd);
-            Cooldown.use(key, () -> {
-                pressedKeys.remove(key);
-                Vector3 pos = position.copy();
-                handler.run();
-                if (!pos.equals(position)) {
-                    WorldEngine.validatePosition(this);
-                }
-            });
-        }
-    }
-
-    private void checkKey(String key, boolean otherCheck, Runnable handler) {
-        if (pressedKeys.contains(key) && otherCheck) {
+    private void checkKey(String key, Runnable handler, boolean onlyPress) {
+        if (pressedKeys.contains(key) || (!onlyPress && pressedKeys.contains(key + "_HOLD"))) {
             pressedKeys.remove(key);
             Vector3 pos = position.copy();
             handler.run();
             if (!pos.equals(position)) {
-                Vector3 delta = position.subtract(pos).multiplyBy(0.5);
-                position.subtractFrom(delta);
-                checkGravity();
-                position.addTo(delta);
-                WorldEngine.validatePosition(this);
-            }
-        }
-    }
-
-    private void checkKey(String key, boolean otherCheck, Runnable handler, double cd) {
-        if (pressedKeys.contains(key) && otherCheck) {
-            pressedKeys.remove(key);
-            Vector3 pos = position.copy();
-            handler.run();
-            if (!pos.equals(position)) {
-                Vector3 delta = position.subtract(pos).multiplyBy(0.5);
-                position.subtractFrom(delta);
-                checkGravity();
-                position.addTo(delta);
                 WorldEngine.validatePosition(this);
             }
         }
@@ -209,12 +176,7 @@ public class Player extends Entity {
 
     @Override
     public List<Voxel> createBody() {
-        List<Voxel> voxels = new ArrayList<>();
-        Voxel v = new Voxel(VectorConstants.DARK_GREEN);
-        Voxel v2 = new Voxel(VectorConstants.DOWN, VectorConstants.DARK_GREEN);
-        voxels.add(v);
-        voxels.add(v2);
-        return voxels;
+        return fromModel("entites/player");
     }
 
 }
