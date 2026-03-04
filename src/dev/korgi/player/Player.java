@@ -10,11 +10,11 @@ import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
-import dev.korgi.math.Cooldown;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
+import dev.korgi.utils.Time;
 
 public class Player extends Entity {
 
@@ -29,8 +29,8 @@ public class Player extends Entity {
     public Player() {
         setCancelProtocol(() -> !connected);
         if (!Game.isClient) {
-            Cooldown.createCooldown("m", 0.1);
-            Cooldown.createCooldown("j", 0.1);
+            Time.createCooldown("m", 0.1);
+            Time.createCooldown("j", 0.1);
         }
     }
 

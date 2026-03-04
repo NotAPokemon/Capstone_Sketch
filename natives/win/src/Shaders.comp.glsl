@@ -38,6 +38,10 @@ uniform ivec3 worldSize;
 uniform int width;
 uniform int height;
 
+#include "Box.glsl"
+
+
+
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
     int px = gid.x;

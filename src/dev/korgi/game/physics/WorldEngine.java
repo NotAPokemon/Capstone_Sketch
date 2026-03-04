@@ -27,7 +27,7 @@ public class WorldEngine {
                 addVoxel(v);
             }
         }
-        addVoxel(new Voxel(-500, -500, -500));
+        addVoxel(new Voxel(-5, -5, -5));
     }
 
     public static void addEntity(Entity e) {

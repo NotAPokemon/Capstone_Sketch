@@ -1,9 +1,9 @@
-package dev.korgi.math;
+package dev.korgi.utils;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Cooldown {
+public class Time {
 
     private static final Map<String, Double> lastTime = new HashMap<>();
     private static final Map<String, Double> cd = new HashMap<>();
@@ -13,8 +13,8 @@ public class Cooldown {
         cd.put(name, time);
     }
 
-    public static void ensure(String name, double time){
-        if (cd.get(name) == null || Math.abs(cd.get(name) - time) < 0.001){
+    public static void ensure(String name, double time) {
+        if (cd.get(name) == null || Math.abs(cd.get(name) - time) < 0.001) {
             createCooldown(name, time);
         }
     }
@@ -31,6 +31,14 @@ public class Cooldown {
         if (check(name)) {
             lastTime.put(name, System.nanoTime() / 1e9);
             action.run();
+        }
+    }
+
+    public static void time(Runnable runnable, double threashold, String output) {
+        long time = System.nanoTime();
+        runnable.run();
+        if ((System.nanoTime() - time) / 1e9 > threashold) {
+            System.out.println(output.formatted((System.nanoTime() - time) / 1e9));
         }
     }
 

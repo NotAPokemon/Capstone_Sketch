@@ -21,13 +21,7 @@ public class Graphics {
             NativeGPUKernal.resetSpecs(screen.pixels, width, height);
             init = true;
         }
-
-        long time = System.nanoTime();
-        NativeGPUKernal.execute(WorldEngine.getWorld().getFlat(), camera);
-        if ((System.nanoTime() - time) / 1e9 > 0.05) {
-            System.out.println("Warning Kernal Latancy High: " + (System.nanoTime() - time) / 1e9);
-        }
-
+        NativeGPUKernal.execute(WorldEngine.getWorld(), camera);
         screen.updatePixels();
     }
 }
