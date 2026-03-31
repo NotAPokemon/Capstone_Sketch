@@ -2,6 +2,7 @@ package dev.korgi.game.rendering;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +61,7 @@ public class NativeGPUKernal {
             textureAtlas.addTexture(id, img);
         }
 
+        textureAtlas.build();
     }
 
     public static void resetSpecs(int[] pixels, int width, int height) {
@@ -78,7 +80,7 @@ public class NativeGPUKernal {
     public static void execute(WorldStorage world, Camera camera) {
         NativeGPUKernal.camera = camera;
         Time.time(() -> {
-            precompute(world.getFlat());
+            precompute(world);
         }, 0.05, "Warning High Kernal Latency: %f");
     }
 
@@ -94,78 +96,90 @@ public class NativeGPUKernal {
         }
     }
 
-    private static void precompute(List<Voxel> voxels) {
-        if (voxels.isEmpty()) {
-            for (int i = 0; i < pixels.length; i++) {
-                pixels[i] = 0xFF87CEEB;
-            }
+    public static int render_dist = 50;
+
+    private static void precompute(WorldStorage world) {
+        if (world.getFlat().isEmpty()) {
+            Arrays.fill(pixels, 0xFF87CEEB);
             return;
         }
 
         Vector3 min = new Vector3(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
         Vector3 max = new Vector3(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
 
-        for (Voxel v : voxels) {
-            int x = (int) v.position.x;
-            int y = (int) v.position.y;
-            int z = (int) v.position.z;
-            if (x < min.x)
-                min.x = x;
-            if (y < min.y)
-                min.y = y;
-            if (z < min.z)
-                min.z = z;
-            if (x > max.x)
-                max.x = x;
-            if (y > max.y)
-                max.y = y;
-            if (z > max.z)
-                max.z = z;
-        }
-
-        Vector3 size = new Vector3(max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1)
-                .add(VectorConstants.ONE);
-
-        float tanFov = (float) Math.tan(Math.toRadians(camera.fov * 0.5f));
+        int radius = render_dist;
 
         Vector3 forward = camera.getForward();
 
         Vector3 right = camera.getRight();
 
         Vector3 up = right.cross(forward).normalizeHere();
-
-        int voxelCount = voxels.size();
-        if (vcolor == null || voxelCount != vcolor.length) {
-            vcolor = new int[voxelCount];
-            opacity = new float[voxelCount];
-            textureLocation = new int[voxelCount];
+        List<Voxel> voxels = new ArrayList<>();
+        for (int x = -radius; x < radius; x++) {
+            for (int y = -radius; y < radius; y++) {
+                for (int z = -radius; z < radius; z++) {
+                    Vector3 vpos = new Vector3(x, y, z).addTo(camera.position);
+                    Voxel v = world.at(vpos);
+                    if (v != null) {
+                        int xv = (int) vpos.x;
+                        int yv = (int) vpos.y;
+                        int zv = (int) vpos.z;
+                        if (xv < min.x)
+                            min.x = xv;
+                        if (yv < min.y)
+                            min.y = yv;
+                        if (zv < min.z)
+                            min.z = zv;
+                        if (xv > max.x)
+                            max.x = xv;
+                        if (yv > max.y)
+                            max.y = yv;
+                        if (zv > max.z)
+                            max.z = zv;
+                        voxels.add(v);
+                    }
+                }
+            }
         }
 
-        if (voxelGrid == null || voxelGrid.length != size.multiplyComp())
-            voxelGrid = new int[(int) size.multiplyComp()];
+        if (voxels.isEmpty()) {
+            Arrays.fill(pixels, 0xFF87CEEB);
+            return;
+        }
 
-        Time.time(() -> {
+        min.subtractFrom(VectorConstants.ONE);
+        max.addTo(VectorConstants.ONE);
+        Vector3 size = new Vector3(max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1);
 
-            Arrays.fill(voxelGrid, -1);
+        float tanFov = (float) Math.tan(Math.toRadians(camera.fov * 0.5f));
 
-            for (int i = 0; i < voxelCount; i++) {
-                Voxel v = voxels.get(i);
-                Vector3 g = v.position.subtract(min);
+        int voxelCount = voxels.size();
 
-                if (g.x < 0 || g.x >= size.x ||
-                        g.y < 0 || g.y >= size.y ||
-                        g.z < 0 || g.z >= size.z)
-                    continue;
+        vcolor = new int[voxelCount];
+        opacity = new float[voxelCount];
+        textureLocation = new int[voxelCount];
 
-                Vector4 color = v.getMaterial().getColor();
-                vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
-                opacity[i] = (float) v.getMaterial().getOpacity();
-                textureLocation[i] = v.getMaterial().getTextureLocation();
+        voxelGrid = new int[(int) size.multiplyComp()];
 
-                voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
-            }
+        Arrays.fill(voxelGrid, -1);
+        for (
 
-        }, 0.05, "High Precompute Latency: %f");
+                int i = 0; i < voxelCount; i++) {
+            Voxel v = voxels.get(i);
+            Vector3 g = v.position.subtract(min);
+
+            if (g.x < 0 || g.x >= size.x ||
+                    g.y < 0 || g.y >= size.y ||
+                    g.z < 0 || g.z >= size.z)
+                continue;
+
+            Vector4 color = v.getMaterial().getColor();
+            vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
+            opacity[i] = (float) v.getMaterial().getOpacity();
+            textureLocation[i] = v.getMaterial().getTextureLocation();
+
+            voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
+        }
 
         Time.time(() -> {
             KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),

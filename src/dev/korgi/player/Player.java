@@ -6,10 +6,10 @@ import java.util.List;
 import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
 import dev.korgi.game.physics.WorldEngine;
-import dev.korgi.game.rendering.Voxel;
-import dev.korgi.json.JSONIgnore;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
+import dev.korgi.game.rendering.Voxel;
+import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -20,7 +20,7 @@ public class Player extends Entity {
 
     public boolean connected;
     public List<String> pressedKeys = new ArrayList<>();
-    private int speed = 3;
+    private int speed = 4;
     private boolean onGround = false;
 
     @JSONIgnore
@@ -57,7 +57,7 @@ public class Player extends Entity {
         position.addTo(velocity.multiply(dt));
         WorldEngine.validatePosition(this);
 
-        if (position.y < -80) {
+        if (position.y < -70) {
             position.copyFrom(WorldEngine.getWorld().getFlat().get(0).position.add(VectorConstants.HALF)
                     .addTo(VectorConstants.UP.multiply(2)));
         }

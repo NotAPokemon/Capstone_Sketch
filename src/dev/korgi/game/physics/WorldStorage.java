@@ -7,6 +7,7 @@ import java.util.Map;
 
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONFillOverride;
+import dev.korgi.json.JSONIgnore;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 
@@ -17,6 +18,10 @@ public class WorldStorage {
 
     public List<Entity> entities = new ArrayList<>();
     public boolean updated = true;
+    @JSONIgnore
+    public List<Voxel> updates = new ArrayList<>();
+    @JSONIgnore
+    public List<Vector3> removes = new ArrayList<>();
 
     public void add(Voxel v) {
         voxels.put(voxelKey(v.position), v);

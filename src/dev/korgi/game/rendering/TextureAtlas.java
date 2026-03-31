@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 public class TextureAtlas {
 
     private int[][][] atlas;
+    private int[] flat;
     private static final int height = 32;
     private static final int widthPerTexture = 192;
 
@@ -83,7 +84,7 @@ public class TextureAtlas {
         return atlas.length;
     }
 
-    public int[] getAtlas() {
+    public void build() {
         int texSize = widthPerTexture * height;
         int[] flat = new int[atlas.length * texSize];
 
@@ -98,8 +99,11 @@ public class TextureAtlas {
                 }
             }
         }
+        this.flat = flat;
+    }
 
-        return flat;
+    public int[] getAtlas() {
+        return this.flat;
     }
 
 }

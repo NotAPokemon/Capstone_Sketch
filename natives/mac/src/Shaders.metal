@@ -12,10 +12,6 @@ struct RayParams {
     int voxelCount;
 };
 
-// Buffers 0-3: pixels, voxelGrid, colors, opacity
-// Buffer 4: RayParams
-// Buffer 5: width
-// Buffer 6: height
 kernel void raytraceKernel(
     device int* pixels          [[buffer(0)]],
     device int* voxelGrid       [[buffer(1)]],
@@ -26,45 +22,41 @@ kernel void raytraceKernel(
     device int* heightBuf       [[buffer(6)]],
     device int* textureLocation [[buffer(7)]],
     device int* textureAtlas    [[buffer(8)]],
-    uint2 gid                 [[thread_position_in_grid]]
+    uint2 gid                   [[thread_position_in_grid]]
 ) {
-    int width = widthBuf[0];
-    int height = heightBuf[0];
+    const int width  = widthBuf[0];
+    const int height = heightBuf[0];
 
-    int px = gid.x;
-    int py = gid.y;
+    const int px = (int)gid.x;
+    const int py = (int)gid.y;
     if (px >= width || py >= height) return;
 
-    int idx = py * width + px;
+    const float aspect = (float)width / (float)height;
+    const float ndcX = (2.0f * ((float)px + 0.5f) / (float)width  - 1.0f) * aspect * params.tanFov;
+    const float ndcY = (1.0f -  2.0f * ((float)py + 0.5f) / (float)height) * params.tanFov;
 
-    float aspect = float(width) / float(height);
-    float ndcX = 2.0f * (float(px) + 0.5f) / float(width) - 1.0f;
-    float ndcY = 1.0f - 2.0f * (float(py) + 0.5f) / float(height);
+    const float3 dir = normalize(params.forward + ndcX * params.right + ndcY * params.up);
 
-    // Ray direction
-    float3 dir = normalize(params.forward +
-                           ndcX * aspect * params.tanFov * params.right +
-                           ndcY * params.tanFov * params.up);
+    const float3 invDir = float3(
+        select(1e20f, 1.0f / dir.x, dir.x != 0.0f),
+        select(1e20f, 1.0f / dir.y, dir.y != 0.0f),
+        select(1e20f, 1.0f / dir.z, dir.z != 0.0f)
+    );
 
-    float3 invDir = float3((dir.x != 0) ? 1.0f / dir.x : 1e20f,
-                           (dir.y != 0) ? 1.0f / dir.y : 1e20f,
-                           (dir.z != 0) ? 1.0f / dir.z : 1e20f);
-
-    float3 minB = float3(params.worldMin);
-    float3 maxB = float3(params.worldMin + params.worldSize);
+    const float3 minB = float3(params.worldMin);
+    const float3 maxB = float3(params.worldMin + params.worldSize);
+    const int    idx  = py * width + px;
 
     float tMin = 0.0f;
-    float tMax = 100.0f; // render distance
+    float tMax = 100.0f;
 
-    // Slab method
     if (dir.x != 0.0f) {
         float tx1 = (minB.x - params.cam.x) * invDir.x;
         float tx2 = (maxB.x - params.cam.x) * invDir.x;
         tMin = fmax(tMin, fmin(tx1, tx2));
         tMax = fmin(tMax, fmax(tx1, tx2));
     } else if (params.cam.x < minB.x || params.cam.x > maxB.x) {
-        pixels[idx] = 0xFF87CEEB;
-        return;
+        pixels[idx] = 0xFF87CEEB; return;
     }
 
     if (dir.y != 0.0f) {
@@ -73,8 +65,7 @@ kernel void raytraceKernel(
         tMin = fmax(tMin, fmin(ty1, ty2));
         tMax = fmin(tMax, fmax(ty1, ty2));
     } else if (params.cam.y < minB.y || params.cam.y > maxB.y) {
-        pixels[idx] = 0xFF87CEEB;
-        return;
+        pixels[idx] = 0xFF87CEEB; return;
     }
 
     if (dir.z != 0.0f) {
@@ -83,135 +74,113 @@ kernel void raytraceKernel(
         tMin = fmax(tMin, fmin(tz1, tz2));
         tMax = fmin(tMax, fmax(tz1, tz2));
     } else if (params.cam.z < minB.z || params.cam.z > maxB.z) {
-        pixels[idx] = 0xFF87CEEB;
-        return;
+        pixels[idx] = 0xFF87CEEB; return;
     }
 
-    if (tMin > tMax) {
-        pixels[idx] = 0xFF87CEEB;
-        return;
-    }
+    if (tMin > tMax) { pixels[idx] = 0xFF87CEEB; return; }
 
-    // Start position
-    float3 startPos = params.cam + dir * tMin;
+    // ── DDA setup ─────────────────────────────────────────────────────────────
+    const float3 startPos = params.cam + dir * tMin;
     int3 cell = int3(floor(startPos));
 
-    float3 tMaxVals;
-    tMaxVals.x = tMin + ((dir.x > 0 ? (cell.x + 1.0f - startPos.x) : (cell.x - startPos.x)) * invDir.x);
-    tMaxVals.y = tMin + ((dir.y > 0 ? (cell.y + 1.0f - startPos.y) : (cell.y - startPos.y)) * invDir.y);
-    tMaxVals.z = tMin + ((dir.z > 0 ? (cell.z + 1.0f - startPos.z) : (cell.z - startPos.z)) * invDir.z);
+    const int3 step = int3(dir.x > 0 ? 1 : -1,
+                           dir.y > 0 ? 1 : -1,
+                           dir.z > 0 ? 1 : -1);
 
-    float3 tDelta = float3(dir.x != 0.0f ? fabs(invDir.x) : 1e20f,
-                           dir.y != 0.0f ? fabs(invDir.y) : 1e20f,
-                           dir.z != 0.0f ? fabs(invDir.z) : 1e20f);
+    // Compute next slab boundary using select instead of ternary per component
+    const float3 cellF  = float3(cell);
+    const float3 border = select(cellF, cellF + 1.0f, step > 0);
+    float3 tMaxVals = tMin + (border - startPos) * invDir;
 
-    int3 step = int3((dir.x > 0 ? 1 : -1),
-                     (dir.y > 0 ? 1 : -1),
-                     (dir.z > 0 ? 1 : -1));
+    const float3 tDelta = float3(
+        dir.x != 0.0f ? fabs(invDir.x) : 1e20f,
+        dir.y != 0.0f ? fabs(invDir.y) : 1e20f,
+        dir.z != 0.0f ? fabs(invDir.z) : 1e20f
+    );
 
-    int hitColor = 0;
-    float opacityAccum = 1.0f;
-    int maxSteps = 500;
-    int steps = 0;
-    float t = tMin;
-    int hitFace = -1;
-    float3 hitPos = 0;
+    // Hoist these out of the loop — they never change
+    const int3 wMin  = params.worldMin;
+    const int3 wMax  = params.worldMin + params.worldSize;
+    const int  wSX   = params.worldSize.x;
+    const int  wSXY  = params.worldSize.x * params.worldSize.y;
 
-    while (t < tMax && opacityAccum > 0.01f && steps < maxSteps) {
-        if (all(cell >= int3(params.worldMin)) &&
-            all(cell < int3(params.worldMin + params.worldSize))) {
+    int   hitColor  = 0;
+    float opacAccum = 1.0f;
+    int   hitFace   = -1;
+    float3 hitPos   = startPos;
+    float  t        = tMin;
 
-            int voxelIdx = voxelGrid[(cell.x - params.worldMin.x) +
-                                     (cell.y - params.worldMin.y) * params.worldSize.x +
-                                     (cell.z - params.worldMin.z) * params.worldSize.x * params.worldSize.y];
+    for (int steps = 0; steps < 500 && t < tMax && opacAccum > 0.01f; ++steps) {
 
-            if (voxelIdx >= 0 && voxelIdx < int(params.voxelCount)) {
-                int c = colors[voxelIdx];
-                float a = opacity[voxelIdx] * opacityAccum;
+        if (all(cell >= wMin) && all(cell < wMax)) {
+            const int3 local3 = cell - wMin;
 
-                float u = 0.0f;
-                float v = 0.0f;
+            const int  vIdx   = local3.x + local3.y * wSX + local3.z * wSXY;
+            const int  voxel  = voxelGrid[vIdx];
 
-                float3 local = hitPos - floor(hitPos);
+            if ((uint)voxel < (uint)params.voxelCount) {
 
-                switch (hitFace) {
-                    case 0: // +X
-                    case 1: // -X
-                        u = local.z;
-                        v = 1.0f - local.y;
-                        break;
+                const int   texId = textureLocation[voxel];
+                const float alpha = opacity[voxel];
 
-                    case 2: // -Y
-                    case 3: // +Y
-                        u = local.x;
-                        v = 1.0f - local.z;
-                        break;
+                if (texId != -1 && hitFace >= 0) {
+                    const float3 localUV = hitPos - floor(hitPos);
 
-                    case 4: // +Z
-                    case 5: // -Z
-                        u = local.x;
-                        v = 1.0f - local.y;
-                        break;
-                }
+                    float u, v;
+                    if (hitFace <= 1) {          // X faces
+                        u = localUV.z;  v = 1.0f - localUV.y;
+                    } else if (hitFace <= 3) {   // Y faces
+                        u = localUV.x;  v = 1.0f - localUV.z;
+                    } else {                     // Z faces
+                        u = localUV.x;  v = 1.0f - localUV.y;
+                    }
 
-                int texId = textureLocation[voxelIdx];
+                    const int iu   = clamp((int)(u * 32.0f), 0, 31);  // was 32-1, same value
+                    const int iv   = clamp((int)(v * 32.0f), 0, 31);
+                    const int base = texId * (192 * 32);               // constant fold hint
+                    hitColor  = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    opacAccum = 0.0f;   // guarantees loop exits next iteration
 
-                if (texId != -1 && hitFace >= 0){
-                    int iu = clamp(int(u * 32), 0, 32 - 1);
-                    int iv = clamp(int(v * 32), 0, 32 - 1);
-
-                    int x = hitFace * 32 + iu;
-                    int base = texId * 192 * 32;
-
-                    int texel = textureAtlas[
-                        base + iv * 192 + x
-                    ];
-
-                    hitColor = texel;
-                    opacityAccum *= 0.0f;
                 } else {
-                    int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0f - a));
-                    int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0f - a));
-                    int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0f - a));
-                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    // ── Solid colour voxel ──────────────────────────────────
+                    const int   c  = colors[voxel];
+                    const float a  = alpha * opacAccum;
+                    const float ia = 1.0f - a;   // computed once, reused 6×
 
-                    opacityAccum *= (1.0f - opacity[voxelIdx]);
+                    const int r = (int)(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
+                    const int g = (int)(((c >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
+                    const int b = (int)( (c        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
+                    hitColor    = (0xFF << 24) | (r << 16) | (g << 8) | b;
+
+                    opacAccum *= (1.0f - alpha);
                 }
             }
         }
 
-        float tHit;
+        // ── Step to next voxel ────────────────────────────────────────────────
+        const bool xMin = (tMaxVals.x <= tMaxVals.y) && (tMaxVals.x <= tMaxVals.z);
+        const bool yMin = !xMin && (tMaxVals.y <= tMaxVals.z);
 
-        if (tMaxVals.x <= tMaxVals.y && tMaxVals.x <= tMaxVals.z) {
-            tHit = tMaxVals.x;
-            cell.x += step.x;
-            tMaxVals.x += tDelta.x;
-            hitFace = (step.x > 0) ? 0 : 1;
-        }
-        else if (tMaxVals.y <= tMaxVals.z) {
-            tHit = tMaxVals.y;
-            cell.y += step.y;
-            tMaxVals.y += tDelta.y;
-            hitFace = (step.y > 0) ? 3 : 2;
-        }
-        else {
-            tHit = tMaxVals.z;
-            cell.z += step.z;
-            tMaxVals.z += tDelta.z;
-            hitFace = (step.z > 0) ? 4 : 5;
+        if (xMin) {
+            t = tMaxVals.x;  tMaxVals.x += tDelta.x;  cell.x += step.x;
+            hitFace = step.x > 0 ? 0 : 1;
+        } else if (yMin) {
+            t = tMaxVals.y;  tMaxVals.y += tDelta.y;  cell.y += step.y;
+            hitFace = step.y > 0 ? 3 : 2;
+        } else {
+            t = tMaxVals.z;  tMaxVals.z += tDelta.z;  cell.z += step.z;
+            hitFace = step.z > 0 ? 4 : 5;
         }
 
-        t = tHit;
-        hitPos = params.cam + dir * tHit;
-
-        steps++;
+        hitPos = params.cam + dir * t;
     }
 
-    // Blend with sky
-    int sky = 0xFF87CEEB;
-    float a = opacityAccum;
-    int r = int(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0f - a));
-    int g = int(((sky >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0f - a));
-    int b = int((sky & 0xFF) * a + (hitColor & 0xFF) * (1.0f - a));
+    // ── Final sky blend ───────────────────────────────────────────────────────
+    const int   sky = 0xFF87CEEB;
+    const float a   = opacAccum;
+    const float ia  = 1.0f - a;
+    const int r = (int)(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
+    const int g = (int)(((sky >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
+    const int b = (int)( (sky        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
     pixels[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }

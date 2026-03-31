@@ -25,9 +25,9 @@ public class WorldEngine {
                 v.getMaterial().setOpacity(opacity);
                 v.getMaterial().setTextureLocation(0);
                 addVoxel(v);
+                world.updates.add(v);
             }
         }
-        addVoxel(new Voxel(-5, -5, -5));
     }
 
     public static void addEntity(Entity e) {
@@ -38,11 +38,14 @@ public class WorldEngine {
     public static void addVoxel(Voxel v) {
         world.add(v);
         world.updated = true;
+        world.updates.add(v);
     }
 
     public static void addRandomVoxel(Vector3 pos) {
-        world.add(new Voxel(pos, new Vector4(Vector3.random())));
+        Voxel v = new Voxel(pos, new Vector4(Vector3.random()));
+        world.add(v);
         world.updated = true;
+        world.updates.add(v);
     }
 
     public static void addVoxelWithTexture(Vector3 pos, int texture) {
@@ -50,13 +53,40 @@ public class WorldEngine {
         v.getMaterial().setTextureLocation(texture);
         world.add(v);
         world.updated = true;
+        world.updates.add(v);
     }
 
     public static void updateClient() {
-        Packet in = NetworkStream.getPacket("world", true);
-        if (in != null) {
-            in.getData().fillObject(world);
+        List<Packet> inPackets = NetworkStream.getAllPackets("world", true);
+        for (Packet in : inPackets) {
+            JSONObject obj = in.getData();
+
+            obj.addBoolean("full", false);
+            if (obj.getBoolean("full")) {
+                JSONObject w = obj.getJSONObject("obj");
+                w.fillObject(world);
+                return;
+            }
+
+            int updateCount = obj.getInt("uc");
+            int removeCount = obj.getInt("rc");
+
+            for (int i = 0; i < updateCount; i++) {
+                Voxel v = new Voxel();
+                JSONObject vo = obj.getJSONObject("u%d".formatted(i));
+                vo.fillObject(v);
+                world.voxels.put(WorldStorage.voxelKey(v.position), v);
+            }
+
+            for (int i = 0; i < removeCount; i++) {
+                Vector3 v = new Vector3();
+                JSONObject vo = obj.getJSONObject("r%d".formatted(i));
+                vo.fillObject(v);
+                world.voxels.remove(WorldStorage.voxelKey(v));
+            }
+
         }
+
     }
 
     public static boolean canPlaceVoxel(Vector3 pos) {
@@ -79,6 +109,7 @@ public class WorldEngine {
         if (v != null) {
             world.voxels.remove(WorldStorage.voxelKey(v.position));
             world.updated = true;
+            world.removes.add(v.position);
             Game.getPlayers().forEach((p) -> {
                 p.checkGravity();
             });
@@ -126,6 +157,15 @@ public class WorldEngine {
         List<Packet> in = NetworkStream.getAllPackets("world", false);
         for (Packet p : in) {
             JSONObject data = p.getData();
+            data.addBoolean("full", false);
+            if (data.getBoolean("full")) {
+                data.set("obj", world);
+                Packet fufillRequest = new Packet("world", NetworkStream.CLIENT, NetworkStream.PRIVATE_MESSAGE,
+                        data);
+                fufillRequest.network_destination = data.getString("id");
+                NetworkStream.sendPacket(fufillRequest);
+                continue;
+            }
             if (!data.hasKey("voxel"))
                 continue;
             Voxel v = new Voxel();
@@ -142,10 +182,35 @@ public class WorldEngine {
         }
 
         if (world.updated) {
-            world.updated = false;
-            JSONObject outData = new JSONObject(world);
+            JSONObject outData = new JSONObject();
+            int tou = Math.max(Math.min(world.updates.size(), 5000), 0);
+            int tor = Math.max(Math.min(world.removes.size(), 5000), 0);
+            List<Voxel> u = world.updates.subList(0, tou);
+            List<Vector3> r = world.removes.subList(0, tor);
+            outData.set("uc", u.size());
+            outData.set("rc", r.size());
+            int index = 0;
+            for (Voxel v : u) {
+                outData.set("u%d".formatted(index), v);
+                index++;
+            }
+            index = 0;
+            for (Vector3 v : r) {
+                if (v != null) {
+                    outData.set("r%d".formatted(index), v);
+                    index++;
+                }
+            }
+            if (u.size() == 0 && r.size() == 0) {
+                return;
+            }
             Packet out = new Packet("world", NetworkStream.CLIENT, NetworkStream.BROADCAST, outData);
             NetworkStream.sendPacket(out);
+            world.updates.removeAll(u);
+            world.removes.removeAll(r);
+            if (world.updates.isEmpty() && world.removes.isEmpty()) {
+                world.updated = false;
+            }
         }
     }
 

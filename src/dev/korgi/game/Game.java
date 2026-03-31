@@ -7,11 +7,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import dev.korgi.game.physics.WorldEngine;
-import dev.korgi.game.rendering.Screen;
 import dev.korgi.game.rendering.Graphics;
+import dev.korgi.game.rendering.NativeGPUKernal;
+import dev.korgi.game.rendering.Screen;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkStream;
+import dev.korgi.networking.Packet;
 import dev.korgi.player.Player;
 
 public class Game {
@@ -21,7 +23,7 @@ public class Game {
     private static boolean initialized = false;
     private static List<Player> players = new ArrayList<>();
     public static boolean canFly = false;
-    private static JSONObject config;
+    public static JSONObject config;
 
     private static void loadConfigDefaults() {
         if (config == null) {
@@ -31,6 +33,9 @@ public class Game {
         config.addString("ip", "localhost");
         config.addInt("port", 6967);
         config.addFloat("fov", 60);
+        config.addInt("render_dist", 50);
+        config.addFloat("mouse_sensitivity", 3);
+
     }
 
     public static void init() throws IOException {
@@ -42,14 +47,20 @@ public class Game {
         lastTime = System.nanoTime();
         if (isClient) {
             NetworkStream.startClient(config.getString("ip"), config.getInt("port"));
+            JSONObject obj = new JSONObject();
+            obj.addBoolean("full", true);
+            obj.addString("id", NetworkStream.clientId);
+            Packet worldRequest = new Packet("world", NetworkStream.SERVER, NetworkStream.WORLD_UPDATE,
+                    obj);
+            NetworkStream.sendPacket(worldRequest);
+            System.out.println(new JSONObject(Game.getClient()));
+            NativeGPUKernal.render_dist = config.getInt("render_dist");
+            Graphics.camera.fov = config.getFloat("fov");
         } else {
             NetworkStream.startServer(config.getInt("port"));
             WorldEngine.init();
         }
         initialized = true;
-        if (isClient) {
-            Graphics.camera.fov = config.getFloat("fov");
-        }
     }
 
     public static List<Player> getPlayers() {
@@ -81,7 +92,7 @@ public class Game {
         networkEndLoop();
 
         screen.drawHUD();
-
+        System.gc();
     }
 
     public static void networkEndLoop() {
@@ -124,6 +135,7 @@ public class Game {
         player.internal_id = internal_id;
         player.connected = true;
         players.add(player);
+        System.out.println("hiegege");
         player.addToWorld();
     }
 

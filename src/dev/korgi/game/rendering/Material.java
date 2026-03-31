@@ -7,7 +7,7 @@ public class Material {
     private Vector4 color;
     private boolean rigid;
     private Integer textureLocation;
-    private int size = 1;
+    private double size = 1;
 
     public Material() {
         this.color = new Vector4(0.8, 0.8, 0.8, 1.0);
@@ -37,7 +37,7 @@ public class Material {
         return rigid;
     }
 
-    public int getSize() {
+    public double getSize() {
         return size;
     }
 
@@ -57,7 +57,7 @@ public class Material {
         this.textureLocation = textureLocation;
     }
 
-    public void setSize(int size) {
+    public void setSize(double size) {
         this.size = size;
     }
 

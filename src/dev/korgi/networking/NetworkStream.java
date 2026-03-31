@@ -1,13 +1,27 @@
 package dev.korgi.networking;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
 import dev.korgi.player.Player;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class NetworkStream {
 
@@ -23,6 +37,7 @@ public class NetworkStream {
     public static final int WORLD_UPDATE = 1;
     public static final int HANDSHAKE_REQUEST = 2;
     public static final int HANDSHAKE_RESPONSE = 3;
+    public static final int PRIVATE_MESSAGE = 4;
     public static final int PING = 9;
     public static final int DISCONNECT = 10;
 
@@ -30,11 +45,9 @@ public class NetworkStream {
     private static final long PING_TIMEOUT_MS = 15000;
     private static final long PING_INTERVAL_MS = 3000;
 
-    // Packet queues
     public static final List<Packet> serverPackets = new ArrayList<>();
     public static final List<Packet> clientPackets = new ArrayList<>();
 
-    // Sockets
     private static ServerSocket serverSocket;
     private static Socket clientSocket;
 
@@ -51,7 +64,6 @@ public class NetworkStream {
     public static double frameCount = 0;
     public static double packetCount = 0;
 
-    // Incoming queue
     private static final Queue<Incoming> incoming = new ConcurrentLinkedQueue<>();
 
     private static class Incoming {
@@ -64,9 +76,6 @@ public class NetworkStream {
         }
     }
 
-    // ========================
-    // Startup
-    // ========================
     public static void startServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
         serverSocket.setSoTimeout(1);
@@ -126,9 +135,6 @@ public class NetworkStream {
         }
     }
 
-    // ========================
-    // Socket listener
-    // ========================
     private static void listenSocket(Socket socket) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             String line;
@@ -139,9 +145,6 @@ public class NetworkStream {
         }
     }
 
-    // ========================
-    // Sending
-    // ========================
     public static void sendPacket(Packet packet) {
         try {
             String json = new JSONObject(packet).toJSONString();
@@ -205,9 +208,6 @@ public class NetworkStream {
             serverPackets.add(packet);
     }
 
-    // ========================
-    // Protocol handling
-    // ========================
     private static boolean handleProtocolPackets(Socket socket, Packet packet, JSONObject raw) {
         // HANDSHAKE REQUEST (server side)
         if (packet.getType() == HANDSHAKE_REQUEST) {
@@ -279,9 +279,6 @@ public class NetworkStream {
         return false;
     }
 
-    // ========================
-    // Handshake helpers
-    // ========================
     private static void sendHandshake() {
         JSONObject data = new JSONObject();
         data.set("protocol", PROTOCOL_VERSION);
@@ -296,6 +293,7 @@ public class NetworkStream {
             Packet p = new Packet("server", CLIENT, HANDSHAKE_RESPONSE, data);
             sendString(socket, new JSONObject(p).toJSONString());
         } catch (IOException ignored) {
+            ignored.printStackTrace();
         }
     }
 
