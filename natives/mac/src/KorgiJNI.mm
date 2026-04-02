@@ -19,6 +19,25 @@ static id<MTLDevice> device = nil;
 static id<MTLCommandQueue> commandQueue = nil;
 static id<MTLComputePipelineState> pipelineState = nil;
 
+static id<MTLBuffer> pixelsBuffer = nil;
+static id<MTLBuffer> voxelBuffer = nil;
+static id<MTLBuffer> colorBuffer = nil;
+static id<MTLBuffer> opacityBuffer = nil;
+static id<MTLBuffer> textureLocationBuffer = nil;
+static id<MTLBuffer> textureAtlasBuffer = nil;
+static id<MTLBuffer> paramsBuffer = nil;
+static id<MTLBuffer> widthBuffer = nil;
+static id<MTLBuffer> heightBuffer = nil;
+
+static void ensureBuffer(id<MTLBuffer> __strong *buf, NSUInteger byteSize) {
+    if (*buf == nil || (*buf).length < byteSize) {
+        *buf = [device newBufferWithLength:byteSize options:MTLResourceStorageModeShared];
+    }
+}
+
+static size_t jintSize = sizeof(jint);
+
+
 void initMetal(NSString* path) {
     if (device) return;
 
@@ -88,33 +107,34 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jint* textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
     jint* textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
 
-    // Buffers
-    id<MTLBuffer> pixelsBuffer = [device newBufferWithBytes:pixelsPtr
-                                                     length:sizeof(jint)*width*height
-                                                    options:MTLResourceStorageModeShared];
 
-    id<MTLBuffer> voxelBuffer = [device newBufferWithBytes:voxelGridPtr
-                                                    length:sizeof(jint)*worldSize[0]*worldSize[1]*worldSize[2]
-                                                   options:MTLResourceStorageModeShared];
-
-    id<MTLBuffer> colorBuffer = [device newBufferWithBytes:colorPtr
-                                                   length:sizeof(jint)*voxCount
-                                                  options:MTLResourceStorageModeShared];
-
-    id<MTLBuffer> opacityBuffer = [device newBufferWithBytes:opacityPtr
-                                                     length:sizeof(float)*voxCount
-                                                    options:MTLResourceStorageModeShared];
-
-    id<MTLBuffer> textureLocationBuffer = [device newBufferWithBytes:textureLocationPtr
-                                                     length:sizeof(jint)*voxCount
-                                                    options:MTLResourceStorageModeShared];
-                                                
     jsize length = env->GetArrayLength(textureAtlas);
 
+    size_t voxCountSize = jintSize * voxCount;
+    int32_t w = width, h = height;
 
-    id<MTLBuffer> textureAtlasBuffer = [device newBufferWithBytes:textureAtlasPtr
-                                                     length:sizeof(jint)*length
-                                                    options:MTLResourceStorageModeShared];
+
+    
+    
+    ensureBuffer(&pixelsBuffer, jintSize * width * height);
+    ensureBuffer(&voxelBuffer, jintSize * worldSize[0] * worldSize[1] * worldSize[2]);
+    ensureBuffer(&colorBuffer, voxCountSize);
+    ensureBuffer(&opacityBuffer, sizeof(float) * voxCount);
+    ensureBuffer(&textureLocationBuffer, voxCountSize);
+    ensureBuffer(&textureAtlasBuffer, jintSize * length);
+    ensureBuffer(&widthBuffer, sizeof(int32_t));
+    ensureBuffer(&heightBuffer, sizeof(int32_t));
+
+    memcpy(pixelsBuffer.contents, pixelsPtr, jintSize  * width * height);
+    memcpy(voxelBuffer.contents, voxelGridPtr, jintSize  * worldSize[0] * worldSize[1] * worldSize[2]);
+    memcpy(colorBuffer.contents, colorPtr, voxCountSize);
+    memcpy(opacityBuffer.contents, opacityPtr, voxCountSize);
+    memcpy(textureLocationBuffer.contents, textureLocationPtr, voxCountSize);
+    memcpy(textureAtlasBuffer.contents, textureAtlasPtr, jintSize * length);
+    memcpy(widthBuffer.contents,  &w, sizeof(int32_t));
+    memcpy(heightBuffer.contents, &h, sizeof(int32_t));
+                                                
+    ensureBuffer(&paramsBuffer, sizeof(RayParams));
 
     RayParams params;
     params.cam = simd_make_float3(camPtr[0], camPtr[1], camPtr[2]);
@@ -126,14 +146,8 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     params.worldMin = simd_make_int3(worldMin[0], worldMin[1], worldMin[2]);
     params.worldSize = simd_make_int3(worldSize[0], worldSize[1], worldSize[2]);
 
-    id<MTLBuffer> paramsBuffer = [device newBufferWithBytes:&params
-                                                     length:sizeof(RayParams)
-                                                    options:MTLResourceStorageModeShared];
+    memcpy(paramsBuffer.contents, &params, sizeof(RayParams));
 
-    int32_t w = width;
-    int32_t h = height;
-    id<MTLBuffer> widthBuffer = [device newBufferWithBytes:&w length:sizeof(int32_t) options:MTLResourceStorageModeShared];
-    id<MTLBuffer> heightBuffer = [device newBufferWithBytes:&h length:sizeof(int32_t) options:MTLResourceStorageModeShared];
 
     // Encode & dispatch
     id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
@@ -150,15 +164,17 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     [encoder setBuffer:textureLocationBuffer offset:0 atIndex:7];
     [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:8];
 
-    MTLSize threadsPerThreadgroup = MTLSizeMake(8,8,1);
-    MTLSize threadgroups = MTLSizeMake((width+7)/8, (height+7)/8,1);
+    NSUInteger tw = pipelineState.threadExecutionWidth;
+    NSUInteger th = pipelineState.maxTotalThreadsPerThreadgroup / tw;
+    MTLSize threadsPerThreadgroup = MTLSizeMake(tw, th, 1);
+    MTLSize totalThreads = MTLSizeMake(width, height, 1);
 
-    [encoder dispatchThreadgroups:threadgroups threadsPerThreadgroup:threadsPerThreadgroup];
+    [encoder dispatchThreads:totalThreads threadsPerThreadgroup:threadsPerThreadgroup];
     [encoder endEncoding];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
 
-    memcpy(pixelsPtr, [pixelsBuffer contents], sizeof(jint)*width*height);
+    memcpy(pixelsPtr, pixelsBuffer.contents, jintSize * width * height);
 
     env->ReleaseIntArrayElements(pixels, pixelsPtr, 0);
     env->ReleaseFloatArrayElements(cam, camPtr, 0);

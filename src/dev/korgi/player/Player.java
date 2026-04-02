@@ -57,7 +57,7 @@ public class Player extends Entity {
         position.addTo(velocity.multiply(dt));
         WorldEngine.validatePosition(this);
 
-        if (position.y < -70) {
+        if (position.y < -70 && WorldEngine.getWorld().getFlat().size() > 0) {
             position.copyFrom(WorldEngine.getWorld().getFlat().get(0).position.add(VectorConstants.HALF)
                     .addTo(VectorConstants.UP.multiply(2)));
         }

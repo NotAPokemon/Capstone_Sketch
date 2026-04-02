@@ -149,7 +149,7 @@ public class NativeGPUKernal {
 
         min.subtractFrom(VectorConstants.ONE);
         max.addTo(VectorConstants.ONE);
-        Vector3 size = new Vector3(max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1);
+        Vector3 size = max.subtract(min).addTo(VectorConstants.ONE);
 
         float tanFov = (float) Math.tan(Math.toRadians(camera.fov * 0.5f));
 
@@ -194,7 +194,6 @@ public class NativeGPUKernal {
                     textureLocation,
                     textureAtlas.getAtlas());
         }, 0.05, "High Render Latency: %f");
-
     }
 
 }

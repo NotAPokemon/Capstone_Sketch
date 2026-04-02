@@ -7,6 +7,7 @@ public class Time {
 
     private static final Map<String, Double> lastTime = new HashMap<>();
     private static final Map<String, Double> cd = new HashMap<>();
+    private static long startTime;
 
     public static void createCooldown(String name, double time) {
         lastTime.put(name, (System.nanoTime() / 1e9) - time);
@@ -40,6 +41,14 @@ public class Time {
         if ((System.nanoTime() - time) / 1e9 > threashold) {
             System.out.println(output.formatted((System.nanoTime() - time) / 1e9));
         }
+    }
+
+    public static void staticTime() {
+        startTime = System.nanoTime();
+    }
+
+    public static void staticTime(String output) {
+        System.out.println(output.formatted((System.nanoTime() - startTime) / 1e9));
     }
 
 }
