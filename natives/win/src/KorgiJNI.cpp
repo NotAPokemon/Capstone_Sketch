@@ -165,7 +165,6 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jsize atlasLen = env->GetArrayLength(textureAtlas);
     jsize chunkGridLen = (jsize)chunkSizePtr[0] * chunkSizePtr[1] * chunkSizePtr[2];
 
-    // ── Upload SSBOs (binding slots match the shader) ──────────────────────────
     uploadSSBO(pixelsBuffer, sizeof(jint) * width * height, pixelsPtr);
     uploadSSBO(voxelBuffer, sizeof(jint) * worldSize[0] * worldSize[1] * worldSize[2], voxelGridPtr);
     uploadSSBO(colorBuffer, sizeof(jint) * voxCount, colorPtr);

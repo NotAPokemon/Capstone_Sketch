@@ -91,9 +91,9 @@ public class NativeGPUKernal {
 
     static {
         if (os.contains("mac")) {
-            path += "/natives/mac/build/Shaders.metallib";
+            path += "/Shaders.metallib";
         } else if (os.contains("win")) {
-            path += "\\natives\\win\\src\\Shaders.comp.glsl";
+            path += "\\Shaders.comp.glsl";
         }
     }
 

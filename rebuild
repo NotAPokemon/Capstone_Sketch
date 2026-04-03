@@ -1,0 +1,6 @@
+#!/bin/bash
+
+rm ./internal_config.json
+rm -rf ./Korgi/
+
+./runjava

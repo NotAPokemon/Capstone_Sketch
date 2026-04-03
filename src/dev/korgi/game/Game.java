@@ -1,5 +1,6 @@
 package dev.korgi.game;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +41,13 @@ public class Game {
 
     public static void init() throws IOException {
 
-        config = JSONObject.fromResource("config");
+        File configLoc = new File("./config.json");
+        if (configLoc.exists()) {
+            config = JSONObject.fromFile(configLoc);
+        } else {
+            config = new JSONObject();
+            System.out.println("Warning: No config file found using defaults");
+        }
 
         loadConfigDefaults();
 
@@ -53,7 +60,6 @@ public class Game {
             Packet worldRequest = new Packet("world", NetworkStream.SERVER, NetworkStream.WORLD_UPDATE,
                     obj);
             NetworkStream.sendPacket(worldRequest);
-            System.out.println(new JSONObject(Game.getClient()));
             NativeGPUKernal.render_dist = config.getInt("render_dist");
             Graphics.camera.fov = config.getFloat("fov");
         } else {
@@ -135,7 +141,6 @@ public class Game {
         player.internal_id = internal_id;
         player.connected = true;
         players.add(player);
-        System.out.println("hiegege");
         player.addToWorld();
     }
 
