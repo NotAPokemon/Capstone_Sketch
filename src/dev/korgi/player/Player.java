@@ -7,6 +7,7 @@ import dev.korgi.game.Game;
 import dev.korgi.game.physics.Entity;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
+import dev.korgi.game.rendering.Screen;
 import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONIgnore;
@@ -15,6 +16,7 @@ import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.utils.Time;
+import processing.core.PApplet;
 
 public class Player extends Entity {
 
@@ -22,6 +24,8 @@ public class Player extends Entity {
     public List<String> pressedKeys = new ArrayList<>();
     private int speed = 4;
     private boolean onGround = false;
+    private int selectedSlot = 0;
+    private String[] inventory = new String[9];
 
     @JSONIgnore
     private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
@@ -47,20 +51,14 @@ public class Player extends Entity {
     @Override
     protected void server(double dt) {
         handleKeyPresses(dt);
-        handlePhysics(dt);
+        super.server(dt);
     }
 
-    private void handlePhysics(double dt) {
+    @Override
+    protected void handlePhysics(double dt) {
         if (!onGround && !Game.canFly)
             velocity.addTo(VectorConstants.DOWN.multiply(WorldEngine.g * dt));
-
-        position.addTo(velocity.multiply(dt));
-        WorldEngine.validatePosition(this);
-
-        if (position.y < -70 && WorldEngine.getWorld().getFlat().size() > 0) {
-            position.copyFrom(WorldEngine.getWorld().getFlat().get(0).position.add(VectorConstants.HALF)
-                    .addTo(VectorConstants.UP.multiply(2)));
-        }
+        super.handlePhysics(dt);
     }
 
     private void handleKeyPresses(double dt) {
@@ -116,9 +114,21 @@ public class Player extends Entity {
                 position.subtractFrom(amt);
         });
 
+        for (int i = 0; i < 9; i++) {
+            int val = i;
+            checkKey("%d".formatted(i + 1), () -> updatedSelectedSlot(val));
+        }
+
         if (!originalPos.equals(position)) {
             checkGravity();
         }
+    }
+
+    public void updatedSelectedSlot(int val) {
+        if (val < 0 || val > 9) {
+            return;
+        }
+        selectedSlot = val;
     }
 
     private void checkKey(String key, Runnable handler) {
@@ -174,9 +184,47 @@ public class Player extends Entity {
         }
     }
 
+    public void drawHotbar(Screen screen) {
+
+        int slotSize = 42;
+        int gap = 6;
+
+        int totalW = 9 * slotSize + 8 * gap;
+        int startX = screen.width / 2 - totalW / 2;
+        int y = screen.height - 70;
+
+        screen.noStroke();
+        screen.fill(0, 120);
+        screen.rect(startX - 12, y - 10, totalW + 24, slotSize + 20, 10);
+
+        for (int i = 0; i < 9; i++) {
+            int x = startX + i * (slotSize + gap);
+
+            boolean selected = (i == selectedSlot);
+
+            screen.fill(selected ? 0xFF4F8EF7 : 0xFF1C2130);
+            screen.stroke(selected ? 0xFF4F8EF7 : 0xFF252B3B);
+            screen.strokeWeight(selected ? 2 : 1);
+            screen.rect(x, y, slotSize, slotSize, 6);
+            screen.noStroke();
+
+            if (inventory[i] != null) {
+                screen.fill(255);
+                screen.textAlign(PApplet.CENTER, PApplet.CENTER);
+                screen.textFont(screen.fontSans11);
+                screen.text(inventory[i].substring(0, 1), x + slotSize / 2f, y + slotSize / 2f);
+            }
+
+            screen.fill(0xFF7A8099);
+            screen.textFont(screen.fontSans12);
+            screen.textAlign(PApplet.CENTER, PApplet.BOTTOM);
+            screen.text(String.valueOf(i + 1), x + slotSize / 2f, y + slotSize - 4);
+        }
+    }
+
     @Override
     public List<Voxel> createBody() {
-        return fromModel("entites/player");
+        return fromModel("");
     }
 
 }

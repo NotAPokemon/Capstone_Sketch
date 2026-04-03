@@ -58,21 +58,23 @@ public class Installer {
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("mac")) {
             Files.copy(Path.of("./natives/mac/build/Shaders.metallib"),
-                    Path.of(installPath + "Shaders.metallib").toAbsolutePath());
+                    Path.of(installPath, "Shaders.metallib").toAbsolutePath());
             Files.copy(Path.of("./natives/mac/build/libkorgikompute-mac.dylib"),
-                    Path.of(installPath + "libkorgikompute-mac.dylib").toAbsolutePath());
+                    Path.of(installPath, "libkorgikompute-mac.dylib").toAbsolutePath());
         } else if (os.contains("win")) {
             Files.copy(Path.of("./natives/win/build/glfw3.dll"),
-                    Path.of(installPath + "glfw3.dll").toAbsolutePath());
+                    Path.of(installPath, "glfw3.dll").toAbsolutePath());
             Files.copy(Path.of("./natives/win/build/korgikompute-win.dll"),
-                    Path.of(installPath + "korgikompute-win.dll").toAbsolutePath());
+                    Path.of(installPath, "korgikompute-win.dll").toAbsolutePath());
             Files.copy(Path.of("./natives/win/src/Shaders.comp.glsl"),
-                    Path.of(installPath + "Shaders.comp.glsl").toAbsolutePath());
+                    Path.of(installPath, "Shaders.comp.glsl").toAbsolutePath());
         }
-        Files.copy(internalConfig.toPath(), Path.of(installPath + "internal_config.json").toAbsolutePath());
-        Path source = Path.of("./texture");
-        Path target = Path.of(installPath, "texture");
+        Files.copy(internalConfig.toPath(), Path.of(installPath, "internal_config.json").toAbsolutePath());
+        deepCopy(Path.of("./texture"), Path.of(installPath, "texture"));
+        deepCopy(Path.of("./models"), Path.of(installPath, "models"));
+    }
 
+    private static void deepCopy(Path source, Path target) throws IOException {
         Files.walk(source).forEach(path -> {
             try {
                 Path relative = source.relativize(path);
@@ -87,7 +89,6 @@ public class Installer {
                 e.printStackTrace();
             }
         });
-
     }
 
 }

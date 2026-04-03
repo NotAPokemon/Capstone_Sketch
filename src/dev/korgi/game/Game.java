@@ -1,6 +1,7 @@
 package dev.korgi.game;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,22 +26,7 @@ public class Game {
     private static List<Player> players = new ArrayList<>();
     public static boolean canFly = false;
     public static JSONObject config;
-
-    private static void loadConfigDefaults() {
-        if (config == null) {
-            System.out.println("Warning no config.json found using default config");
-            config = new JSONObject();
-        }
-        config.addString("ip", "localhost");
-        config.addInt("port", 6967);
-        config.addFloat("fov", 60);
-        config.addInt("render_dist", 50);
-        config.addFloat("mouse_sensitivity", 3);
-
-    }
-
-    public static void init() throws IOException {
-
+    static {
         File configLoc = new File("./config.json");
         if (configLoc.exists()) {
             config = JSONObject.fromFile(configLoc);
@@ -50,6 +36,18 @@ public class Game {
         }
 
         loadConfigDefaults();
+    }
+
+    private static void loadConfigDefaults() {
+        config.addString("ip", "localhost");
+        config.addInt("port", 6967);
+        config.addFloat("fov", 60);
+        config.addInt("render_dist", 50);
+        config.addFloat("mouse_sensitivity", 3);
+
+    }
+
+    public static void init() throws IOException {
 
         lastTime = System.nanoTime();
         if (isClient) {
@@ -162,6 +160,17 @@ public class Game {
         if (client != null) {
             operation.accept(client, client.getPosition());
         }
+    }
+
+    public static void updateConfig() throws IOException {
+        File configFile = new File("./config.json");
+        if (!configFile.exists()) {
+            configFile.createNewFile();
+        }
+        FileOutputStream stream = new FileOutputStream(configFile);
+        byte[] output = config.toJSONString().getBytes();
+        stream.write(output, 0, output.length);
+        stream.close();
     }
 
 }

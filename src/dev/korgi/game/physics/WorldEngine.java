@@ -3,6 +3,7 @@ package dev.korgi.game.physics;
 import java.util.List;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.entites.Jimmy;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
@@ -28,6 +29,7 @@ public class WorldEngine {
                 world.updates.add(v);
             }
         }
+        new Jimmy().addToWorld();
     }
 
     public static void addEntity(Entity e) {
