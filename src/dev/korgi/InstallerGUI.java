@@ -15,7 +15,6 @@ public class InstallerGUI extends PApplet {
         return mInstance;
     }
 
-    // ── Screens ──────────────────────────────────────────────────
     static final int SCREEN_WELCOME = 0;
     static final int SCREEN_LICENSE = 1;
     static final int SCREEN_OPTIONS = 2;
@@ -24,7 +23,6 @@ public class InstallerGUI extends PApplet {
 
     int screen = SCREEN_WELCOME;
 
-    // ── Colors ────────────────────────────────────────────────────
     final int BG = 0xFF0F0F13;
     final int PANEL = 0xFF1A1A22;
     final int ACCENT = 0xFF5B8CFF;
@@ -35,11 +33,11 @@ public class InstallerGUI extends PApplet {
     final int SUCCESS = 0xFF4DFFA0;
     final int BTN_HOVER = 0xFF2A2A38;
 
-    // ── Fonts ─────────────────────────────────────────────────────
+    static String installPath = "./";
+
     PFont fontBold, fontRegular, fontMono;
 
-    // ── Animation / Progress ──────────────────────────────────────
-    float progress = 0; // 0–1 for install bar
+    float progress = 0;
     float progressTarget = 0;
     float barPulse = 0;
     boolean installing = false;
@@ -61,38 +59,30 @@ public class InstallerGUI extends PApplet {
             0.06f, 0.22f, 0.40f, 0.55f, 0.70f, 0.83f, 0.95f, 1.0f
     };
 
-    // ── Options screen ────────────────────────────────────────────
-    // ── Async task ────────────────────────────────────────────────
     volatile boolean asyncTaskDone = false;
     volatile boolean asyncTaskStarted = false;
 
     boolean optDesktop = true;
     boolean optStartMenu = true;
 
-    // ── License scroll ────────────────────────────────────────────
     float licenseScroll = 0;
     float licenseScrollTarget = 0;
     boolean licenseAccepted = false;
 
-    // ── Stars / background particles ──────────────────────────────
     float[] starX = new float[120];
     float[] starY = new float[120];
-    float[] starA = new float[120]; // alpha target
-    float[] starB = new float[120]; // current brightness
+    float[] starA = new float[120];
+    float[] starB = new float[120];
 
-    // ── Sidebar icons for install log ─────────────────────────────
     float checkAlpha[] = new float[INSTALL_STEPS.length];
 
-    // ── Button hover state ────────────────────────────────────────
     float btnNextHover = 0;
     float btnBackHover = 0;
     float btnCancelHover = 0;
 
-    // ── Done screen flourish ──────────────────────────────────────
     float doneRadius = 0;
     float doneAlpha = 0;
 
-    // ─────────────────────────────────────────────────────────────
     @Override
     public void settings() {
         size(1280, 720);
@@ -212,13 +202,11 @@ public class InstallerGUI extends PApplet {
         textFont(fontRegular, 12);
         text("Version " + InstallConstants.version + "  •  © 2026", 140, 170);
 
-        // Step list
         String[] steps = { "Welcome", "License", "Options", "Install", "Finish" };
         for (int i = 0; i < steps.length; i++) {
             drawSidebarStep(i, steps[i]);
         }
 
-        // Bottom
         fill(TEXT_DIM);
         textFont(fontRegular, 11);
         textAlign(CENTER, BOTTOM);
@@ -226,18 +214,17 @@ public class InstallerGUI extends PApplet {
     }
 
     void drawAppIcon(float cx, float cy, float r) {
-        // Glow
         for (int g = 20; g > 0; g -= 2) {
             fill(ACCENT, map(g, 20, 0, 0, 30));
             ellipse(cx, cy, r * 2 + g * 3, r * 2 + g * 3);
         }
-        // Circle
+
         fill(ACCENT);
         ellipse(cx, cy, r * 2, r * 2);
-        // Inner highlight
+
         fill(255, 255, 255, 60);
         ellipse(cx - r * 0.15f, cy - r * 0.2f, r * 0.8f, r * 0.6f);
-        // Letter
+
         fill(255);
         textFont(fontBold, r * 0.85f);
         textAlign(CENTER, CENTER);
@@ -249,19 +236,16 @@ public class InstallerGUI extends PApplet {
         boolean active = screen == idx;
         boolean done = screen > idx;
 
-        // Connector line
         if (idx < 4) {
             stroke(done ? ACCENT : TEXT_DIM, done ? 120 : 50);
             strokeWeight(2);
             line(140, y + 18, 140, y + 54);
         }
 
-        // Circle
         noStroke();
         if (done) {
             fill(ACCENT);
         } else if (active) {
-            // Pulsing
             float pulse = 0.5f + 0.5f * sin(barPulse * 0.7f);
             fill(lerpColor(ACCENT, ACCENT2, pulse));
         } else {
@@ -269,7 +253,6 @@ public class InstallerGUI extends PApplet {
         }
         ellipse(140, y, 20, 20);
 
-        // Check or number
         if (done) {
             fill(255);
             textFont(fontBold, 11);
@@ -333,7 +316,6 @@ public class InstallerGUI extends PApplet {
                 "of " + InstallConstants.appName + " " + InstallConstants.version + " on your computer.\n\n" +
                 "Click Next to continue, or Cancel to exit setup.", cx + 60, 228);
 
-        // Feature highlights
         String[] features = {
                 "⚡  Blazing-fast rendering engine",
                 "☁️  Multiplayer support",
@@ -351,7 +333,6 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    // ── License ───────────────────────────────────────────────────
     void drawLicense(int cx, int cw) {
         textAlign(LEFT, TOP);
 
@@ -363,35 +344,29 @@ public class InstallerGUI extends PApplet {
         textFont(fontBold, 32);
         text("License Agreement", cx + 60, 95);
 
-        // Scrollable text box
         int bx = cx + 60, by = 148, bw = cw - 120, bh = 360;
         fill(0xFF080810);
         noStroke();
         rect(bx, by, bw, bh, 8);
 
-        // Clipping via rect mask approach (draw content then mask edges)
         String licText = getLicenseText();
         float lineH = 17f;
         float totalH = 1000f;
         float maxScroll = max(0, totalH - bh + 30);
         licenseScrollTarget = constrain(licenseScrollTarget, 0, maxScroll);
 
-        // Draw text
         fill(TEXT_MID);
         textFont(fontMono, 11);
         textLeading(lineH);
-        // Simple clip by only rendering visible portion
         clip(bx, by, bw, bh);
         text(licText, bx + 16, by + 14 - licenseScroll);
         noClip();
 
-        // Scroll bar
         float sbH = map(bh, 0, totalH, 0, bh);
         float sbY = map(licenseScroll, 0, maxScroll, by, by + bh - sbH);
         fill(TEXT_DIM, 120);
         rect(bx + bw - 8, sbY, 5, sbH, 3);
 
-        // Accept checkbox
         boolean overCheck = mouseX > bx && mouseX < bx + 200 &&
                 mouseY > by + bh + 16 && mouseY < by + bh + 36;
         fill(licenseAccepted ? ACCENT : (overCheck ? BTN_HOVER : PANEL));
@@ -418,7 +393,6 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    // ── Options ───────────────────────────────────────────────────
     void drawOptions(int cx, int cw) {
         textAlign(LEFT, TOP);
 
@@ -430,7 +404,6 @@ public class InstallerGUI extends PApplet {
         textFont(fontBold, 32);
         text("Installation Options", cx + 60, 95);
 
-        // Install path
         fill(TEXT_MID);
         textFont(fontRegular, 13);
         text("Destination folder", cx + 60, 158);
@@ -441,7 +414,7 @@ public class InstallerGUI extends PApplet {
         fill(TEXT_MID);
         textFont(fontMono, 12);
         textAlign(LEFT, CENTER);
-        text("C:\\Program Files\\Korgi\\" + InstallConstants.appName + "\\", cx + 76, 197);
+        text(installPath + "Korgi/" + InstallConstants.appName + "/", cx + 76, 197);
 
         fill(BTN_HOVER);
         rect(cx + cw - 160, 178, 80, 38, 6);
@@ -504,13 +477,11 @@ public class InstallerGUI extends PApplet {
         textFont(fontBold, 32);
         text("Installing " + InstallConstants.appName, cx + 60, 95);
 
-        // Progress bar track
         int bx = cx + 60, by = 174, bw = cw - 120, bh = 14;
         fill(0xFF080810);
         noStroke();
         rect(bx, by, bw, bh, bh / 2);
 
-        // Progress fill with animated gradient
         float pw = progress * bw;
         if (pw > 0) {
             float t = 0.5f + 0.5f * sin(barPulse);
@@ -656,6 +627,11 @@ public class InstallerGUI extends PApplet {
 
         if (screen == SCREEN_OPTIONS) {
             int cx = 280;
+            int cw = width - 280;
+            if (mouseX > cx + cw - 160 && mouseX < cx + cw - 80 &&
+                    mouseY > 178 && mouseY < 216) {
+                selectFolder("Select installation folder:", "folderSelected");
+            }
             float[] oys = { 318, 370, 422 };
             for (int i = 0; i < oys.length; i++) {
                 float oy = oys[i];
@@ -669,6 +645,12 @@ public class InstallerGUI extends PApplet {
             }
         }
 
+    }
+
+    public void folderSelected(java.io.File selection) {
+        if (selection != null) {
+            installPath = selection.getAbsolutePath() + java.io.File.separator;
+        }
     }
 
     @Override

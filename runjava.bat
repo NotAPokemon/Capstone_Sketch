@@ -80,6 +80,8 @@ if errorlevel 1 set EXIT_CODE=1 & goto goto_exit
 
 del sources.txt
 
+echo Compiling Finished
+
 :: -----------------------------
 :: Copy non-Java resources
 :: -----------------------------

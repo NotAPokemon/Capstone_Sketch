@@ -1,5 +1,7 @@
 package dev.korgi.json;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
@@ -7,7 +9,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class JSONObject {
 
@@ -380,6 +386,30 @@ public class JSONObject {
             throw new Error(e);
         }
 
+        return null;
+    }
+
+    @SuppressWarnings("unused")
+    public static JSONObject fromFile(File file) {
+        InputStream in = null;
+        try {
+            in = new FileInputStream(file);
+
+            if (in != null) {
+                String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                return JSONObject.fromJSONString(json);
+            }
+        } catch (IOException e) {
+            throw new Error(e);
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
         return null;
     }
 

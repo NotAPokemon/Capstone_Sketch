@@ -64,6 +64,7 @@ else
     javac -d "$BIN_DIR" @sources.txt
 fi
 rm sources.txt
+echo -e "\033[38;2;204;204;0mCompiling Finished\033[0m"
 
 # Copy non-Java resources
 for SRC in $SRC_DIRS; do
