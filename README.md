@@ -1,13 +1,18 @@
 # Requirements
 
-- msys64 w/ mingw64 & clang (if on windows)
-- clang in user path for mac
-- linux not fully supported but still possible
+- windows or mac
+- linux not fully supported but still possible if you try
+
+# Dev Req
+
+- MagicaVoxel voxel models
+- clang and clang++ and msys64 w/ mingw64 for window build
+- XCode for mac build
 
 ## OS
 
 - Windows x86
-- Mac sillicon
+- Mac sillicon (intel not supported run at your own risk)
 - Linux (Theoretically can work but you will have to build natives yourself)
 
 # Instructions
@@ -27,12 +32,10 @@
 
 1. (Host only) If you are hosting the server do steps 1-4 from single player instructions
 2. (Host only - LAN method) to allow others to join find the IP address of your machine (looks like 192.168.xx.xx)
-
    - On windows run `ipconfig` in terminal and look for IPv4 address
    - On Mac run `ipconfig getifaddr en0`
 
 3. (Host only - public server method) to allow others to join find your public IP address then port forward port 6967
-
    - On windows open powershell and run `(Invoke-WebRequest ifconfig.me/ip).Content.Trim()`
    - On Mac run `curl ifconfig.me`
 
