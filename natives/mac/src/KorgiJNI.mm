@@ -28,6 +28,8 @@ static id<MTLBuffer> textureAtlasBuffer = nil;
 static id<MTLBuffer> paramsBuffer = nil;
 static id<MTLBuffer> widthBuffer = nil;
 static id<MTLBuffer> heightBuffer = nil;
+static id<MTLBuffer> chunkGridBuffer = nil;
+static id<MTLBuffer> chunkSizeBuffer = nil;
 
 static void ensureBuffer(id<MTLBuffer> __strong *buf, NSUInteger byteSize) {
     if (*buf == nil || (*buf).length < byteSize) {
@@ -58,7 +60,7 @@ NSString* JString_to_NSString(JNIEnv* env, jstring javaString) {
         return nil;
     }
 
-    const char *utf8Chars = (env)->GetStringUTFChars(javaString, NULL);
+    const char *utf8Chars = env->GetStringUTFChars(javaString, NULL);
     if (utf8Chars == NULL) {
         return nil;
     }
@@ -66,7 +68,7 @@ NSString* JString_to_NSString(JNIEnv* env, jstring javaString) {
     NSString *objectiveCString = [NSString stringWithUTF8String:utf8Chars];
 
 
-    (env)->ReleaseStringUTFChars(javaString, utf8Chars);
+    env->ReleaseStringUTFChars(javaString, utf8Chars);
 
     return objectiveCString;
 }
@@ -89,7 +91,9 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray voxelGrid,
     jstring path,
     jintArray textureLocation,
-    jintArray textureAtlas
+    jintArray textureAtlas,
+    jintArray chunkGrid,
+    jintArray chunkSize
 ) {
 
     initMetal(JString_to_NSString(env, path));
@@ -106,15 +110,14 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jint* voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
     jint* textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
     jint* textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
+    jint* chunkGridPtr = env->GetIntArrayElements(chunkGrid, nullptr);
+    jint* chunkSizePtr = env->GetIntArrayElements(chunkSize, nullptr);
 
 
     jsize length = env->GetArrayLength(textureAtlas);
 
     size_t voxCountSize = jintSize * voxCount;
     int32_t w = width, h = height;
-
-
-    
     
     ensureBuffer(&pixelsBuffer, jintSize * width * height);
     ensureBuffer(&voxelBuffer, jintSize * worldSize[0] * worldSize[1] * worldSize[2]);
@@ -124,15 +127,19 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     ensureBuffer(&textureAtlasBuffer, jintSize * length);
     ensureBuffer(&widthBuffer, sizeof(int32_t));
     ensureBuffer(&heightBuffer, sizeof(int32_t));
+    ensureBuffer(&chunkGridBuffer, jintSize * chunkSizePtr[0] * chunkSizePtr[1] * chunkSizePtr[2]);
+    ensureBuffer(&chunkSizeBuffer, jintSize * 3);
 
     memcpy(pixelsBuffer.contents, pixelsPtr, jintSize  * width * height);
     memcpy(voxelBuffer.contents, voxelGridPtr, jintSize  * worldSize[0] * worldSize[1] * worldSize[2]);
     memcpy(colorBuffer.contents, colorPtr, voxCountSize);
-    memcpy(opacityBuffer.contents, opacityPtr, voxCountSize);
+    memcpy(opacityBuffer.contents, opacityPtr, voxCountSize); // sizeof(jint) == sizeof(float)
     memcpy(textureLocationBuffer.contents, textureLocationPtr, voxCountSize);
     memcpy(textureAtlasBuffer.contents, textureAtlasPtr, jintSize * length);
     memcpy(widthBuffer.contents,  &w, sizeof(int32_t));
     memcpy(heightBuffer.contents, &h, sizeof(int32_t));
+    memcpy(chunkGridBuffer.contents, chunkGridPtr, jintSize * chunkSizePtr[0] * chunkSizePtr[1] * chunkSizePtr[2]);
+    memcpy(chunkSizeBuffer.contents, chunkSizePtr, jintSize * 3);
                                                 
     ensureBuffer(&paramsBuffer, sizeof(RayParams));
 
@@ -149,7 +156,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     memcpy(paramsBuffer.contents, &params, sizeof(RayParams));
 
 
-    // Encode & dispatch
     id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
     id<MTLComputeCommandEncoder> encoder = [commandBuffer computeCommandEncoder];
     [encoder setComputePipelineState:pipelineState];
@@ -163,6 +169,8 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     [encoder setBuffer:heightBuffer offset:0 atIndex:6];
     [encoder setBuffer:textureLocationBuffer offset:0 atIndex:7];
     [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:8];
+    [encoder setBuffer:chunkGridBuffer offset:0 atIndex: 9];
+    [encoder setBuffer:chunkSizeBuffer offset:0 atIndex: 10];
 
     NSUInteger tw = pipelineState.threadExecutionWidth;
     NSUInteger th = pipelineState.maxTotalThreadsPerThreadgroup / tw;
@@ -188,4 +196,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
     env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
     env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
+    env->ReleaseIntArrayElements(chunkGrid, chunkGridPtr, 0);
+    env->ReleaseIntArrayElements(chunkSize, chunkSizePtr, 0);
 }

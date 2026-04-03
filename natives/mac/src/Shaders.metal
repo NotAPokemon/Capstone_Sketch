@@ -12,6 +12,8 @@ struct RayParams {
     int voxelCount;
 };
 
+constant int CHUNK_SIZE = 8;
+
 kernel void raytraceKernel(
     device int* pixels          [[buffer(0)]],
     device int* voxelGrid       [[buffer(1)]],
@@ -22,9 +24,11 @@ kernel void raytraceKernel(
     device int* heightBuf       [[buffer(6)]],
     device int* textureLocation [[buffer(7)]],
     device int* textureAtlas    [[buffer(8)]],
+    device int* chunkGrid       [[buffer(9)]],
+    device int* chunkSize       [[buffer(10)]],
     uint2 gid                   [[thread_position_in_grid]]
 ) {
-    const int width  = widthBuf[0];
+    const int width = widthBuf[0];
     const int height = heightBuf[0];
 
     const int px = (int)gid.x;
@@ -45,7 +49,7 @@ kernel void raytraceKernel(
 
     const float3 minB = float3(params.worldMin);
     const float3 maxB = float3(params.worldMin + params.worldSize);
-    const int    idx  = py * width + px;
+    const int idx = py * width + px;
 
     float tMin = 0.0f;
     float tMax = 100.0f;
@@ -79,7 +83,6 @@ kernel void raytraceKernel(
 
     if (tMin > tMax) { pixels[idx] = 0xFF87CEEB; return; }
 
-    // ── DDA setup ─────────────────────────────────────────────────────────────
     const float3 startPos = params.cam + dir * tMin;
     int3 cell = int3(floor(startPos));
 
@@ -87,7 +90,6 @@ kernel void raytraceKernel(
                            dir.y > 0 ? 1 : -1,
                            dir.z > 0 ? 1 : -1);
 
-    // Compute next slab boundary using select instead of ternary per component
     const float3 cellF  = float3(cell);
     const float3 border = select(cellF, cellF + 1.0f, step > 0);
     float3 tMaxVals = tMin + (border - startPos) * invDir;
@@ -98,29 +100,62 @@ kernel void raytraceKernel(
         dir.z != 0.0f ? fabs(invDir.z) : 1e20f
     );
 
-    // Hoist these out of the loop — they never change
-    const int3 wMin  = params.worldMin;
-    const int3 wMax  = params.worldMin + params.worldSize;
-    const int  wSX   = params.worldSize.x;
-    const int  wSXY  = params.worldSize.x * params.worldSize.y;
+    const int3 wMin = params.worldMin;
+    const int3 wMax = params.worldMin + params.worldSize;
+    const int wSX = params.worldSize.x;
+    const int wSXY = params.worldSize.x * params.worldSize.y;
+    const int csx  = chunkSize[0];
+    const int csy  = chunkSize[1];
+    const int csxy = csx * csy;
 
-    int   hitColor  = 0;
+    int hitColor = 0;
     float opacAccum = 1.0f;
-    int   hitFace   = -1;
-    float3 hitPos   = startPos;
-    float  t        = tMin;
+    int hitFace = -1;
+    float3 hitPos = startPos;
+    float t = tMin;
 
     for (int steps = 0; steps < 500 && t < tMax && opacAccum > 0.01f; ++steps) {
 
         if (all(cell >= wMin) && all(cell < wMax)) {
-            const int3 local3 = cell - wMin;
+            const int3 relCell = cell - wMin;
+            const int3 cIdx3   = relCell / CHUNK_SIZE;
+            const int chunkIdx = cIdx3.x + cIdx3.y * csx + cIdx3.z * csxy;
 
-            const int  vIdx   = local3.x + local3.y * wSX + local3.z * wSXY;
-            const int  voxel  = voxelGrid[vIdx];
+            if (chunkGrid[chunkIdx] == 0) {
+                float3 exitBorder;
+                exitBorder.x = float(wMin.x + (step.x > 0 ? cIdx3.x + 1 : cIdx3.x) * CHUNK_SIZE);
+                exitBorder.y = float(wMin.y + (step.y > 0 ? cIdx3.y + 1 : cIdx3.y) * CHUNK_SIZE);
+                exitBorder.z = float(wMin.z + (step.z > 0 ? cIdx3.z + 1 : cIdx3.z) * CHUNK_SIZE);
+
+                float3 tExit;
+                tExit.x = dir.x != 0.0f ? (exitBorder.x - params.cam.x) * invDir.x : 1e20f;
+                tExit.y = dir.y != 0.0f ? (exitBorder.y - params.cam.y) * invDir.y : 1e20f;
+                tExit.z = dir.z != 0.0f ? (exitBorder.z - params.cam.z) * invDir.z : 1e20f;
+
+                float tJump = min(min(tExit.x, tExit.y), tExit.z) + 1e-4f;
+
+                if (tJump > t) {
+                    t      = tJump;
+                    hitPos = params.cam + dir * t;
+                    cell   = int3(floor(hitPos));
+
+                    float3 newBorder;
+                    newBorder.x = float(step.x > 0 ? cell.x + 1 : cell.x);
+                    newBorder.y = float(step.y > 0 ? cell.y + 1 : cell.y);
+                    newBorder.z = float(step.z > 0 ? cell.z + 1 : cell.z);
+                    tMaxVals.x = dir.x != 0.0f ? (newBorder.x - params.cam.x) * invDir.x : 1e20f;
+                    tMaxVals.y = dir.y != 0.0f ? (newBorder.y - params.cam.y) * invDir.y : 1e20f;
+                    tMaxVals.z = dir.z != 0.0f ? (newBorder.z - params.cam.z) * invDir.z : 1e20f;
+                    continue;
+                }
+            }
+            
+            const int vIdx  = relCell.x + relCell.y * wSX + relCell.z * wSXY;
+            const int voxel = voxelGrid[vIdx];
 
             if ((uint)voxel < (uint)params.voxelCount) {
 
-                const int   texId = textureLocation[voxel];
+                const int texId = textureLocation[voxel];
                 const float alpha = opacity[voxel];
 
                 if (texId != -1 && hitFace >= 0) {
@@ -128,24 +163,26 @@ kernel void raytraceKernel(
 
                     float u, v;
                     if (hitFace <= 1) {          // X faces
-                        u = localUV.z;  v = 1.0f - localUV.y;
+                        u = localUV.z;
+                        v = 1.0f - localUV.y;
                     } else if (hitFace <= 3) {   // Y faces
-                        u = localUV.x;  v = 1.0f - localUV.z;
+                        u = localUV.x;
+                        v = 1.0f - localUV.z;
                     } else {                     // Z faces
-                        u = localUV.x;  v = 1.0f - localUV.y;
+                        u = localUV.x;  
+                        v = 1.0f - localUV.y;
                     }
 
-                    const int iu   = clamp((int)(u * 32.0f), 0, 31);  // was 32-1, same value
-                    const int iv   = clamp((int)(v * 32.0f), 0, 31);
-                    const int base = texId * (192 * 32);               // constant fold hint
-                    hitColor  = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
-                    opacAccum = 0.0f;   // guarantees loop exits next iteration
+                    const int iu = clamp((int)(u * 32.0f), 0, 31);
+                    const int iv = clamp((int)(v * 32.0f), 0, 31);
+                    const int base = texId * (192 * 32);
+                    hitColor = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    opacAccum = 0.0f;
 
                 } else {
-                    // ── Solid colour voxel ──────────────────────────────────
                     const int   c  = colors[voxel];
                     const float a  = alpha * opacAccum;
-                    const float ia = 1.0f - a;   // computed once, reused 6×
+                    const float ia = 1.0f - a;
 
                     const int r = (int)(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
                     const int g = (int)(((c >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
@@ -157,7 +194,6 @@ kernel void raytraceKernel(
             }
         }
 
-        // ── Step to next voxel ────────────────────────────────────────────────
         const bool xMin = (tMaxVals.x <= tMaxVals.y) && (tMaxVals.x <= tMaxVals.z);
         const bool yMin = !xMin && (tMaxVals.y <= tMaxVals.z);
 
@@ -175,12 +211,11 @@ kernel void raytraceKernel(
         hitPos = params.cam + dir * t;
     }
 
-    // ── Final sky blend ───────────────────────────────────────────────────────
-    const int   sky = 0xFF87CEEB;
-    const float a   = opacAccum;
-    const float ia  = 1.0f - a;
+    const int sky = 0xFF87CEEB;
+    const float a = opacAccum;
+    const float ia = 1.0f - a;
     const int r = (int)(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
     const int g = (int)(((sky >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
-    const int b = (int)( (sky        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
+    const int b = (int)( (sky & 0xFF) * a + ( hitColor & 0xFF) * ia);
     pixels[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }

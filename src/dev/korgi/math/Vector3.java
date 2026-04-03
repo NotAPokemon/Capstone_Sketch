@@ -43,6 +43,10 @@ public class Vector3 {
         return this;
     }
 
+    public Vector3 add(double value) {
+        return new Vector3(x + value, y + value, z + value);
+    }
+
     public Vector3 add(Vector3 other) {
         return new Vector3(x + other.x, y + other.y, z + other.z);
     }

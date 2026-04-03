@@ -30,6 +30,7 @@ public class NativeGPUKernal {
     private static int[] textureLocation;
     private static float[] opacity;
     private static int[] voxelGrid;
+    private static int[] chunkGrid;
     private static Camera camera;
 
     public static void loadTextureMap() {
@@ -97,15 +98,19 @@ public class NativeGPUKernal {
     }
 
     public static int render_dist = 50;
+    private static final List<Voxel> voxels = new ArrayList<>();
+    private static final Vector3 min = new Vector3();
+    private static final Vector3 max = new Vector3();
+    private static float tanFov = -1;
 
     private static void precompute(WorldStorage world) {
-        if (world.getFlat().isEmpty()) {
+        if (world.voxels.values().isEmpty()) {
             Arrays.fill(pixels, 0xFF87CEEB);
             return;
         }
 
-        Vector3 min = new Vector3(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
-        Vector3 max = new Vector3(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+        min.copyFrom(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        max.copyFrom(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
 
         int radius = render_dist;
 
@@ -114,32 +119,30 @@ public class NativeGPUKernal {
         Vector3 right = camera.getRight();
 
         Vector3 up = right.cross(forward).normalizeHere();
-        List<Voxel> voxels = new ArrayList<>();
-        for (int x = -radius; x < radius; x++) {
-            for (int y = -radius; y < radius; y++) {
-                for (int z = -radius; z < radius; z++) {
-                    Vector3 vpos = new Vector3(x, y, z).addTo(camera.position);
-                    Voxel v = world.at(vpos);
-                    if (v != null) {
-                        int xv = (int) vpos.x;
-                        int yv = (int) vpos.y;
-                        int zv = (int) vpos.z;
-                        if (xv < min.x)
-                            min.x = xv;
-                        if (yv < min.y)
-                            min.y = yv;
-                        if (zv < min.z)
-                            min.z = zv;
-                        if (xv > max.x)
-                            max.x = xv;
-                        if (yv > max.y)
-                            max.y = yv;
-                        if (zv > max.z)
-                            max.z = zv;
-                        voxels.add(v);
-                    }
-                }
-            }
+
+        voxels.clear();
+        for (Voxel v : world.voxels.values()) {
+            double dx = v.position.x - camera.position.x;
+            double dy = v.position.y - camera.position.y;
+            double dz = v.position.z - camera.position.z;
+            if (Math.abs(dx) > radius || Math.abs(dy) > radius || Math.abs(dz) > radius)
+                continue;
+            int xv = (int) v.position.x;
+            int yv = (int) v.position.y;
+            int zv = (int) v.position.z;
+            if (xv < min.x)
+                min.x = xv;
+            if (yv < min.y)
+                min.y = yv;
+            if (zv < min.z)
+                min.z = zv;
+            if (xv > max.x)
+                max.x = xv;
+            if (yv > max.y)
+                max.y = yv;
+            if (zv > max.z)
+                max.z = zv;
+            voxels.add(v);
         }
 
         if (voxels.isEmpty()) {
@@ -151,20 +154,29 @@ public class NativeGPUKernal {
         max.addTo(VectorConstants.ONE);
         Vector3 size = max.subtract(min).addTo(VectorConstants.ONE);
 
-        float tanFov = (float) Math.tan(Math.toRadians(camera.fov * 0.5f));
+        if (tanFov < 0) {
+            tanFov = (float) Math.tan(Math.toRadians(camera.fov * 0.5f));
+        }
 
         int voxelCount = voxels.size();
 
-        vcolor = new int[voxelCount];
-        opacity = new float[voxelCount];
-        textureLocation = new int[voxelCount];
+        Vector3 chunckSize = size.add(7).multiplyBy(1.0 / 8.0);
 
-        voxelGrid = new int[(int) size.multiplyComp()];
+        if (chunkGrid == null || chunkGrid.length != (int) chunckSize.multiplyComp())
+            chunkGrid = new int[(int) chunckSize.multiplyComp()];
+        Arrays.fill(chunkGrid, 0);
+
+        if (vcolor == null || vcolor.length != voxelCount) {
+            vcolor = new int[voxelCount];
+            opacity = new float[voxelCount];
+            textureLocation = new int[voxelCount];
+        }
+
+        if (voxelGrid == null || voxelGrid.length != (int) size.multiplyComp())
+            voxelGrid = new int[(int) size.multiplyComp()];
 
         Arrays.fill(voxelGrid, -1);
-        for (
-
-                int i = 0; i < voxelCount; i++) {
+        for (int i = 0; i < voxelCount; i++) {
             Voxel v = voxels.get(i);
             Vector3 g = v.position.subtract(min);
 
@@ -173,12 +185,19 @@ public class NativeGPUKernal {
                     g.z < 0 || g.z >= size.z)
                 continue;
 
-            Vector4 color = v.getMaterial().getColor();
-            vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
-            opacity[i] = (float) v.getMaterial().getOpacity();
             textureLocation[i] = v.getMaterial().getTextureLocation();
+            if (textureLocation[i] == -1) {
+                Vector4 color = v.getMaterial().getColor();
+                vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
+                opacity[i] = (float) v.getMaterial().getOpacity();
+            }
 
             voxelGrid[(int) ((int) g.x + (int) g.y * (int) size.x + (int) g.z * (int) size.x * (int) size.y)] = i;
+
+            int cx = (int) g.x / 8;
+            int cy = (int) g.y / 8;
+            int cz = (int) g.z / 8;
+            chunkGrid[cx + cy * (int) chunckSize.x + cz * (int) chunckSize.x * (int) chunckSize.y] = 1;
         }
 
         Time.time(() -> {
@@ -192,7 +211,9 @@ public class NativeGPUKernal {
                     voxelGrid,
                     path,
                     textureLocation,
-                    textureAtlas.getAtlas());
+                    textureAtlas.getAtlas(),
+                    chunkGrid,
+                    chunckSize.toIntArray());
         }, 0.05, "High Render Latency: %f");
     }
 

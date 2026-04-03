@@ -22,9 +22,35 @@ public class WorldStorage {
     public List<Voxel> updates = new ArrayList<>();
     @JSONIgnore
     public List<Vector3> removes = new ArrayList<>();
+    private final Vector3 minBounds = new Vector3();
+    private final Vector3 maxBounds = new Vector3();
 
     public void add(Voxel v) {
         voxels.put(voxelKey(v.position), v);
+        if (v.position.x > maxBounds.x) {
+            maxBounds.copyFrom(v.position.x, maxBounds.y, maxBounds.z);
+        }
+        if (v.position.y > maxBounds.y) {
+            maxBounds.copyFrom(maxBounds.x, v.position.y, maxBounds.z);
+        }
+        if (v.position.z > maxBounds.z) {
+            maxBounds.copyFrom(maxBounds.x, maxBounds.y, v.position.z);
+        }
+        if (v.position.x < minBounds.x) {
+            minBounds.copyFrom(v.position.x, minBounds.y, minBounds.z);
+        }
+        if (v.position.y < minBounds.y) {
+            minBounds.copyFrom(minBounds.x, v.position.y, minBounds.z);
+        }
+        if (v.position.z < minBounds.z) {
+            minBounds.copyFrom(minBounds.x, minBounds.y, v.position.z);
+        }
+
+    }
+
+    public boolean inBounds(Vector3 pos) {
+        return pos.x < maxBounds.x && pos.y < maxBounds.y && pos.z < maxBounds.z && pos.x > minBounds.x
+                && pos.y > minBounds.y && pos.z > minBounds.z;
     }
 
     public List<Voxel> getFlat() {
@@ -44,8 +70,6 @@ public class WorldStorage {
 
         for (Map.Entry<?, ?> entry : map.getValues().entrySet()) {
             try {
-                long key = Long.parseLong(entry.getKey().toString());
-
                 Object value = entry.getValue();
                 if (!(value instanceof JSONObject json))
                     continue;
@@ -53,7 +77,7 @@ public class WorldStorage {
                 Voxel v = new Voxel();
                 json.fillObject(v);
 
-                voxels.put(key, v);
+                add(v);
             } catch (Exception e) {
                 e.printStackTrace();
             }

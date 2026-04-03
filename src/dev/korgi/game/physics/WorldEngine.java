@@ -43,17 +43,13 @@ public class WorldEngine {
 
     public static void addRandomVoxel(Vector3 pos) {
         Voxel v = new Voxel(pos, new Vector4(Vector3.random()));
-        world.add(v);
-        world.updated = true;
-        world.updates.add(v);
+        addVoxel(v);
     }
 
     public static void addVoxelWithTexture(Vector3 pos, int texture) {
         Voxel v = new Voxel(pos);
         v.getMaterial().setTextureLocation(texture);
-        world.add(v);
-        world.updated = true;
-        world.updates.add(v);
+        addVoxel(v);
     }
 
     public static void updateClient() {
