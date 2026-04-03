@@ -121,28 +121,57 @@ public class NativeGPUKernal {
         Vector3 up = right.cross(forward).normalizeHere();
 
         voxels.clear();
-        for (Voxel v : world.voxels.values()) {
-            double dx = v.position.x - camera.position.x;
-            double dy = v.position.y - camera.position.y;
-            double dz = v.position.z - camera.position.z;
-            if (Math.abs(dx) > radius || Math.abs(dy) > radius || Math.abs(dz) > radius)
-                continue;
-            int xv = (int) v.position.x;
-            int yv = (int) v.position.y;
-            int zv = (int) v.position.z;
-            if (xv < min.x)
-                min.x = xv;
-            if (yv < min.y)
-                min.y = yv;
-            if (zv < min.z)
-                min.z = zv;
-            if (xv > max.x)
-                max.x = xv;
-            if (yv > max.y)
-                max.y = yv;
-            if (zv > max.z)
-                max.z = zv;
-            voxels.add(v);
+        if (world.voxels.values().size() < radius * radius * radius * 8) {
+            for (Voxel v : world.voxels.values()) {
+                double dx = v.position.x - camera.position.x;
+                double dy = v.position.y - camera.position.y;
+                double dz = v.position.z - camera.position.z;
+                if (Math.abs(dx) > radius || Math.abs(dy) > radius || Math.abs(dz) > radius)
+                    continue;
+                int xv = (int) v.position.x;
+                int yv = (int) v.position.y;
+                int zv = (int) v.position.z;
+                if (xv < min.x)
+                    min.x = xv;
+                if (yv < min.y)
+                    min.y = yv;
+                if (zv < min.z)
+                    min.z = zv;
+                if (xv > max.x)
+                    max.x = xv;
+                if (yv > max.y)
+                    max.y = yv;
+                if (zv > max.z)
+                    max.z = zv;
+                voxels.add(v);
+            }
+        } else {
+            for (int x = -radius; x < radius; x++) {
+                for (int y = -radius; y < radius; y++) {
+                    for (int z = -radius; z < radius; z++) {
+                        int xv = (int) camera.position.x + x;
+                        int yv = (int) camera.position.y + y;
+                        int zv = (int) camera.position.z + z;
+                        Voxel v = world.voxels.get(WorldStorage.voxelKey(xv, yv, zv));
+                        if (v == null)
+                            continue;
+
+                        if (xv < min.x)
+                            min.x = xv;
+                        if (yv < min.y)
+                            min.y = yv;
+                        if (zv < min.z)
+                            min.z = zv;
+                        if (xv > max.x)
+                            max.x = xv;
+                        if (yv > max.y)
+                            max.y = yv;
+                        if (zv > max.z)
+                            max.z = zv;
+                        voxels.add(v);
+                    }
+                }
+            }
         }
 
         if (voxels.isEmpty()) {

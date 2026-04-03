@@ -14,6 +14,8 @@ static GLuint colorBuffer = 0;
 static GLuint opacityBuffer = 0;
 static GLuint textureLocationBuffer = 0;
 static GLuint textureAtlasBuffer = 0;
+static GLuint chunkGridBuffer = 0;
+static GLuint chunkSizeBuffer = 0;
 
 static bool initGL(int width, int height)
 {
@@ -94,20 +96,24 @@ GLuint compileComputeShader(const std::string &path)
     return program;
 }
 
-std::string toString(JNIEnv *env, jstring jstr)
+static std::string toString(JNIEnv *env, jstring jstr)
 {
     if (jstr == nullptr)
         return {};
-
     const char *utf = env->GetStringUTFChars(jstr, nullptr);
     if (!utf)
         return {};
-
     std::string result(utf);
-
     env->ReleaseStringUTFChars(jstr, utf);
-
     return result;
+}
+
+static void uploadSSBO(GLuint &buf, GLsizeiptr byteSize, const void *data)
+{
+    if (!buf)
+        glGenBuffers(1, &buf);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buf);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, byteSize, data, GL_DYNAMIC_DRAW);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
@@ -127,7 +133,9 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray voxelGrid,
     jstring path,
     jintArray textureLocation,
-    jintArray textureAtlas)
+    jintArray textureAtlas,
+    jintArray chunkGrid,
+    jintArray chunkSize)
 {
     if (!initGL(width, height))
         return;
@@ -140,49 +148,32 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     }
 
     jint *pixelsPtr = env->GetIntArrayElements(pixels, nullptr);
+    jfloat *camPtr = env->GetFloatArrayElements(cam, nullptr);
+    jfloat *forwardPtr = env->GetFloatArrayElements(forward, nullptr);
+    jfloat *rightPtr = env->GetFloatArrayElements(right, nullptr);
+    jfloat *upPtr = env->GetFloatArrayElements(up, nullptr);
     jint *colorPtr = env->GetIntArrayElements(color, nullptr);
     jfloat *opacityPtr = env->GetFloatArrayElements(opacity, nullptr);
     jint *worldMin = env->GetIntArrayElements(worldMinArray, nullptr);
     jint *worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
     jint *voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
-    jfloat *camPtr = env->GetFloatArrayElements(cam, nullptr);
-    jfloat *forwardPtr = env->GetFloatArrayElements(forward, nullptr);
-    jfloat *rightPtr = env->GetFloatArrayElements(right, nullptr);
-    jfloat *upPtr = env->GetFloatArrayElements(up, nullptr);
     jint *textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
     jint *textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
+    jint *chunkGridPtr = env->GetIntArrayElements(chunkGrid, nullptr);
+    jint *chunkSizePtr = env->GetIntArrayElements(chunkSize, nullptr);
 
-    if (!pixelsBuffer)
-        glGenBuffers(1, &pixelsBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, pixelsBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * width * height, pixelsPtr, GL_DYNAMIC_DRAW);
+    jsize atlasLen = env->GetArrayLength(textureAtlas);
+    jsize chunkGridLen = (jsize)chunkSizePtr[0] * chunkSizePtr[1] * chunkSizePtr[2];
 
-    if (!voxelBuffer)
-        glGenBuffers(1, &voxelBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, voxelBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * worldSize[0] * worldSize[1] * worldSize[2], voxelGridPtr, GL_STATIC_DRAW);
-
-    if (!colorBuffer)
-        glGenBuffers(1, &colorBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, colorBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * voxCount, colorPtr, GL_STATIC_DRAW);
-
-    if (!opacityBuffer)
-        glGenBuffers(1, &opacityBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, opacityBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * voxCount, opacityPtr, GL_STATIC_DRAW);
-
-    if (!textureLocationBuffer)
-        glGenBuffers(1, &textureLocationBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, textureLocationBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * voxCount, textureLocationPtr, GL_STATIC_DRAW);
-
-    jsize length = env->GetArrayLength(textureAtlas);
-
-    if (!textureAtlasBuffer)
-        glGenBuffers(1, &textureAtlasBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, textureAtlasBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(jint) * length, textureAtlasPtr, GL_STATIC_DRAW);
+    // ── Upload SSBOs (binding slots match the shader) ──────────────────────────
+    uploadSSBO(pixelsBuffer, sizeof(jint) * width * height, pixelsPtr);
+    uploadSSBO(voxelBuffer, sizeof(jint) * worldSize[0] * worldSize[1] * worldSize[2], voxelGridPtr);
+    uploadSSBO(colorBuffer, sizeof(jint) * voxCount, colorPtr);
+    uploadSSBO(opacityBuffer, sizeof(float) * voxCount, opacityPtr);
+    uploadSSBO(textureLocationBuffer, sizeof(jint) * voxCount, textureLocationPtr);
+    uploadSSBO(textureAtlasBuffer, sizeof(jint) * atlasLen, textureAtlasPtr);
+    uploadSSBO(chunkGridBuffer, sizeof(jint) * chunkGridLen, chunkGridPtr);
+    uploadSSBO(chunkSizeBuffer, sizeof(jint) * 3, chunkSizePtr);
 
     glUseProgram(computeProgram);
 
@@ -192,33 +183,22 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, opacityBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, textureLocationBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, textureAtlasBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, chunkGridBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, chunkSizeBuffer);
 
-    GLint loc_cam = glGetUniformLocation(computeProgram, "cam");
-    GLint loc_forward = glGetUniformLocation(computeProgram, "forward");
-    GLint loc_right = glGetUniformLocation(computeProgram, "right");
-    GLint loc_up = glGetUniformLocation(computeProgram, "up");
-    GLint loc_tanFov = glGetUniformLocation(computeProgram, "tanFov");
-    GLint loc_voxCount = glGetUniformLocation(computeProgram, "voxCount");
-    GLint loc_worldMin = glGetUniformLocation(computeProgram, "worldMin");
-    GLint loc_worldSize = glGetUniformLocation(computeProgram, "worldSize");
-    GLint loc_width = glGetUniformLocation(computeProgram, "width");
-    GLint loc_height = glGetUniformLocation(computeProgram, "height");
+    glUniform3f(glGetUniformLocation(computeProgram, "cam"), camPtr[0], camPtr[1], camPtr[2]);
+    glUniform3f(glGetUniformLocation(computeProgram, "forward"), forwardPtr[0], forwardPtr[1], forwardPtr[2]);
+    glUniform3f(glGetUniformLocation(computeProgram, "right"), rightPtr[0], rightPtr[1], rightPtr[2]);
+    glUniform3f(glGetUniformLocation(computeProgram, "up"), upPtr[0], upPtr[1], upPtr[2]);
+    glUniform1f(glGetUniformLocation(computeProgram, "tanFov"), tanFov);
+    glUniform1i(glGetUniformLocation(computeProgram, "voxCount"), voxCount);
+    glUniform3i(glGetUniformLocation(computeProgram, "worldMin"), worldMin[0], worldMin[1], worldMin[2]);
+    glUniform3i(glGetUniformLocation(computeProgram, "worldSize"), worldSize[0], worldSize[1], worldSize[2]);
+    glUniform1i(glGetUniformLocation(computeProgram, "width"), width);
+    glUniform1i(glGetUniformLocation(computeProgram, "height"), height);
 
-    glUniform3f(loc_cam, camPtr[0], camPtr[1], camPtr[2]);
-    glUniform3f(loc_forward, forwardPtr[0], forwardPtr[1], forwardPtr[2]);
-    glUniform3f(loc_right, rightPtr[0], rightPtr[1], rightPtr[2]);
-    glUniform3f(loc_up, upPtr[0], upPtr[1], upPtr[2]);
-    glUniform1f(loc_tanFov, tanFov);
-    glUniform1i(loc_voxCount, voxCount);
-    glUniform3i(loc_worldMin, worldMin[0], worldMin[1], worldMin[2]);
-    glUniform3i(loc_worldSize, worldSize[0], worldSize[1], worldSize[2]);
-    glUniform1i(loc_width, width);
-    glUniform1i(loc_height, height);
-
-    GLuint workGroupSizeX = 8;
-    GLuint workGroupSizeY = 8;
-    GLuint groupsX = (width + workGroupSizeX - 1) / workGroupSizeX;
-    GLuint groupsY = (height + workGroupSizeY - 1) / workGroupSizeY;
+    GLuint groupsX = (width + 7) / 8;
+    GLuint groupsY = (height + 7) / 8;
     glDispatchCompute(groupsX, groupsY, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -228,15 +208,17 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
     env->ReleaseIntArrayElements(pixels, pixelsPtr, 0);
+    env->ReleaseFloatArrayElements(cam, camPtr, 0);
+    env->ReleaseFloatArrayElements(forward, forwardPtr, 0);
+    env->ReleaseFloatArrayElements(right, rightPtr, 0);
+    env->ReleaseFloatArrayElements(up, upPtr, 0);
     env->ReleaseIntArrayElements(color, colorPtr, 0);
     env->ReleaseFloatArrayElements(opacity, opacityPtr, 0);
     env->ReleaseIntArrayElements(worldMinArray, worldMin, 0);
     env->ReleaseIntArrayElements(worldSizeArray, worldSize, 0);
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
-    env->ReleaseFloatArrayElements(cam, camPtr, 0);
-    env->ReleaseFloatArrayElements(forward, forwardPtr, 0);
-    env->ReleaseFloatArrayElements(right, rightPtr, 0);
-    env->ReleaseFloatArrayElements(up, upPtr, 0);
     env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
     env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
+    env->ReleaseIntArrayElements(chunkGrid, chunkGridPtr, 0);
+    env->ReleaseIntArrayElements(chunkSize, chunkSizePtr, 0);
 }

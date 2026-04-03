@@ -2,86 +2,93 @@
 
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(std430, binding = 0) buffer Pixels {
-    int pixels[];
-};
+layout(std430, binding = 0) buffer Pixels        { int   pixels[];         };
+layout(std430, binding = 1) buffer Voxels        { int   voxelGrid[];      };
+layout(std430, binding = 2) buffer Colors        { int   colors[];         };
+layout(std430, binding = 3) buffer Opacity       { float opacity[];        };
+layout(std430, binding = 4) buffer TextureLoc    { int   textureLocation[]; };
+layout(std430, binding = 5) buffer TextureAtlas  { int   textureAtlas[];   };
+layout(std430, binding = 6) buffer ChunkGrid     { int   chunkGrid[];      };
+layout(std430, binding = 7) buffer ChunkSize     { int   chunkSize[];      };  // [csx, csy, csz]
 
-layout(std430, binding = 1) buffer Voxels {
-    int voxelGrid[];
-};
-
-layout(std430, binding = 2) buffer Colors {
-    int colors[];
-};
-
-layout(std430, binding = 3) buffer Opacity {
-    float opacity[];
-};
-
-layout(std430, binding = 4) buffer textureLocation {
-    int textureLocation[];
-};
-
-layout(std430, binding = 5) buffer textureAtlas {
-    int textureAtlas[];
-};
-
-// Uniforms
-uniform vec3 cam;
-uniform vec3 forward;
-uniform vec3 right;
-uniform vec3 up;
+uniform vec3  cam;
+uniform vec3  forward;
+uniform vec3  right;
+uniform vec3  up;
 uniform float tanFov;
-uniform int voxCount;
+uniform int   voxCount;
 uniform ivec3 worldMin;
 uniform ivec3 worldSize;
-uniform int width;
-uniform int height;
+uniform int   width;
+uniform int   height;
 
-#include "Box.glsl"
-
-
+const int CHUNK_SIZE = 8;
 
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
     int px = gid.x;
     int py = gid.y;
     if (px >= width || py >= height) return;
+
     int idx = py * width + px;
 
     float aspect = float(width) / float(height);
-    float ndcX = 2.0 * (float(px) + 0.5) / float(width) - 1.0;
-    float ndcY = 1.0 - 2.0 * (float(py) + 0.5) / float(height);
+    float ndcX   = (2.0 * (float(px) + 0.5) / float(width)  - 1.0) * aspect * tanFov;
+    float ndcY   = (1.0 -  2.0 * (float(py) + 0.5) / float(height)) * tanFov;
 
-    vec3 dir = normalize(forward + ndcX * aspect * tanFov * right + ndcY * tanFov * up);
+    vec3 dir = normalize(forward + ndcX * right + ndcY * up);
     vec3 invDir = vec3(
         dir.x != 0.0 ? 1.0 / dir.x : 1e20,
         dir.y != 0.0 ? 1.0 / dir.y : 1e20,
         dir.z != 0.0 ? 1.0 / dir.z : 1e20
     );
 
-    vec3 minB = vec3(worldMin);
-    vec3 maxB = vec3(worldMin + worldSize); // precompute max
+    vec3  minB = vec3(worldMin);
+    vec3  maxB = vec3(worldMin + worldSize);
+    ivec3 worldMax = worldMin + worldSize;
 
     float tMin = 0.0;
-    float tMax = 100.0; // render distance
+    float tMax = 100.0;
 
-    // Slab method
-    for (int i = 0; i < 3; i++) {
-        if (dir[i] != 0.0) {
-            float t1 = (minB[i] - cam[i]) * invDir[i];
-            float t2 = (maxB[i] - cam[i]) * invDir[i];
-            tMin = max(tMin, min(t1, t2));
-            tMax = min(tMax, max(t1, t2));
-        } else if (cam[i] < minB[i] || cam[i] > maxB[i]) {
-            pixels[idx] = 0xFF87CEEB;
-            return;
-        }
+    // AABB slab test
+    if (dir.x != 0.0) {
+        float tx1 = (minB.x - cam.x) * invDir.x;
+        float tx2 = (maxB.x - cam.x) * invDir.x;
+        tMin = max(tMin, min(tx1, tx2));
+        tMax = min(tMax, max(tx1, tx2));
+    } else if (cam.x < minB.x || cam.x > maxB.x) {
+        pixels[idx] = 0xFF87CEEB; return;
     }
+
+    if (dir.y != 0.0) {
+        float ty1 = (minB.y - cam.y) * invDir.y;
+        float ty2 = (maxB.y - cam.y) * invDir.y;
+        tMin = max(tMin, min(ty1, ty2));
+        tMax = min(tMax, max(ty1, ty2));
+    } else if (cam.y < minB.y || cam.y > maxB.y) {
+        pixels[idx] = 0xFF87CEEB; return;
+    }
+
+    if (dir.z != 0.0) {
+        float tz1 = (minB.z - cam.z) * invDir.z;
+        float tz2 = (maxB.z - cam.z) * invDir.z;
+        tMin = max(tMin, min(tz1, tz2));
+        tMax = min(tMax, max(tz1, tz2));
+    } else if (cam.z < minB.z || cam.z > maxB.z) {
+        pixels[idx] = 0xFF87CEEB; return;
+    }
+
     if (tMin > tMax) { pixels[idx] = 0xFF87CEEB; return; }
 
-    vec3 startPos = cam + dir * tMin;
-    ivec3 cell = ivec3(floor(startPos));
+    vec3  startPos = cam + dir * tMin;
+    ivec3 cell     = ivec3(floor(startPos));
+    ivec3 step     = ivec3(sign(dir));
+
+    vec3 tMaxVals = vec3(
+        tMin + (float(step.x > 0 ? cell.x + 1 : cell.x) - startPos.x) * invDir.x,
+        tMin + (float(step.y > 0 ? cell.y + 1 : cell.y) - startPos.y) * invDir.y,
+        tMin + (float(step.z > 0 ? cell.z + 1 : cell.z) - startPos.z) * invDir.z
+    );
 
     vec3 tDelta = vec3(
         dir.x != 0.0 ? abs(invDir.x) : 1e20,
@@ -89,113 +96,122 @@ void main() {
         dir.z != 0.0 ? abs(invDir.z) : 1e20
     );
 
-    ivec3 step = ivec3(sign(dir)); // cast sign(dir) to ivec3
+    const int csx  = chunkSize[0];
+    const int csy  = chunkSize[1];
+    const int csxy = csx * csy;
+    const int wSX  = worldSize.x;
+    const int wSXY = worldSize.x * worldSize.y;
 
-    vec3 tMaxVals = vec3(
-        tMin + ((step.x > 0 ? float(cell.x + 1) - startPos.x : float(cell.x) - startPos.x) * invDir.x),
-        tMin + ((step.y > 0 ? float(cell.y + 1) - startPos.y : float(cell.y) - startPos.y) * invDir.y),
-        tMin + ((step.z > 0 ? float(cell.z + 1) - startPos.z : float(cell.z) - startPos.z) * invDir.z)
-    );
+    int   hitColor  = 0;
+    float opacAccum = 1.0;
+    int   hitFace   = -1;
+    vec3  hitPos    = startPos;
+    float t         = tMin;
 
-    int hitColor = 0;
-    float opacityAccum = 1.0;
-    int maxSteps = 500;
-    int steps = 0;
-    float t = tMin;
+    for (int steps = 0; steps < 500 && t < tMax && opacAccum > 0.01; ++steps) {
 
-    ivec3 worldMax = worldMin + worldSize;
-
-    int hitFace = -1;
-    vec3 hitPos = 0;
-
-    while (t < tMax && opacityAccum > 0.01 && steps < maxSteps) {
         if (all(greaterThanEqual(cell, worldMin)) && all(lessThan(cell, worldMax))) {
-            int voxelIdx = voxelGrid[(cell.x - worldMin.x)
-                                    + (cell.y - worldMin.y) * worldSize.x
-                                    + (cell.z - worldMin.z) * worldSize.x * worldSize.y];
-            if (voxelIdx >= 0 && voxelIdx < voxCount) {
-                int c = colors[voxelIdx];
-                float a = opacity[voxelIdx] * opacityAccum;
+            ivec3 relCell  = cell - worldMin;
+            ivec3 cIdx3    = relCell / CHUNK_SIZE;
+            int   chunkIdx = cIdx3.x + cIdx3.y * csx + cIdx3.z * csxy;
 
-                float u = 0.0;
-                float v = 0.0;
+            // Empty-chunk skip — jump ray to the far side of this chunk
+            if (chunkGrid[chunkIdx] == 0) {
+                vec3 exitBorder = vec3(
+                    float(worldMin.x + (step.x > 0 ? cIdx3.x + 1 : cIdx3.x) * CHUNK_SIZE),
+                    float(worldMin.y + (step.y > 0 ? cIdx3.y + 1 : cIdx3.y) * CHUNK_SIZE),
+                    float(worldMin.z + (step.z > 0 ? cIdx3.z + 1 : cIdx3.z) * CHUNK_SIZE)
+                );
 
-                vec3 local = hitPos - floor(hitPos);
+                vec3 tExit = vec3(
+                    dir.x != 0.0 ? (exitBorder.x - cam.x) * invDir.x : 1e20,
+                    dir.y != 0.0 ? (exitBorder.y - cam.y) * invDir.y : 1e20,
+                    dir.z != 0.0 ? (exitBorder.z - cam.z) * invDir.z : 1e20
+                );
 
-                switch (hitFace) {
-                    case 0: // +X
-                    case 1: // -X
+                float tJump = min(min(tExit.x, tExit.y), tExit.z) + 1e-4;
+
+                if (tJump > t) {
+                    t      = tJump;
+                    hitPos = cam + dir * t;
+                    cell   = ivec3(floor(hitPos));
+
+                    vec3 newBorder = vec3(
+                        float(step.x > 0 ? cell.x + 1 : cell.x),
+                        float(step.y > 0 ? cell.y + 1 : cell.y),
+                        float(step.z > 0 ? cell.z + 1 : cell.z)
+                    );
+                    tMaxVals = vec3(
+                        dir.x != 0.0 ? (newBorder.x - cam.x) * invDir.x : 1e20,
+                        dir.y != 0.0 ? (newBorder.y - cam.y) * invDir.y : 1e20,
+                        dir.z != 0.0 ? (newBorder.z - cam.z) * invDir.z : 1e20
+                    );
+                    continue;
+                }
+            }
+
+            int voxel = voxelGrid[relCell.x + relCell.y * wSX + relCell.z * wSXY];
+
+            if (voxel >= 0 && voxel < voxCount) {
+                int   texId = textureLocation[voxel];
+                float alpha = opacity[voxel];
+
+                if (texId != -1 && hitFace >= 0) {
+                    vec3  local = hitPos - floor(hitPos);
+                    float u, v;
+
+                    if (hitFace <= 1) {        // X faces
                         u = local.z;
                         v = 1.0 - local.y;
-                        break;
-
-                    case 2: // -Y
-                    case 3: // +Y
+                    } else if (hitFace <= 3) { // Y faces
                         u = local.x;
                         v = 1.0 - local.z;
-                        break;
-
-                    case 4: // +Z
-                    case 5: // -Z
+                    } else {                   // Z faces
                         u = local.x;
                         v = 1.0 - local.y;
-                        break;
-                }
+                    }
 
-                int texId = textureLocation[voxelIdx];
+                    int iu   = clamp(int(u * 32.0), 0, 31);
+                    int iv   = clamp(int(v * 32.0), 0, 31);
+                    int base = texId * (192 * 32);
+                    hitColor  = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    opacAccum = 0.0;
 
-                if (texId != -1 && hitFace >= 0){
-                    int iu = clamp(int(u * 32), 0, 32 - 1);
-                    int iv = clamp(int(v * 32), 0, 32 - 1);
-
-                    int x = hitFace * 32 + iu;
-                    int base = texId * 192 * 32;
-
-                    int texel = textureAtlas[
-                        base + iv * 192 + x
-                    ];
-
-                    hitColor = texel;
-                    opacityAccum *= 0.0f;
                 } else {
-                    int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0 - a));
-                    int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0 - a));
-                    int b = int((c & 0xFF) * a + (hitColor & 0xFF) * (1.0 - a));
-                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    int   c  = colors[voxel];
+                    float a  = alpha * opacAccum;
+                    float ia = 1.0 - a;
 
-                    opacityAccum *= (1.0 - opacity[voxelIdx]);
+                    int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
+                    int g = int(((c >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
+                    int b = int(( c        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
+                    hitColor  = (0xFF << 24) | (r << 16) | (g << 8) | b;
+
+                    opacAccum *= (1.0 - alpha);
                 }
             }
         }
 
-        float tHit;
-
-        // Step along the ray
+        // DDA step
         if (tMaxVals.x <= tMaxVals.y && tMaxVals.x <= tMaxVals.z) {
-            tHit = tMaxVals.x;
-            cell.x += step.x;
-            tMaxVals.x += tDelta.x;
-            hitFace = (step.x > 0) ? 0 : 1;
+            t = tMaxVals.x;  tMaxVals.x += tDelta.x;  cell.x += step.x;
+            hitFace = step.x > 0 ? 0 : 1;
         } else if (tMaxVals.y <= tMaxVals.z) {
-            tHit = tMaxVals.y;
-            cell.y += step.y;
-            tMaxVals.y += tDelta.y;
-            hitFace = (step.y > 0) ? 3 : 2;
+            t = tMaxVals.y;  tMaxVals.y += tDelta.y;  cell.y += step.y;
+            hitFace = step.y > 0 ? 3 : 2;
         } else {
-            tHit = tMaxVals.z;
-            cell.z += step.z;
-            tMaxVals.z += tDelta.z;
-            hitFace = (step.z > 0) ? 4 : 5;
+            t = tMaxVals.z;  tMaxVals.z += tDelta.z;  cell.z += step.z;
+            hitFace = step.z > 0 ? 4 : 5;
         }
-        t = tHit;
-        hitPos = cam + dir * tHit;
-        steps++;
+
+        hitPos = cam + dir * t;
     }
 
-    int sky = 0xFF87CEEB;
-    float a = opacityAccum;
-    int r = int(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * (1.0 - a));
-    int g = int(((sky >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * (1.0 - a));
-    int b = int((sky & 0xFF) * a + (hitColor & 0xFF) * (1.0 - a));
+    int   sky = 0xFF87CEEB;
+    float a   = opacAccum;
+    float ia  = 1.0 - a;
+    int r = int(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
+    int g = int(((sky >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
+    int b = int(( sky        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
     pixels[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }
