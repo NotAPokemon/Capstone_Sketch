@@ -7,7 +7,7 @@ import dev.korgi.game.rendering.Voxel;
 public class Jimmy extends Entity {
 
     public Jimmy() {
-        scale(0.0625f);
+        scale(0.125f);
     }
 
     @Override

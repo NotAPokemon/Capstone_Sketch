@@ -30,9 +30,6 @@ public class WorldEngine {
                 world.updates.add(v);
             }
         }
-        Jimmy jimmy = new Jimmy();
-        jimmy.getPosition().copyFrom(1, 1, -2);
-        jimmy.addToWorld();
     }
 
     public static void addEntity(Entity e) {
@@ -66,7 +63,9 @@ public class WorldEngine {
             if (obj.getBoolean("full")) {
                 JSONObject w = obj.getJSONObject("obj");
                 w.fillObject(world);
-                addEntity(new Jimmy());
+                Jimmy jimmy = new Jimmy();
+                jimmy.getPosition().copyFrom(3, -4, 3);
+                addEntity(jimmy);
                 return;
             }
 
