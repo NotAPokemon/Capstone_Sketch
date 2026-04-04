@@ -26,6 +26,7 @@ kernel void raytraceKernel(
     device int* textureAtlas    [[buffer(8)]],
     device int* chunkGrid       [[buffer(9)]],
     device int* chunkSize       [[buffer(10)]],
+    device float* tBuffer       [[buffer(11)]],
     uint2 gid                   [[thread_position_in_grid]]
 ) {
     const int width = widthBuf[0];
@@ -60,6 +61,7 @@ kernel void raytraceKernel(
         tMin = fmax(tMin, fmin(tx1, tx2));
         tMax = fmin(tMax, fmax(tx1, tx2));
     } else if (params.cam.x < minB.x || params.cam.x > maxB.x) {
+        tBuffer[idx] = -1;
         pixels[idx] = 0xFF87CEEB; return;
     }
 
@@ -69,6 +71,7 @@ kernel void raytraceKernel(
         tMin = fmax(tMin, fmin(ty1, ty2));
         tMax = fmin(tMax, fmax(ty1, ty2));
     } else if (params.cam.y < minB.y || params.cam.y > maxB.y) {
+        tBuffer[idx] = -1;
         pixels[idx] = 0xFF87CEEB; return;
     }
 
@@ -78,10 +81,15 @@ kernel void raytraceKernel(
         tMin = fmax(tMin, fmin(tz1, tz2));
         tMax = fmin(tMax, fmax(tz1, tz2));
     } else if (params.cam.z < minB.z || params.cam.z > maxB.z) {
+        tBuffer[idx] = -1;
         pixels[idx] = 0xFF87CEEB; return;
     }
 
-    if (tMin > tMax) { pixels[idx] = 0xFF87CEEB; return; }
+    if (tMin > tMax) { 
+        tBuffer[idx] = -1;
+        pixels[idx] = 0xFF87CEEB; 
+        return; 
+    }
 
     const float3 startPos = params.cam + dir * tMin;
     int3 cell = int3(floor(startPos));
@@ -217,5 +225,6 @@ kernel void raytraceKernel(
     const int r = (int)(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
     const int g = (int)(((sky >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
     const int b = (int)( (sky & 0xFF) * a + ( hitColor & 0xFF) * ia);
+    tBuffer[idx] = t;
     pixels[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }

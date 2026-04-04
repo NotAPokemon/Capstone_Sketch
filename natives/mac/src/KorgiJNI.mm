@@ -68,6 +68,7 @@ static id<MTLBuffer> heightBuffer = nil;
 static id<MTLBuffer> chunkGridBuffer = nil;
 static id<MTLBuffer> chunkSizeBuffer = nil;
 
+static id<MTLBuffer> tBuffer = nil;
 
 static id<MTLBuffer> entHeaderBuffer = nil;
 static id<MTLBuffer> bvHotBuffer = nil;
@@ -219,6 +220,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     int32_t w = width, h = height;
     
     ensureBuffer(&pixelsBuffer, jintSize * width * height);
+    ensureBuffer(&tBuffer, sizeof(float) * width * height);
     ensureBuffer(&voxelBuffer, jintSize * worldSize[0] * worldSize[1] * worldSize[2]);
     ensureBuffer(&colorBuffer, voxCountSize);
     ensureBuffer(&opacityBuffer, sizeof(float) * voxCount);
@@ -270,6 +272,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:8];
     [encoder setBuffer:chunkGridBuffer offset:0 atIndex: 9];
     [encoder setBuffer:chunkSizeBuffer offset:0 atIndex: 10];
+    [encoder setBuffer:tBuffer offset:0 atIndex: 11];
 
     NSUInteger tw = pipelineState.threadExecutionWidth;
     NSUInteger th = pipelineState.maxTotalThreadsPerThreadgroup / tw;
@@ -325,7 +328,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
 ) {
     initEntityMetal(JString_to_NSString(env, path));
 
-    // grow scratch buffers only when needed
     if (headerScratchCount < entityCount) {
         delete[] headerScratch;
         headerScratch = new EntityHeaderC[entityCount];
@@ -339,27 +341,26 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
         voxelScratchCount = totalVoxels;
     }
 
-    // pixels and camera always needed
-    jint*   pixelsPtr    = (jint*)   env->GetPrimitiveArrayCritical(pixels, nullptr);
-    jfloat* camPosPtr    = (jfloat*) env->GetPrimitiveArrayCritical(camPos, nullptr);
-    jfloat* camFwdPtr    = (jfloat*) env->GetPrimitiveArrayCritical(camFwd, nullptr);
-    jfloat* camRightPtr  = (jfloat*) env->GetPrimitiveArrayCritical(camRight, nullptr);
-    jfloat* camUpPtr     = (jfloat*) env->GetPrimitiveArrayCritical(camUp, nullptr);
+    jint* pixelsPtr = (jint*) env->GetPrimitiveArrayCritical(pixels, nullptr);
+    jfloat* camPosPtr = (jfloat*) env->GetPrimitiveArrayCritical(camPos, nullptr);
+    jfloat* camFwdPtr = (jfloat*) env->GetPrimitiveArrayCritical(camFwd, nullptr);
+    jfloat* camRightPtr = (jfloat*) env->GetPrimitiveArrayCritical(camRight, nullptr);
+    jfloat* camUpPtr = (jfloat*) env->GetPrimitiveArrayCritical(camUp, nullptr);
 
     bool dirty = (entityCount != lastEntityCount || totalVoxels != lastTotalVoxels);
     lastEntityCount = entityCount;
     lastTotalVoxels = totalVoxels;
 
     if (dirty) {
-        jfloat* entPosPtr    = (jfloat*) env->GetPrimitiveArrayCritical(entPositions, nullptr);
-        jfloat* entRotPtr    = (jfloat*) env->GetPrimitiveArrayCritical(entRotations, nullptr);
+        jfloat* entPosPtr = (jfloat*) env->GetPrimitiveArrayCritical(entPositions, nullptr);
+        jfloat* entRotPtr = (jfloat*) env->GetPrimitiveArrayCritical(entRotations, nullptr);
         jfloat* entRaddiPtr  = (jfloat*) env->GetPrimitiveArrayCritical(entRaddi, nullptr);
-        jint*   entOffsetPtr = (jint*)   env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
-        jfloat* bvPosPtr     = (jfloat*) env->GetPrimitiveArrayCritical(bvPositions, nullptr);
-        jfloat* bvSizePtr    = (jfloat*) env->GetPrimitiveArrayCritical(bvSizes, nullptr);
-        jint*   bvColorPtr   = (jint*)   env->GetPrimitiveArrayCritical(bvColors, nullptr);
+        jint* entOffsetPtr = (jint*) env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
+        jfloat* bvPosPtr = (jfloat*) env->GetPrimitiveArrayCritical(bvPositions, nullptr);
+        jfloat* bvSizePtr = (jfloat*) env->GetPrimitiveArrayCritical(bvSizes, nullptr);
+        jint* bvColorPtr = (jint*) env->GetPrimitiveArrayCritical(bvColors, nullptr);
         jfloat* bvOpacityPtr = (jfloat*) env->GetPrimitiveArrayCritical(bvOpacities, nullptr);
-        jint*   bvTexIdPtr   = (jint*)   env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
+        jint* bvTexIdPtr = (jint*) env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
 
         for (int i = 0; i < entityCount; i++) {
             EntityHeaderC& h = headerScratch[i];
@@ -388,15 +389,15 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
             cold.pad = 0;
         }
 
-        env->ReleasePrimitiveArrayCritical(entPositions,    entPosPtr,    JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(entRotations,    entRotPtr,    JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(entPositions, entPosPtr, JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(entRotations, entRotPtr, JNI_ABORT);
         env->ReleasePrimitiveArrayCritical(entRaddi, entRaddiPtr, JNI_ABORT);
         env->ReleasePrimitiveArrayCritical(entVoxelOffsets, entOffsetPtr, JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(bvPositions,     bvPosPtr,     JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(bvSizes,         bvSizePtr,    JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(bvColors,        bvColorPtr,   JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(bvOpacities,     bvOpacityPtr, JNI_ABORT);
-        env->ReleasePrimitiveArrayCritical(bvTextureIds,    bvTexIdPtr,   JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(bvPositions, bvPosPtr, JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(bvSizes, bvSizePtr, JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(bvColors, bvColorPtr, JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(bvOpacities, bvOpacityPtr, JNI_ABORT);
+        env->ReleasePrimitiveArrayCritical(bvTextureIds, bvTexIdPtr, JNI_ABORT);
 
         ensureEntityBuffer(&entHeaderBuffer, sizeof(EntityHeaderC) * entityCount);
         ensureEntityBuffer(&bvHotBuffer,  sizeof(BVHotC)  * totalVoxels);
@@ -411,11 +412,11 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
     jint* atlasPtr = (jint*) env->GetPrimitiveArrayCritical(textureAtlas, nullptr);
 
     EntityParams params;
-    params.cam        = simd_make_float3(camPosPtr[0],   camPosPtr[1],   camPosPtr[2]);
-    params.forward    = simd_make_float3(camFwdPtr[0],   camFwdPtr[1],   camFwdPtr[2]);
-    params.right      = simd_make_float3(camRightPtr[0], camRightPtr[1], camRightPtr[2]);
-    params.up         = simd_make_float3(camUpPtr[0],    camUpPtr[1],    camUpPtr[2]);
-    params.tanFov     = tanFov;
+    params.cam = simd_make_float3(camPosPtr[0], camPosPtr[1], camPosPtr[2]);
+    params.forward = simd_make_float3(camFwdPtr[0], camFwdPtr[1], camFwdPtr[2]);
+    params.right = simd_make_float3(camRightPtr[0], camRightPtr[1], camRightPtr[2]);
+    params.up = simd_make_float3(camUpPtr[0], camUpPtr[1], camUpPtr[2]);
+    params.tanFov = tanFov;
     params.entityCount = (int32_t) entityCount;
     params.totalVoxels = (int32_t) totalVoxels;
 
@@ -428,30 +429,31 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
     ensureEntityBuffer(&entityHeightBuffer, sizeof(int32_t));
     ensureEntityBuffer(&entityCountBuffer,  sizeof(EntityParams));
 
-    memcpy(entityPixelsBuffer.contents, pixelsPtr,  jintSize * w * h);
-    memcpy(entityAtlasBuffer.contents,  atlasPtr,   jintSize * atlasLength);
-    memcpy(entityWidthBuffer.contents,  &w32,        sizeof(int32_t));
-    memcpy(entityHeightBuffer.contents, &h32,        sizeof(int32_t));
-    memcpy(entityCountBuffer.contents,  &params,     sizeof(EntityParams));
+    memcpy(entityPixelsBuffer.contents, pixelsPtr, jintSize * w * h);
+    memcpy(entityAtlasBuffer.contents, atlasPtr, jintSize * atlasLength);
+    memcpy(entityWidthBuffer.contents, &w32, sizeof(int32_t));
+    memcpy(entityHeightBuffer.contents, &h32, sizeof(int32_t));
+    memcpy(entityCountBuffer.contents, &params, sizeof(EntityParams));
 
-    env->ReleasePrimitiveArrayCritical(textureAtlas, atlasPtr,   JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(camPos,       camPosPtr,  JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(camFwd,       camFwdPtr,  JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(camRight,     camRightPtr,JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(camUp,        camUpPtr,   JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(textureAtlas, atlasPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(camPos, camPosPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(camFwd, camFwdPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(camRight, camRightPtr,JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(camUp, camUpPtr, JNI_ABORT);
 
     id<MTLCommandBuffer> commandBuffer = [entityCommandQueue commandBuffer];
     id<MTLComputeCommandEncoder> encoder = [commandBuffer computeCommandEncoder];
 
     [encoder setComputePipelineState:entityPipelineState];
     [encoder setBuffer:entityPixelsBuffer offset:0 atIndex:0];
-    [encoder setBuffer:entityWidthBuffer  offset:0 atIndex:1];
+    [encoder setBuffer:entityWidthBuffer offset:0 atIndex:1];
     [encoder setBuffer:entityHeightBuffer offset:0 atIndex:2];
-    [encoder setBuffer:entityCountBuffer  offset:0 atIndex:3];
-    [encoder setBuffer:entHeaderBuffer    offset:0 atIndex:4];
-    [encoder setBuffer:bvHotBuffer  offset:0 atIndex:5];
+    [encoder setBuffer:entityCountBuffer offset:0 atIndex:3];
+    [encoder setBuffer:entHeaderBuffer offset:0 atIndex:4];
+    [encoder setBuffer:bvHotBuffer offset:0 atIndex:5];
     [encoder setBuffer:bvColdBuffer offset:0 atIndex:6];
     [encoder setBuffer:entityAtlasBuffer offset:0 atIndex:7];
+    [encoder setBuffer:tBuffer offset:0 atIndex:8];
 
     NSUInteger tw = entityPipelineState.threadExecutionWidth;
     NSUInteger th = entityPipelineState.maxTotalThreadsPerThreadgroup / tw;
@@ -460,7 +462,6 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
 
-    // only pin pixels for writeback — all other arrays already released
     memcpy(pixelsPtr, entityPixelsBuffer.contents, jintSize * w * h);
     env->ReleasePrimitiveArrayCritical(pixels, pixelsPtr, 0);
 }

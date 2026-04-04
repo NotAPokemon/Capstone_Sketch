@@ -99,6 +99,7 @@ kernel void entityKernel(
     device const BVHot* bvHot [[buffer(5)]],
     device const BVCold* bvCold [[buffer(6)]],
     device const int* atlas [[buffer(7)]],
+    device const float* tBuffer [[buffer(8)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     if ((int)gid.x >= screenW || (int)gid.y >= screenH) return;
@@ -112,6 +113,8 @@ kernel void entityKernel(
     int bg = pixels[pixIdx];
     float3 outColor = unpackRGB(bg);
     float outAlpha = float((bg >> 24) & 0xFF) / 255.0;
+
+    float tVal = INFINITY;
 
     for (int e = 0; e < params.entityCount; e++) {
         EntityHeader ent = entities[e];
@@ -132,6 +135,16 @@ kernel void entityKernel(
            HitResult h = rayBox(localRo, localRd, float3(hot.localPos), hot.size * 0.5);
             if (h.t < bestT) {
                 bestT = h.t;
+                float3 hitLocal = localRo + localRd * bestT;
+                float3 hitWorld = float3(ent.worldPos) + float3(
+                    ent.rot[0]*hitLocal.x + ent.rot[3]*hitLocal.y + ent.rot[6]*hitLocal.z,
+                    ent.rot[1]*hitLocal.x + ent.rot[4]*hitLocal.y + ent.rot[7]*hitLocal.z,
+                    ent.rot[2]*hitLocal.x + ent.rot[5]*hitLocal.y + ent.rot[8]*hitLocal.z
+                );
+                float worldT = dot(hitWorld - params.cam, worldRd);
+                if (worldT < tVal) {
+                    tVal = worldT;
+                }
                 bestFace = h.face;
                 bestVox = v;
             }
@@ -148,5 +161,9 @@ kernel void entityKernel(
         outAlpha = a + outAlpha * (1.0 - a);
     }
 
+    int skyVal = 0xFF87CEEB;
+    if (pixels[pixIdx] != skyVal && tBuffer[pixIdx] < tVal){
+        return;
+    }
     pixels[pixIdx] = packARGB(outColor, outAlpha);
 }
