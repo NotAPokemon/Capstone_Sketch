@@ -10,6 +10,11 @@ xcrun -sdk macosx metallib Shaders.air -o natives/mac/build/Shaders.metallib
 
 rm Shaders.air
 
+xcrun -sdk macosx metal -c $abs_path/natives/mac/src/EntityShader.metal -o EntityShader.air
+xcrun -sdk macosx metallib EntityShader.air -o natives/mac/build/EntityShader.metallib
+
+rm EntityShader.air
+
 clang++ -std=c++17 -fobjc-arc -dynamiclib \
     -framework Metal -framework Foundation -framework QuartzCore \
     -I"$JNI_INCLUDE" -I"$JNI_INCLUDE_MAC" -I"include" \

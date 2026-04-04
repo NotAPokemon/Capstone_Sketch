@@ -59,6 +59,8 @@ public class Installer {
         if (os.contains("mac")) {
             Files.copy(Path.of("./natives/mac/build/Shaders.metallib"),
                     Path.of(installPath, "Shaders.metallib").toAbsolutePath());
+            Files.copy(Path.of("./natives/mac/build/EntityShader.metallib"),
+                    Path.of(installPath, "EntityShader.metallib").toAbsolutePath());
             Files.copy(Path.of("./natives/mac/build/libkorgikompute-mac.dylib"),
                     Path.of(installPath, "libkorgikompute-mac.dylib").toAbsolutePath());
         } else if (os.contains("win")) {

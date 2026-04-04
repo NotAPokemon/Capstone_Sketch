@@ -51,4 +51,10 @@ public class Time {
         System.out.println(output.formatted((System.nanoTime() - startTime) / 1e9));
     }
 
+    public static void staticTime(String output, double threashold) {
+        double time = (System.nanoTime() - startTime) / 1e9;
+        if (time > threashold)
+            System.out.println(output.formatted(time));
+    }
+
 }

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.Game;
-import dev.korgi.game.physics.Entity;
+import dev.korgi.game.entites.Entity;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.Screen;

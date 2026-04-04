@@ -3,6 +3,7 @@ package dev.korgi.game.physics;
 import java.util.List;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.entites.Entity;
 import dev.korgi.game.entites.Jimmy;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONObject;
@@ -29,7 +30,9 @@ public class WorldEngine {
                 world.updates.add(v);
             }
         }
-        new Jimmy().addToWorld();
+        Jimmy jimmy = new Jimmy();
+        jimmy.getPosition().copyFrom(1, 1, -2);
+        jimmy.addToWorld();
     }
 
     public static void addEntity(Entity e) {
@@ -63,6 +66,7 @@ public class WorldEngine {
             if (obj.getBoolean("full")) {
                 JSONObject w = obj.getJSONObject("obj");
                 w.fillObject(world);
+                addEntity(new Jimmy());
                 return;
             }
 
@@ -89,8 +93,8 @@ public class WorldEngine {
 
     public static boolean canPlaceVoxel(Vector3 pos) {
         for (Entity entity : world.entities) {
-            for (Voxel body : entity.body) {
-                if (voxelIntersects(entity.position.add(body.position), pos)) {
+            for (Voxel body : entity.getBody()) {
+                if (voxelIntersects(entity.getPosition().add(body.position), pos)) {
                     return false;
                 }
             }
@@ -115,8 +119,8 @@ public class WorldEngine {
     }
 
     public static void validatePosition(Entity e) {
-        for (Voxel bodyVoxel : e.body) {
-            Vector3 bodyWorldPos = bodyVoxel.position.add(e.position);
+        for (Voxel bodyVoxel : e.getBody()) {
+            Vector3 bodyWorldPos = bodyVoxel.position.add(e.getPosition());
 
             Vector3 b = bodyWorldPos.floor();
 
@@ -221,10 +225,10 @@ public class WorldEngine {
     }
 
     private static void entitiesIntersect(Entity a, Entity b) {
-        for (Voxel va : a.body) {
-            Vector3 vaWorld = va.position.add(a.position);
-            for (Voxel vb : b.body) {
-                Vector3 vbWorld = vb.position.add(b.position);
+        for (Voxel va : a.getBody()) {
+            Vector3 vaWorld = va.position.add(a.getPosition());
+            for (Voxel vb : b.getBody()) {
+                Vector3 vbWorld = vb.position.add(b.getPosition());
                 if (voxelIntersects(vaWorld, vbWorld)) {
                     if (va.getMaterial().isRigid() && vb.getMaterial().isRigid()) {
                         resolveRigidCollision(a, va, vb);
@@ -260,7 +264,7 @@ public class WorldEngine {
     }
 
     private static void resolveRigidCollision(Entity entity, Voxel bodyVoxel, Voxel worldVoxel) {
-        Vector3 bodyWorld = bodyVoxel.position.add(entity.position);
+        Vector3 bodyWorld = bodyVoxel.position.add(entity.getPosition());
         Vector3 bodyMin = bodyWorld.subtract(VectorConstants.HALF);
         Vector3 bodyMax = bodyWorld.add(VectorConstants.HALF);
 
@@ -272,11 +276,11 @@ public class WorldEngine {
             return;
 
         if (pen.x <= pen.y && pen.x <= pen.z) {
-            entity.position.x += bodyWorld.x < worldVoxel.position.x ? -pen.x : pen.x;
+            entity.getPosition().x += bodyWorld.x < worldVoxel.position.x ? -pen.x : pen.x;
         } else if (pen.y <= pen.x && pen.y <= pen.z) {
-            entity.position.y += bodyWorld.y < worldVoxel.position.y ? -pen.y : pen.y;
+            entity.getPosition().y += bodyWorld.y < worldVoxel.position.y ? -pen.y : pen.y;
         } else {
-            entity.position.z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
+            entity.getPosition().z += bodyWorld.z < worldVoxel.position.z ? -pen.z : pen.z;
         }
     }
 

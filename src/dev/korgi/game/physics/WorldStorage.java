@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import dev.korgi.game.entites.Entity;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONFillOverride;
 import dev.korgi.json.JSONIgnore;
@@ -71,8 +72,11 @@ public class WorldStorage {
         for (Map.Entry<?, ?> entry : map.getValues().entrySet()) {
             try {
                 Object value = entry.getValue();
-                if (!(value instanceof JSONObject json))
+
+                if (!(value instanceof JSONObject json)) {
+                    System.out.println(value);
                     continue;
+                }
 
                 Voxel v = new Voxel();
                 json.fillObject(v);

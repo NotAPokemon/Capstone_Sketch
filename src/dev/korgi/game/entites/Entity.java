@@ -1,4 +1,4 @@
-package dev.korgi.game.physics;
+package dev.korgi.game.entites;
 
 import java.io.DataInputStream;
 import java.io.File;
@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import dev.korgi.game.physics.Hit;
+import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
@@ -100,6 +102,7 @@ public abstract class Entity extends NetworkObject {
         if (body != null) {
             for (Voxel voxel : body) {
                 voxel.getMaterial().setSize(scalar);
+                voxel.position.multiplyBy(scalar);
             }
         } else {
             System.out.println("This method cannot be called at this time");
@@ -193,6 +196,27 @@ public abstract class Entity extends NetworkObject {
     @Override
     protected void server(double dt) {
         handlePhysics(dt);
+    }
+
+    public float[] getRotationMatrix() {
+        double cx = Math.cos(rotation.x), sx = Math.sin(rotation.x);
+        double cy = Math.cos(rotation.y), sy = Math.sin(rotation.y);
+        double cz = Math.cos(rotation.z), sz = Math.sin(rotation.z);
+
+        return new float[] {
+
+                (float) (cy * cz + sy * sx * sz),
+                (float) (cx * sz),
+                (float) (-sy * cz + cy * sx * sz),
+
+                (float) (-cy * sz + sy * sx * cz),
+                (float) (cx * cz),
+                (float) (sy * sz + cy * sx * cz),
+
+                (float) (sy * cx),
+                (float) (-sx),
+                (float) (cy * cx)
+        };
     }
 
 }

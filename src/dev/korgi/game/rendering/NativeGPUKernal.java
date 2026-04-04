@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
+import dev.korgi.game.entites.Entity;
 import dev.korgi.game.physics.WorldStorage;
 import dev.korgi.jni.KorgiJNI;
 import dev.korgi.math.Vector3;
@@ -82,16 +83,19 @@ public class NativeGPUKernal {
         NativeGPUKernal.camera = camera;
         Time.time(() -> {
             precompute(world);
+            precomputeEntites(world);
         }, 0.05, "Warning High Kernal Latency: %f");
     }
 
     private static String path = System.getProperty("user.dir");
+    private static String path2 = System.getProperty("user.dir");
 
     private static String os = System.getProperty("os.name").toLowerCase();
 
     static {
         if (os.contains("mac")) {
             path += "/Shaders.metallib";
+            path2 += "/EntityShader.metallib";
         } else if (os.contains("win")) {
             path += "\\Shaders.comp.glsl";
         }
@@ -244,6 +248,125 @@ public class NativeGPUKernal {
                     chunkGrid,
                     chunckSize.toIntArray());
         }, 0.05, "High Render Latency: %f");
+    }
+
+    private static float[] entityPositions;
+    private static float[] entityRotations;
+    private static int[] entityVoxelOffsets;
+    private static float[] entityRadii;
+    private static float[] bvPositions;
+    private static float[] bvSizes;
+    private static int[] bvColors;
+    private static float[] bvOpacities;
+    private static int[] bvTextureIds;
+
+    private static void precomputeEntites(WorldStorage world) {
+        List<Entity> entities = world.entities;
+
+        if (entities.isEmpty()) {
+            return;
+        }
+
+        int totalVoxels = 0;
+
+        for (Entity entity : entities) {
+            totalVoxels += entity.getBody().size();
+        }
+
+        int entityCount = entities.size();
+
+        if (entityPositions == null || entityPositions.length != entityCount * 3) {
+            entityPositions = new float[entityCount * 3];
+            entityRotations = new float[entityCount * 9];
+            entityVoxelOffsets = new int[entityCount * 2];
+            entityRadii = new float[entityCount];
+        }
+
+        if (bvPositions == null || bvPositions.length < totalVoxels * 3) {
+            bvPositions = new float[totalVoxels * 3];
+            bvSizes = new float[totalVoxels];
+            bvColors = new int[totalVoxels];
+            bvOpacities = new float[totalVoxels];
+            bvTextureIds = new int[totalVoxels];
+        }
+
+        int voxelCursor = 0;
+
+        for (int i = 0; i < entityCount; i++) {
+            Entity entity = entities.get(i);
+            List<Voxel> bodyVoxels = entity.getBody();
+
+            int ep = i * 3;
+            Vector3 ePos = entity.getPosition();
+            entityPositions[ep] = (float) ePos.x;
+            entityPositions[ep + 1] = (float) ePos.y;
+            entityPositions[ep + 2] = (float) ePos.z;
+
+            float[] rot = entity.getRotationMatrix();
+            int rp = i * 9;
+            System.arraycopy(rot, 0, entityRotations, rp, 9);
+
+            entityVoxelOffsets[i * 2] = voxelCursor;
+            entityVoxelOffsets[i * 2 + 1] = bodyVoxels.size();
+
+            float maxDist = 0;
+            for (Voxel bv : bodyVoxels) {
+                float d = (float) bv.position.length() + (float) bv.getMaterial().getSize() * 0.5f;
+                if (d > maxDist)
+                    maxDist = d;
+
+                Material mat = bv.getMaterial();
+                int vp = voxelCursor * 3;
+                Vector3 bvPos = bv.position;
+                bvPositions[vp] = (float) bvPos.x;
+                bvPositions[vp + 1] = (float) bvPos.y;
+                bvPositions[vp + 2] = (float) bvPos.z;
+
+                bvSizes[voxelCursor] = (float) mat.getSize();
+
+                int texLoc = mat.getTextureLocation();
+                bvTextureIds[voxelCursor] = texLoc;
+
+                if (texLoc == -1) {
+                    Vector4 color = mat.getColor();
+                    bvColors[voxelCursor] = rgbToARGB(
+                            (float) color.x,
+                            (float) color.y,
+                            (float) color.z,
+                            1);
+                } else {
+                    bvColors[voxelCursor] = -1;
+                }
+
+                bvOpacities[voxelCursor] = (float) mat.getOpacity();
+
+                voxelCursor++;
+            }
+            entityRadii[i] = maxDist;
+        }
+
+        Time.staticTime();
+        KorgiJNI.executeEntityKernal(
+                pixels, width, height,
+                camera.position.toFloatArray(),
+                camera.getForward().toFloatArray(),
+                camera.getRight().toFloatArray(),
+                camera.getUp().toFloatArray(),
+                tanFov,
+                entityPositions,
+                entityRotations,
+                entityRadii,
+                entityVoxelOffsets,
+                entityCount,
+                bvPositions,
+                bvSizes,
+                bvColors,
+                bvOpacities,
+                bvTextureIds,
+                totalVoxels,
+                textureAtlas.getAtlas(),
+                path2);
+        Time.staticTime("High Entity render: %f", 0.05f);
     }
 
 }
