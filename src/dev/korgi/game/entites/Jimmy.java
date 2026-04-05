@@ -8,6 +8,7 @@ public class Jimmy extends Entity {
 
     public Jimmy() {
         scale(0.125f);
+
     }
 
     @Override

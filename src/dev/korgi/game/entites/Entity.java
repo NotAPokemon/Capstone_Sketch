@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import dev.korgi.game.physics.Hit;
@@ -25,22 +26,33 @@ public abstract class Entity extends NetworkObject {
     protected Vector3 rotation;
     protected List<Voxel> body;
 
-    private static Map<String, List<Voxel>> cache = new HashMap<>();
+    private static Map<Class<? extends Entity>, List<Voxel>> cache = new HashMap<>();
 
     public Entity() {
         this.position = new Vector3();
         this.rotation = new Vector3();
         this.velocity = new Vector3();
-        this.body = createBody();
+        this.body = cache.get(this.getClass());
+        if (body == null) {
+            body = createBody();
+            cache.put(this.getClass(), copyBody(body));
+        } else {
+            body = copyBody(body);
+        }
+        internal_id = UUID.randomUUID().toString();
+    }
+
+    private static List<Voxel> copyBody(List<Voxel> voxels) {
+        List<Voxel> copy = new ArrayList<>();
+        voxels.forEach((v) -> {
+            copy.add(v.copy());
+        });
+        return copy;
     }
 
     protected abstract List<Voxel> createBody();
 
     protected static List<Voxel> fromModel(String name) {
-
-        if (cache.get(name) != null) {
-            return cache.get(name);
-        }
 
         File model = new File("./models/%s.vox".formatted(name));
 
@@ -92,8 +104,6 @@ public abstract class Entity extends NetworkObject {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        cache.put(name, voxels);
 
         return voxels;
     }

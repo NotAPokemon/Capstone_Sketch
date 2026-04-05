@@ -54,7 +54,14 @@ public class WorldEngine {
         addVoxel(v);
     }
 
+    public static String jimmyId;
+
     public static void updateClient() {
+        Game.withClient((p) -> {
+            if (p.pressedKeys.contains("h")) {
+                kill(jimmyId);
+            }
+        });
         List<Packet> inPackets = NetworkStream.getAllPackets("world", true);
         for (Packet in : inPackets) {
             JSONObject obj = in.getData();
@@ -66,6 +73,10 @@ public class WorldEngine {
                 Jimmy jimmy = new Jimmy();
                 jimmy.getPosition().copyFrom(3, -4, 3);
                 addEntity(jimmy);
+                jimmyId = jimmy.internal_id;
+                Jimmy jimmy2 = new Jimmy();
+                jimmy2.getPosition().copyFrom(3, 1, 3);
+                addEntity(jimmy2);
                 return;
             }
 
@@ -241,6 +252,10 @@ public class WorldEngine {
                 }
             }
         }
+    }
+
+    public static void kill(String id) {
+        world.entities.removeIf((e) -> e.internal_id.equals(id));
     }
 
     public static boolean voxelIntersects(Vector3 a, Vector3 b) {

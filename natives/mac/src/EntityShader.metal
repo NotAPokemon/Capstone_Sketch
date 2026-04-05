@@ -159,10 +159,10 @@ kernel void entityKernel(
 
         int stack[32];
         int stackTop = 0;
-        stack[stackTop++] = 0;
+        stack[stackTop++] = ent.bvhOffset;;
 
         while (stackTop > 0) {
-            BVHNode node = bvhNodes[ent.bvhOffset + stack[--stackTop]];
+            BVHNode node = bvhNodes[stack[--stackTop]];
 
             HitResult h = rayAABB(localRo, localRd, float3(node.aabbMin), float3(node.aabbMax));
             if (h.t == INFINITY || h.t >= bestT) continue;

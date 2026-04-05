@@ -346,6 +346,7 @@ public class NativeGPUKernal {
                 totalVoxels += entity.getBody().size();
             }
         }
+        lastVoxCount = totalVoxels;
 
         int entityCount = entities.size();
 
