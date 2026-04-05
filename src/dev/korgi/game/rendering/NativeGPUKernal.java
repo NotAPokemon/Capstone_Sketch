@@ -253,12 +253,82 @@ public class NativeGPUKernal {
     private static float[] entityPositions;
     private static float[] entityRotations;
     private static int[] entityVoxelOffsets;
+    private static int[] entityBvhOffsets;
     private static float[] entityRadii;
     private static float[] bvPositions;
     private static float[] bvSizes;
     private static int[] bvColors;
     private static float[] bvOpacities;
     private static int[] bvTextureIds;
+    private static float[] bvhMins;
+    private static float[] bvhMaxs;
+    private static int[] bvhLinks;
+    private static int lastEntitySize;
+    private static int lastVoxCount;
+
+    private static int buildBVH(int[] localIndices, int start, int end,
+            float[] bvPositions, float[] bvSizes, int globalOffset,
+            List<float[]> mins, List<float[]> maxs, List<int[]> links) {
+        int nodeIdx = mins.size();
+
+        if (end - start == 1) {
+            int gi = globalOffset + localIndices[start];
+            float x = bvPositions[gi * 3], y = bvPositions[gi * 3 + 1], z = bvPositions[gi * 3 + 2];
+            float s = bvSizes[gi] * 0.5f;
+            mins.add(new float[] { x - s, y - s, z - s });
+            maxs.add(new float[] { x + s, y + s, z + s });
+            links.add(new int[] { -1, -1, localIndices[start] });
+            return nodeIdx;
+        }
+
+        float aMinX = Float.MAX_VALUE, aMinY = Float.MAX_VALUE, aMinZ = Float.MAX_VALUE;
+        float aMaxX = -Float.MAX_VALUE, aMaxY = -Float.MAX_VALUE, aMaxZ = -Float.MAX_VALUE;
+        float cMinX = Float.MAX_VALUE, cMinY = Float.MAX_VALUE, cMinZ = Float.MAX_VALUE;
+        float cMaxX = -Float.MAX_VALUE, cMaxY = -Float.MAX_VALUE, cMaxZ = -Float.MAX_VALUE;
+
+        for (int i = start; i < end; i++) {
+            int gi = globalOffset + localIndices[i];
+            float x = bvPositions[gi * 3], y = bvPositions[gi * 3 + 1], z = bvPositions[gi * 3 + 2];
+            float s = bvSizes[gi] * 0.5f;
+            aMinX = Math.min(aMinX, x - s);
+            aMaxX = Math.max(aMaxX, x + s);
+            aMinY = Math.min(aMinY, y - s);
+            aMaxY = Math.max(aMaxY, y + s);
+            aMinZ = Math.min(aMinZ, z - s);
+            aMaxZ = Math.max(aMaxZ, z + s);
+            cMinX = Math.min(cMinX, x);
+            cMaxX = Math.max(cMaxX, x);
+            cMinY = Math.min(cMinY, y);
+            cMaxY = Math.max(cMaxY, y);
+            cMinZ = Math.min(cMinZ, z);
+            cMaxZ = Math.max(cMaxZ, z);
+        }
+
+        float dx = cMaxX - cMinX, dy = cMaxY - cMinY, dz = cMaxZ - cMinZ;
+        final int axis = (dx >= dy && dx >= dz) ? 0 : (dy >= dz) ? 1 : 2;
+
+        Integer[] sub = new Integer[end - start];
+        for (int i = 0; i < sub.length; i++)
+            sub[i] = localIndices[start + i];
+        Arrays.sort(sub, (a, b) -> Float.compare(bvPositions[(globalOffset + a) * 3 + axis],
+                bvPositions[(globalOffset + b) * 3 + axis]));
+        for (int i = 0; i < sub.length; i++)
+            localIndices[start + i] = sub[i];
+
+        mins.add(new float[] { aMinX, aMinY, aMinZ });
+        maxs.add(new float[] { aMaxX, aMaxY, aMaxZ });
+        links.add(new int[] { -1, -1, -1 });
+
+        int left = buildBVH(localIndices, start, (start + end) / 2, bvPositions, bvSizes, globalOffset, mins, maxs,
+                links);
+        int right = buildBVH(localIndices, (start + end) / 2, end, bvPositions, bvSizes, globalOffset, mins, maxs,
+                links);
+
+        links.get(nodeIdx)[0] = left;
+        links.get(nodeIdx)[1] = right;
+
+        return nodeIdx;
+    }
 
     private static void precomputeEntites(WorldStorage world) {
         List<Entity> entities = world.entities;
@@ -269,8 +339,12 @@ public class NativeGPUKernal {
 
         int totalVoxels = 0;
 
-        for (Entity entity : entities) {
-            totalVoxels += entity.getBody().size();
+        if (lastEntitySize == entities.size()) {
+            totalVoxels = lastVoxCount;
+        } else {
+            for (Entity entity : entities) {
+                totalVoxels += entity.getBody().size();
+            }
         }
 
         int entityCount = entities.size();
@@ -279,6 +353,7 @@ public class NativeGPUKernal {
             entityPositions = new float[entityCount * 3];
             entityRotations = new float[entityCount * 9];
             entityVoxelOffsets = new int[entityCount * 2];
+            entityBvhOffsets = new int[entityCount];
             entityRadii = new float[entityCount];
         }
 
@@ -345,6 +420,48 @@ public class NativeGPUKernal {
             entityRadii[i] = maxDist;
         }
 
+        List<float[]> bvhMinsList = new ArrayList<>();
+        List<float[]> bvhMaxsList = new ArrayList<>();
+        List<int[]> bvhLinksList = new ArrayList<>();
+
+        voxelCursor = 0;
+        for (int i = 0; i < entityCount; i++) {
+            List<Voxel> bodyVoxels = entities.get(i).getBody();
+            int voxelCount = bodyVoxels.size();
+            entityBvhOffsets[i] = bvhMinsList.size();
+
+            if (voxelCount > 0) {
+                int[] localIndices = new int[voxelCount];
+                for (int j = 0; j < voxelCount; j++)
+                    localIndices[j] = j;
+                buildBVH(localIndices, 0, voxelCount, bvPositions, bvSizes, voxelCursor, bvhMinsList, bvhMaxsList,
+                        bvhLinksList);
+            }
+
+            voxelCursor += voxelCount;
+        }
+
+        int totalBvhNodes = bvhMinsList.size();
+        if (bvhMins == null || bvhMins.length < totalBvhNodes * 3) {
+            bvhMins = new float[totalBvhNodes * 3];
+            bvhMaxs = new float[totalBvhNodes * 3];
+            bvhLinks = new int[totalBvhNodes * 3];
+        }
+
+        for (int i = 0; i < totalBvhNodes; i++) {
+            float[] mn = bvhMinsList.get(i), mx = bvhMaxsList.get(i);
+            int[] lk = bvhLinksList.get(i);
+            bvhMins[i * 3] = mn[0];
+            bvhMins[i * 3 + 1] = mn[1];
+            bvhMins[i * 3 + 2] = mn[2];
+            bvhMaxs[i * 3] = mx[0];
+            bvhMaxs[i * 3 + 1] = mx[1];
+            bvhMaxs[i * 3 + 2] = mx[2];
+            bvhLinks[i * 3] = lk[0];
+            bvhLinks[i * 3 + 1] = lk[1];
+            bvhLinks[i * 3 + 2] = lk[2];
+        }
+
         Time.staticTime();
         KorgiJNI.executeEntityKernal(
                 pixels, width, height,
@@ -357,6 +474,7 @@ public class NativeGPUKernal {
                 entityRotations,
                 entityRadii,
                 entityVoxelOffsets,
+                entityBvhOffsets,
                 entityCount,
                 bvPositions,
                 bvSizes,
@@ -364,9 +482,13 @@ public class NativeGPUKernal {
                 bvOpacities,
                 bvTextureIds,
                 totalVoxels,
+                bvhMins,
+                bvhMaxs,
+                bvhLinks,
+                totalBvhNodes,
                 textureAtlas.getAtlas(),
                 path2);
-        Time.staticTime("High Entity render: %f", 0.05f);
+        Time.staticTime("High Entity render: %f", 0.02f);
     }
 
 }

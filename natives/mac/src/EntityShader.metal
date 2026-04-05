@@ -17,7 +17,8 @@ struct EntityHeader {
     int voxelCount;
     float rot[9];
     float radius;
-    int pad0, pad1;
+    int bvhOffset;
+    int pad1;
 };
 
 
@@ -31,6 +32,15 @@ struct BVCold {
     float opacity;
     int textureId;
     int pad;
+};
+
+struct BVHNode {
+    packed_float3 aabbMin;
+    int leftChild;
+    packed_float3 aabbMax;
+    int rightChild;
+    int voxelIndex;
+    int pad0, pad1, pad2;
 };
 
 
@@ -85,6 +95,22 @@ inline HitResult rayBox(float3 ro, float3 rd, float3 center, float halF) {
     return r;
 }
 
+inline HitResult rayAABB(float3 ro, float3 rd, float3 aabbMin, float3 aabbMax) {
+    float3 invD = 1.0 / rd;
+    float3 t0 = (aabbMin - ro) * invD;
+    float3 t1 = (aabbMax - ro) * invD;
+    float3 tNear = min(t0, t1);
+    float3 tFar  = max(t0, t1);
+
+    float tMin = max(max(tNear.x, tNear.y), tNear.z);
+    float tMax = min(min(tFar.x,  tFar.y),  tFar.z);
+
+    HitResult r = { INFINITY, -1 };
+    if (tMin > tMax || tMax < 0.0) return r;
+    r.t = (tMin >= 0.0) ? tMin : tMax;
+    return r;
+}
+
 inline float faceLighting(int face) {
     const float lut[6] = { 0.80, 0.70, 1.00, 0.55, 0.75, 0.65 };
     return (face >= 0 && face < 6) ? lut[face] : 1.0;
@@ -100,6 +126,7 @@ kernel void entityKernel(
     device const BVCold* bvCold [[buffer(6)]],
     device const int* atlas [[buffer(7)]],
     device const float* tBuffer [[buffer(8)]],
+    device const BVHNode* bvhNodes [[buffer(9)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     if ((int)gid.x >= screenW || (int)gid.y >= screenH) return;
@@ -130,27 +157,42 @@ kernel void entityKernel(
         int bestFace = -1;
         int bestVox = -1;
 
-        for (int v = 0; v < ent.voxelCount; v++) {
-           BVHot hot = bvHot[ent.voxelOffset + v];
-           HitResult h = rayBox(localRo, localRd, float3(hot.localPos), hot.size * 0.5);
-            if (h.t < bestT) {
-                bestT = h.t;
-                float3 hitLocal = localRo + localRd * bestT;
-                float3 hitWorld = float3(ent.worldPos) + float3(
-                    ent.rot[0]*hitLocal.x + ent.rot[3]*hitLocal.y + ent.rot[6]*hitLocal.z,
-                    ent.rot[1]*hitLocal.x + ent.rot[4]*hitLocal.y + ent.rot[7]*hitLocal.z,
-                    ent.rot[2]*hitLocal.x + ent.rot[5]*hitLocal.y + ent.rot[8]*hitLocal.z
-                );
-                float worldT = dot(hitWorld - params.cam, worldRd);
-                if (worldT < tVal) {
-                    tVal = worldT;
+        int stack[32];
+        int stackTop = 0;
+        stack[stackTop++] = 0;
+
+        while (stackTop > 0) {
+            BVHNode node = bvhNodes[ent.bvhOffset + stack[--stackTop]];
+
+            HitResult h = rayAABB(localRo, localRd, float3(node.aabbMin), float3(node.aabbMax));
+            if (h.t == INFINITY || h.t >= bestT) continue;
+
+            if (node.leftChild == -1) {
+                BVHot hot = bvHot[ent.voxelOffset + node.voxelIndex];
+                HitResult vh = rayBox(localRo, localRd, float3(hot.localPos), hot.size * 0.5);
+                if (vh.t < bestT) {
+                    bestT = vh.t;
+                    bestFace = vh.face;
+                    bestVox = node.voxelIndex;
                 }
-                bestFace = h.face;
-                bestVox = v;
+            } else {
+                stack[stackTop++] = node.leftChild;
+                stack[stackTop++] = node.rightChild;
             }
         }
 
         if (bestVox < 0) continue;
+
+        float3 hitLocal = localRo + localRd * bestT;
+        float3 hitWorld = float3(ent.worldPos) + float3(
+            ent.rot[0]*hitLocal.x + ent.rot[3]*hitLocal.y + ent.rot[6]*hitLocal.z,
+            ent.rot[1]*hitLocal.x + ent.rot[4]*hitLocal.y + ent.rot[7]*hitLocal.z,
+            ent.rot[2]*hitLocal.x + ent.rot[5]*hitLocal.y + ent.rot[8]*hitLocal.z
+        );
+        float worldT = dot(hitWorld - params.cam, worldRd);
+        if (worldT < tVal) {
+            tVal = worldT;
+        }
 
         BVCold cold = bvCold[ent.voxelOffset + bestVox];
         float3 voxColor = (cold.textureId < 0) ? unpackRGB(cold.color) : float3(1.0);

@@ -23,7 +23,9 @@ public class KorgiJNI {
             float[] floatArray2,
             float[] floatArray3, float[] floatArray4, float tanFov, float[] entityPositions, float[] entityRotations,
             float[] entityRadii,
-            int[] entityVoxelOffsets, int entityCount, float[] bvPositions, float[] bvSizes, int[] bvColors,
-            float[] bvOpacities, int[] bvTextureIds, int totalVoxels, int[] textureAtlas, String path);
+            int[] entityVoxelOffsets, int[] entityBvhOffsets, int entityCount, float[] bvPositions, float[] bvSizes,
+            int[] bvColors,
+            float[] bvOpacities, int[] bvTextureIds, int totalVoxels, float[] bvhMins, float[] bvhMaxs, int[] bvhLinks,
+            int totalBvhNodes, int[] textureAtlas, String path);
 
 }
