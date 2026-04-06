@@ -446,7 +446,6 @@ public class JSONObject {
             try {
                 Class<?> type = field.getType();
 
-                // Primitives / wrappers
                 if (type == int.class || type == Integer.class) {
                     field.set(target, ((Number) value).intValue());
                 } else if (type == double.class || type == Double.class) {
@@ -464,17 +463,11 @@ public class JSONObject {
                         field.set(target, ((String) value).charAt(0));
                 } else if (type == String.class) {
                     field.set(target, value.toString());
-                }
-                // Arrays
-                else if (type.isArray() && value instanceof List<?> list) {
+                } else if (type.isArray() && value instanceof List<?> list) {
                     field.set(target, convertListToArray(list, type.getComponentType()));
-                }
-                // Lists
-                else if (List.class.isAssignableFrom(type) && value instanceof List<?> list) {
+                } else if (List.class.isAssignableFrom(type) && value instanceof List<?> list) {
                     field.set(target, convertListToTypedList(list, field));
-                }
-                // Nested JSONObject
-                else if (value instanceof JSONObject) {
+                } else if (value instanceof JSONObject) {
                     try {
                         Object nested = type.getDeclaredConstructor().newInstance();
                         ((JSONObject) value).fillObject(nested);
@@ -482,9 +475,7 @@ public class JSONObject {
                     } catch (NoSuchMethodException e) {
 
                     }
-                }
-                // Maps or raw Lists
-                else if (value instanceof Map || value instanceof List) {
+                } else if (value instanceof Map || value instanceof List) {
                     field.set(target, value);
                 }
 
@@ -494,7 +485,6 @@ public class JSONObject {
         }
     }
 
-    /** Convert a JSON list to a typed Java array (supports nested arrays) */
     private Object convertListToArray(List<?> list, Class<?> componentType) throws Exception {
         Object array = Array.newInstance(componentType, list.size());
         for (int i = 0; i < list.size(); i++) {
@@ -512,15 +502,10 @@ public class JSONObject {
         return array;
     }
 
-    /**
-     * Convert a JSON list to a typed Java List (supports nested Lists and
-     * JSONObject elements)
-     */
     private List<?> convertListToTypedList(List<?> jsonList, Field field) throws Exception {
         List<Object> result = new ArrayList<>();
         Class<?> listType = Object.class;
 
-        // Determine generic type of the List
         try {
             java.lang.reflect.Type genericType = field.getGenericType();
             if (genericType instanceof java.lang.reflect.ParameterizedType pt) {
@@ -529,6 +514,7 @@ public class JSONObject {
                     listType = cls;
             }
         } catch (Exception ignored) {
+            ignored.printStackTrace();
         }
 
         for (Object elem : jsonList) {
@@ -542,7 +528,6 @@ public class JSONObject {
                 }
 
             } else if (elem instanceof List && List.class.isAssignableFrom(listType)) {
-                // Nested List
                 result.add(convertListToTypedList((List<?>) elem, field));
             } else {
                 result.add(elem);
@@ -696,7 +681,7 @@ public class JSONObject {
                     hasExp = true;
                     pos++;
                     if (peek() == '+' || peek() == '-')
-                        pos++; // optional sign
+                        pos++;
                 } else {
                     break;
                 }

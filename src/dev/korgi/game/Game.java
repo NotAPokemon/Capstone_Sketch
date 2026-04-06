@@ -46,7 +46,7 @@ public class Game {
         config.addFloat("fov", 60);
         config.addInt("render_dist", 50);
         config.addFloat("mouse_sensitivity", 3);
-
+        config.addString("pack", "default");
     }
 
     public static void loadEntities() {

@@ -2,14 +2,13 @@ package dev.korgi.game.rendering;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -17,6 +16,7 @@ import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
 import dev.korgi.game.physics.WorldStorage;
 import dev.korgi.jni.KorgiJNI;
+import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
 import dev.korgi.math.VectorConstants;
@@ -38,26 +38,23 @@ public class NativeGPUKernal {
 
     public static void loadTextureMap() {
 
-        File dir = new File(System.getProperty("user.dir") + "/texture");
-
-        Pattern pattern = Pattern.compile("(.+)_([0-9]+)\\.(png|jpg|jpeg)");
+        File dir = new File("./texture/packs/" + Game.config.getString("pack") + "/layout.json");
+        JSONObject packLayout = JSONObject.fromFile(dir);
+        int amt = packLayout.getInt("count");
         Map<Integer, BufferedImage> textures = new HashMap<>();
 
-        for (File file : Objects.requireNonNull(dir.listFiles())) {
-            Matcher m = pattern.matcher(file.getName());
-            if (!m.matches())
-                continue;
+        Path textureDir = Path.of("./texture/packs/", Game.config.getString("pack"));
 
-            int id = Integer.parseInt(m.group(2));
-
+        for (int i = 0; i < amt; i++) {
+            File file = textureDir.resolve(packLayout.getString("" + i)).toFile();
             try {
-                textures.put(id, ImageIO.read(file));
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to load " + file.getName(), e);
+                textures.put(i, ImageIO.read(file));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
-        textureAtlas = new TextureAtlas(textures.size());
+        textureAtlas = new TextureAtlas(amt);
 
         for (Map.Entry<Integer, BufferedImage> entry : textures.entrySet()) {
             int id = entry.getKey();
