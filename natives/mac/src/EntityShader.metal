@@ -192,15 +192,14 @@ kernel void entityKernel(
         float worldT = dot(hitWorld - params.cam, worldRd);
         if (worldT < tVal) {
             tVal = worldT;
+            BVCold cold = bvCold[ent.voxelOffset + bestVox];
+            float3 voxColor = (cold.textureId < 0) ? unpackRGB(cold.color) : float3(1.0);
+            voxColor *= faceLighting(bestFace);
+            float a = cold.opacity;
+
+            outColor = voxColor * a + outColor * (1.0 - a);
+            outAlpha = a + outAlpha * (1.0 - a);
         }
-
-        BVCold cold = bvCold[ent.voxelOffset + bestVox];
-        float3 voxColor = (cold.textureId < 0) ? unpackRGB(cold.color) : float3(1.0);
-        voxColor *= faceLighting(bestFace);
-        float a = cold.opacity;
-
-        outColor = voxColor * a + outColor * (1.0 - a);
-        outAlpha = a + outAlpha * (1.0 - a);
     }
 
     int skyVal = 0xFF87CEEB;
