@@ -3,12 +3,15 @@ package dev.korgi.networking;
 import java.util.function.Supplier;
 
 import dev.korgi.game.Game;
+import dev.korgi.json.JSONIgnore;
 import dev.korgi.json.JSONObject;
 
 public abstract class NetworkObject {
 
     public String internal_id;
+    @JSONIgnore
     private boolean canceledTickEnd = false;
+    @JSONIgnore
     private Supplier<Boolean> cancelTick;
 
     public void loop(double dt) {

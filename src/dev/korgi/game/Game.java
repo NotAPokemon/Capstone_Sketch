@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import dev.korgi.game.entites.Entity;
+import dev.korgi.game.entites.Jimmy;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
@@ -47,7 +49,13 @@ public class Game {
 
     }
 
+    public static void loadEntities() {
+        Entity.register(Jimmy.class.getSimpleName(), Jimmy::new);
+    }
+
     public static void init() throws IOException {
+
+        loadEntities();
 
         lastTime = System.nanoTime();
         if (isClient) {
@@ -103,6 +111,12 @@ public class Game {
         for (Player p : players) {
             p.sendOut();
         }
+        WorldEngine.getWorld().entities.forEach((e) -> {
+            if (e instanceof Player) {
+                return;
+            }
+            e.sendOut();
+        });
 
         withClient((p) -> {
             if (p.pressedKeys.contains("LMB")) {
@@ -123,6 +137,12 @@ public class Game {
         for (Player p : players) {
             p.loop(dt);
         }
+        WorldEngine.getWorld().entities.forEach((e) -> {
+            if (e instanceof Player) {
+                return;
+            }
+            e.loop(dt);
+        });
 
         lastTime = System.nanoTime();
     }

@@ -62,9 +62,9 @@ inline int packARGB(float3 c, float a) {
 // Transpose multiply — brings world vector into entity local space
 inline float3 rotateInv(const float rot[9], float3 v) {
     return float3(
-        rot[0]*v.x + rot[1]*v.y + rot[2]*v.z,
-        rot[3]*v.x + rot[4]*v.y + rot[5]*v.z,
-        rot[6]*v.x + rot[7]*v.y + rot[8]*v.z
+        rot[0]*v.x + rot[3]*v.y + rot[6]*v.z,
+        rot[1]*v.x + rot[4]*v.y + rot[7]*v.z,
+        rot[2]*v.x + rot[5]*v.y + rot[8]*v.z
     );
 }
 

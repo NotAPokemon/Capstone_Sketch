@@ -13,12 +13,14 @@ import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
+import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
 import dev.korgi.game.physics.WorldStorage;
 import dev.korgi.jni.KorgiJNI;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
 import dev.korgi.math.VectorConstants;
+import dev.korgi.player.Player;
 import dev.korgi.utils.Time;
 
 public class NativeGPUKernal {
@@ -332,6 +334,8 @@ public class NativeGPUKernal {
 
     private static void precomputeEntites(WorldStorage world) {
         List<Entity> entities = world.entities;
+        Player client = Game.getClient();
+        entities.remove(client);
 
         if (entities.isEmpty()) {
             return;
@@ -490,6 +494,7 @@ public class NativeGPUKernal {
                 textureAtlas.getAtlas(),
                 path2);
         Time.staticTime("High Entity render: %f", 0.02f);
+        entities.add(client);
     }
 
 }

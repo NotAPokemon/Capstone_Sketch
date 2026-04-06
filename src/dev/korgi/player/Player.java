@@ -15,7 +15,7 @@ import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
-import dev.korgi.utils.Time;
+import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
 
 public class Player extends Entity {
@@ -23,7 +23,6 @@ public class Player extends Entity {
     public boolean connected;
     public List<String> pressedKeys = new ArrayList<>();
     private int speed = 4;
-    private boolean onGround = false;
     private int selectedSlot = 0;
     private String[] inventory = new String[9];
 
@@ -32,10 +31,9 @@ public class Player extends Entity {
 
     public Player() {
         setCancelProtocol(() -> !connected);
-        if (!Game.isClient) {
-            Time.createCooldown("m", 0.1);
-            Time.createCooldown("j", 0.1);
-        }
+        scale(0.125f);
+        scaleHitbox(-1);
+        hitboxOffset(VectorConstants.FORWARD.multiply(VectorConstants.HALF));
     }
 
     @Override
@@ -56,8 +54,7 @@ public class Player extends Entity {
 
     @Override
     protected void handlePhysics(double dt) {
-        if (!onGround && !Game.canFly)
-            velocity.addTo(VectorConstants.DOWN.multiply(WorldEngine.g * dt));
+        gravityEnabled = !Game.canFly;
         super.handlePhysics(dt);
     }
 
@@ -73,8 +70,6 @@ public class Player extends Entity {
                 Math.sin(rotation.y - Math.PI / 2),
                 0,
                 Math.cos(rotation.y - Math.PI / 2)).normalizeHere().multiplyBy(speed * dt);
-
-        Vector3 originalPos = position.copy();
 
         Vector3 amt = VectorConstants.UP.multiply(speed * dt);
 
@@ -119,9 +114,6 @@ public class Player extends Entity {
             checkKey("%d".formatted(i + 1), () -> updatedSelectedSlot(val));
         }
 
-        if (!originalPos.equals(position)) {
-            checkGravity();
-        }
     }
 
     public void updatedSelectedSlot(int val) {
@@ -153,19 +145,12 @@ public class Player extends Entity {
         }
     }
 
-    public void checkGravity() {
-        onGround = WorldEngine.voxelAt(position.add(VectorConstants.DOWN)) != null;
-    }
-
     @Override
     protected void handleInPacket(Packet in) {
+        super.handleInPacket(in);
         if (Game.isClient) {
             in.getData().set("pressedKeys", null);
             in.getData().set("cameraRotation", null);
-        } else {
-            in.getData().set("position", null);
-            in.getData().set("velocity", null);
-            in.getData().set("onGround", onGround);
         }
     }
 
@@ -224,7 +209,12 @@ public class Player extends Entity {
 
     @Override
     public List<Voxel> createBody() {
-        return fromModel("");
+        return VoxTranslator.fromModel("player");
+    }
+
+    @Override
+    protected List<Voxel> createHitbox() {
+        return VoxTranslator.fromModel("default");
     }
 
 }

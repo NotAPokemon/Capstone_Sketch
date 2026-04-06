@@ -17,7 +17,9 @@ public class WorldStorage {
     @JSONFillOverride("overrideVoxelFill")
     public HashMap<Long, Voxel> voxels = new HashMap<>();
 
+    @JSONIgnore
     public List<Entity> entities = new ArrayList<>();
+
     public boolean updated = true;
     @JSONIgnore
     public List<Voxel> updates = new ArrayList<>();

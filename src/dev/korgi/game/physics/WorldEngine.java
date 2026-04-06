@@ -12,11 +12,14 @@ import dev.korgi.math.Vector4;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
+import dev.korgi.player.Player;
 
 public class WorldEngine {
 
     private static final WorldStorage world = new WorldStorage();
     public static final double g = 9.80665;
+
+    private static Jimmy jimmy;
 
     public static void init() {
         Vector4 color = new Vector4(Vector3.random());
@@ -30,6 +33,10 @@ public class WorldEngine {
                 world.updates.add(v);
             }
         }
+        jimmy = new Jimmy();
+        jimmy.getPosition().copyFrom(3, -1, 3);
+        jimmy.getVelocity().addTo(0, 20, 0);
+        addEntity(jimmy);
     }
 
     public static void addEntity(Entity e) {
@@ -54,14 +61,7 @@ public class WorldEngine {
         addVoxel(v);
     }
 
-    public static String jimmyId;
-
     public static void updateClient() {
-        Game.withClient((p) -> {
-            if (p.pressedKeys.contains("h")) {
-                kill(jimmyId);
-            }
-        });
         List<Packet> inPackets = NetworkStream.getAllPackets("world", true);
         for (Packet in : inPackets) {
             JSONObject obj = in.getData();
@@ -70,13 +70,19 @@ public class WorldEngine {
             if (obj.getBoolean("full")) {
                 JSONObject w = obj.getJSONObject("obj");
                 w.fillObject(world);
-                Jimmy jimmy = new Jimmy();
-                jimmy.getPosition().copyFrom(3, -4, 3);
-                addEntity(jimmy);
-                jimmyId = jimmy.internal_id;
-                Jimmy jimmy2 = new Jimmy();
-                jimmy2.getPosition().copyFrom(3, 1, 3);
-                addEntity(jimmy2);
+                int ecount = obj.getInt("ecount");
+
+                for (int i = 0; i < ecount; i++) {
+                    JSONObject eObj = obj.getJSONObject("e%d".formatted(i));
+                    String name = eObj.getString("name");
+                    Entity e = Entity.construct(name);
+                    if (e == null) {
+                        continue;
+                    }
+                    eObj.fillObject(e);
+                    addEntity(e);
+                }
+
                 return;
             }
 
@@ -103,7 +109,7 @@ public class WorldEngine {
 
     public static boolean canPlaceVoxel(Vector3 pos) {
         for (Entity entity : world.entities) {
-            for (Voxel body : entity.getBody()) {
+            for (Voxel body : entity.getHitbox()) {
                 if (voxelIntersects(entity.getPosition().add(body.position), pos)) {
                     return false;
                 }
@@ -129,7 +135,7 @@ public class WorldEngine {
     }
 
     public static void validatePosition(Entity e) {
-        for (Voxel bodyVoxel : e.getBody()) {
+        for (Voxel bodyVoxel : e.getHitbox()) {
             Vector3 bodyWorldPos = bodyVoxel.position.add(e.getPosition());
 
             Vector3 b = bodyWorldPos.floor();
@@ -172,6 +178,15 @@ public class WorldEngine {
             data.addBoolean("full", false);
             if (data.getBoolean("full")) {
                 data.set("obj", world);
+                int c = 0;
+                for (Entity e : world.entities) {
+                    if (e instanceof Player || e == null) {
+                        continue;
+                    }
+                    data.set("e%d".formatted(c), e);
+                    c++;
+                }
+                data.set("ecount", c);
                 Packet fufillRequest = new Packet("world", NetworkStream.CLIENT, NetworkStream.PRIVATE_MESSAGE,
                         data);
                 fufillRequest.network_destination = data.getString("id");
@@ -235,9 +250,9 @@ public class WorldEngine {
     }
 
     private static void entitiesIntersect(Entity a, Entity b) {
-        for (Voxel va : a.getBody()) {
+        for (Voxel va : a.getHitbox()) {
             Vector3 vaWorld = va.position.add(a.getPosition());
-            for (Voxel vb : b.getBody()) {
+            for (Voxel vb : b.getHitbox()) {
                 Vector3 vbWorld = vb.position.add(b.getPosition());
                 if (voxelIntersects(vaWorld, vbWorld)) {
                     if (va.getMaterial().isRigid() && vb.getMaterial().isRigid()) {
