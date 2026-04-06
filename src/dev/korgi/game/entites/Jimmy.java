@@ -9,6 +9,7 @@ import dev.korgi.utils.VoxTranslator;
 public class Jimmy extends Entity {
 
     public Jimmy() {
+        modelOffset(VectorConstants.UP.multiply(3));
         scale(0.125f);
         scaleHitbox(-1);
         hitboxOffset(VectorConstants.FORWARD.multiply(VectorConstants.HALF));

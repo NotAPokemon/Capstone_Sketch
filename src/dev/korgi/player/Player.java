@@ -161,14 +161,6 @@ public class Player extends Entity {
         }
     }
 
-    @Override
-    public void onCollide(Voxel other, Vector3 bodyVoxelWorldPos, Vector3 penetration) {
-        if (penetration != null && penetration.y > 0 && other.position.y < position.y) {
-            onGround = true;
-            velocity.y = 0;
-        }
-    }
-
     public void drawHotbar(Screen screen) {
 
         int slotSize = 42;

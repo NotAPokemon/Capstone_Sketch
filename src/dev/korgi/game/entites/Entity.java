@@ -117,7 +117,11 @@ public abstract class Entity extends NetworkObject {
     public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
     }
 
-    public void onCollide(Voxel other, Vector3 bodyPart, Vector3 penetration) {
+    public void onCollide(Voxel other, Vector3 bodyVoxelWorldPos, Vector3 penetration) {
+        if (penetration != null && penetration.y > 0 && other.position.y < position.y) {
+            onGround = true;
+            velocity.y = 0;
+        }
     }
 
     public void addToWorld() {
