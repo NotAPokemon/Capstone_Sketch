@@ -21,8 +21,10 @@ import dev.korgi.math.Vector3;
 import dev.korgi.math.Vector4;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.player.Player;
+import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.Time;
 
+@ClientSide
 public class NativeGPUKernal {
 
     private static int[] pixels;
@@ -262,8 +264,6 @@ public class NativeGPUKernal {
     private static float[] bvhMins;
     private static float[] bvhMaxs;
     private static int[] bvhLinks;
-    private static int lastEntitySize;
-    private static int lastVoxCount;
 
     private static int buildBVH(int[] localIndices, int start, int end,
             float[] bvPositions, float[] bvSizes, int globalOffset,
@@ -340,14 +340,9 @@ public class NativeGPUKernal {
 
         int totalVoxels = 0;
 
-        if (lastEntitySize == entities.size()) {
-            totalVoxels = lastVoxCount;
-        } else {
-            for (Entity entity : entities) {
-                totalVoxels += entity.getBody().size();
-            }
+        for (Entity entity : entities) {
+            totalVoxels += entity.getBody().size();
         }
-        lastVoxCount = totalVoxels;
 
         int entityCount = entities.size();
 

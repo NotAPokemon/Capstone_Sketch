@@ -10,7 +10,9 @@ import java.io.IOException;
 import dev.korgi.game.Game;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
+import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.InstallConstants;
+import dev.korgi.utils.ServerSide;
 import processing.core.PApplet;
 import processing.core.PFont;
 
@@ -314,6 +316,7 @@ public class Screen extends PApplet {
         drawMessageBanner();
     }
 
+    @ClientSide
     public void drawCrosshair() {
         int cx = width / 2, cy = height / 2;
         int gap = 5, size = 9, thick = 4;
@@ -326,6 +329,7 @@ public class Screen extends PApplet {
         noStroke();
     }
 
+    @ClientSide
     public void drawOpenClientMenus() {
 
         drawCrosshair();
@@ -343,6 +347,7 @@ public class Screen extends PApplet {
         });
     }
 
+    @ServerSide
     public void drawServerInfo() {
         background(BG_DARK);
         drawGrid();
@@ -369,6 +374,7 @@ public class Screen extends PApplet {
         drawMessageBanner();
     }
 
+    @ClientSide
     public void handleMouseMovement() {
         noCursor();
         Point p = ((Component) surface.getNative()).getLocationOnScreen();
@@ -390,6 +396,7 @@ public class Screen extends PApplet {
     }
 
     @Override
+    @ClientSide
     public void keyPressed() {
         if (Game.isClient) {
             Player client = Game.getClient();
@@ -405,6 +412,7 @@ public class Screen extends PApplet {
     }
 
     @Override
+    @ClientSide
     public void keyReleased() {
         if (Game.isClient) {
             Player client = Game.getClient();
@@ -416,6 +424,7 @@ public class Screen extends PApplet {
     }
 
     @Override
+    @ClientSide
     public void focusLost() {
         if (!Game.isClient)
             return;
@@ -424,6 +433,7 @@ public class Screen extends PApplet {
             client.pressedKeys.clear();
     }
 
+    @ClientSide
     private String normalizeKey() {
         if (key != CODED)
             return ("" + key).toLowerCase();
@@ -481,6 +491,7 @@ public class Screen extends PApplet {
     }
 
     @Override
+    @ClientSide
     public void mouseReleased() {
         cfgDragging = false;
         cfgDragIndex = -1;

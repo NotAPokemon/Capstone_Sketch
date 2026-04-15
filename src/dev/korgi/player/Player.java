@@ -5,6 +5,8 @@ import java.util.List;
 
 import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
+import dev.korgi.game.entites.StorageEntity;
+import dev.korgi.game.items.Item;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.Screen;
@@ -15,16 +17,18 @@ import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
+import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
+import processing.core.PImage;
 
-public class Player extends Entity {
+public class Player extends Entity implements StorageEntity {
 
     public boolean connected;
     public List<String> pressedKeys = new ArrayList<>();
     private int speed = 4;
     private int selectedSlot = 0;
-    private String[] inventory = new String[9];
+    private Item[] inventory = new Item[9];
 
     @JSONIgnore
     private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
@@ -109,6 +113,12 @@ public class Player extends Entity {
                 position.subtractFrom(amt);
         });
 
+        checkKey("q", () -> {
+            if (inventory[selectedSlot] != null) {
+                inventory[selectedSlot].drop(this);
+            }
+        }, true);
+
         for (int i = 0; i < 9; i++) {
             int val = i;
             checkKey("%d".formatted(i + 1), () -> updatedSelectedSlot(val));
@@ -161,6 +171,7 @@ public class Player extends Entity {
         }
     }
 
+    @ClientSide
     public void drawHotbar(Screen screen) {
 
         int slotSize = 42;
@@ -186,10 +197,19 @@ public class Player extends Entity {
             screen.noStroke();
 
             if (inventory[i] != null) {
-                screen.fill(255);
-                screen.textAlign(PApplet.CENTER, PApplet.CENTER);
-                screen.textFont(screen.fontSans11);
-                screen.text(inventory[i].substring(0, 1), x + slotSize / 2f, y + slotSize / 2f);
+                PImage icon = inventory[i].getIcon();
+
+                int padding = 6;
+                float iconSize = slotSize - padding * 2;
+
+                screen.imageMode(PApplet.CENTER);
+                screen.image(
+                        icon,
+                        x + slotSize / 2f,
+                        y + slotSize / 2f,
+                        iconSize,
+                        iconSize);
+                screen.imageMode(PApplet.CORNER);
             }
 
             screen.fill(0xFF7A8099);
@@ -207,6 +227,37 @@ public class Player extends Entity {
     @Override
     protected List<Voxel> createHitbox() {
         return VoxTranslator.fromModel("default");
+    }
+
+    @Override
+    public boolean addToInventory(Item item) {
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] == null) {
+                inventory[i] = item;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean removeFromInventory(Item item) {
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] == item) {
+                inventory[i] = null;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void clearInventory(boolean drop) {
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] != null) {
+                inventory[i].drop(this);
+            }
+        }
     }
 
 }

@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 import dev.korgi.game.entites.Entity;
 import dev.korgi.game.entites.Jimmy;
+import dev.korgi.game.items.JimmyItem;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
@@ -51,6 +52,7 @@ public class Game {
 
     public static void loadEntities() {
         Entity.register(Jimmy.class.getSimpleName(), Jimmy::new);
+        Entity.register(JimmyItem.class.getSimpleName(), JimmyItem::new);
     }
 
     public static void init() throws IOException {

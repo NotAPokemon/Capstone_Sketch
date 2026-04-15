@@ -30,12 +30,11 @@ public class Vector4 {
 
     public static Vector4 of(int color) {
 
-        int a = (color >> 24) & 0xFF;
         int r = (color >> 16) & 0xFF;
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
 
-        return new Vector4(b / 255f, g / 255f, r / 255f, a / 255f);
+        return new Vector4(b / 255f, g / 255f, r / 255f, 1);
 
     }
 

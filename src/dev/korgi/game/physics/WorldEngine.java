@@ -5,6 +5,7 @@ import java.util.List;
 import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
 import dev.korgi.game.entites.Jimmy;
+import dev.korgi.game.items.JimmyItem;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
@@ -37,6 +38,9 @@ public class WorldEngine {
         jimmy.getPosition().copyFrom(3, -1, 3);
         jimmy.getVelocity().addTo(0, 20, 0);
         addEntity(jimmy);
+        JimmyItem jimmyItem = new JimmyItem();
+        jimmyItem.getPosition().copyFrom(6, -1, 6);
+        addEntity(jimmyItem);
     }
 
     public static void addEntity(Entity e) {

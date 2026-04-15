@@ -5,6 +5,8 @@ import java.util.function.Supplier;
 import dev.korgi.game.Game;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.json.JSONObject;
+import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ServerSide;
 
 public abstract class NetworkObject {
 
@@ -66,8 +68,10 @@ public abstract class NetworkObject {
         NetworkStream.sendPacket(outPacket);
     }
 
+    @ClientSide
     protected abstract void client(double dt);
 
+    @ServerSide
     protected abstract void server(double dt);
 
 }

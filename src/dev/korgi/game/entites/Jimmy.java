@@ -25,9 +25,4 @@ public class Jimmy extends Entity {
         return VoxTranslator.fromModel("default");
     }
 
-    @Override
-    protected void client(double dt) {
-
-    }
-
 }

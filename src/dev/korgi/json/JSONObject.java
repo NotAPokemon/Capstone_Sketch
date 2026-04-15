@@ -95,7 +95,9 @@ public class JSONObject {
         } else if (value instanceof JSONObject) {
             return value;
         } else {
-            return new JSONObject(value);
+            JSONObject obj = new JSONObject(value);
+            obj.set("_type", clazz.getName());
+            return obj;
         }
     }
 
@@ -119,8 +121,9 @@ public class JSONObject {
         return true;
     }
 
-    public void set(String key, Object value) {
+    public JSONObject set(String key, Object value) {
         values.put(key, wrapValue(value));
+        return this;
     }
 
     public Map<String, Object> toMap() {
@@ -308,46 +311,53 @@ public class JSONObject {
         return null;
     }
 
-    public void addString(String key, String value) {
+    public JSONObject addString(String key, String value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addInt(String key, int value) {
+    public JSONObject addInt(String key, int value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addDouble(String key, double value) {
+    public JSONObject addDouble(String key, double value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addBoolean(String key, boolean value) {
+    public JSONObject addBoolean(String key, boolean value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addLong(String key, long value) {
+    public JSONObject addLong(String key, long value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addFloat(String key, float value) {
+    public JSONObject addFloat(String key, float value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
-    public void addChar(String key, char value) {
+    public JSONObject addChar(String key, char value) {
         if (!hasKey(key)) {
             set(key, value);
         }
+        return this;
     }
 
     @SuppressWarnings("unchecked")
@@ -487,13 +497,24 @@ public class JSONObject {
 
     private Object convertListToArray(List<?> list, Class<?> componentType) throws Exception {
         Object array = Array.newInstance(componentType, list.size());
+
         for (int i = 0; i < list.size(); i++) {
             Object elem = list.get(i);
-            if (elem instanceof List) {
-                Array.set(array, i, convertListToArray((List<?>) elem, componentType.getComponentType()));
-            } else if (elem instanceof JSONObject && !componentType.isPrimitive() && componentType != String.class) {
-                Object nested = componentType.getDeclaredConstructor().newInstance();
-                ((JSONObject) elem).fillObject(nested);
+
+            if (elem instanceof JSONObject jsonObj) {
+                Class<?> targetClass = componentType;
+
+                if (Modifier.isAbstract(componentType.getModifiers()) || componentType.isInterface()) {
+                    String typeName = jsonObj.getString("_type");
+                    if (typeName == null) {
+                        throw new RuntimeException(
+                                "Missing _type information for abstract type: " + componentType.getName());
+                    }
+                    targetClass = Class.forName(typeName);
+                }
+
+                Object nested = targetClass.getDeclaredConstructor().newInstance();
+                jsonObj.fillObject(nested);
                 Array.set(array, i, nested);
             } else {
                 Array.set(array, i, elem);
@@ -518,15 +539,21 @@ public class JSONObject {
         }
 
         for (Object elem : jsonList) {
-            if (elem instanceof JSONObject && !listType.isPrimitive() && listType != String.class) {
-                try {
-                    Object nested = listType.getDeclaredConstructor().newInstance();
-                    ((JSONObject) elem).fillObject(nested);
-                    result.add(nested);
-                } catch (InstantiationException e) {
+            if (elem instanceof JSONObject jsonObj) {
+                Class<?> targetClass = listType;
 
+                if (Modifier.isAbstract(listType.getModifiers()) || listType.isInterface()) {
+                    String typeName = jsonObj.getString("_type");
+                    if (typeName == null) {
+                        throw new RuntimeException(
+                                "Missing _type information for abstract type: " + listType.getName());
+                    }
+                    targetClass = Class.forName(typeName);
                 }
 
+                Object nested = targetClass.getDeclaredConstructor().newInstance();
+                jsonObj.fillObject(nested);
+                result.add(nested);
             } else if (elem instanceof List && List.class.isAssignableFrom(listType)) {
                 result.add(convertListToTypedList((List<?>) elem, field));
             } else {

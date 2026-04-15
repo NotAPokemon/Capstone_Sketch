@@ -12,6 +12,7 @@ import dev.korgi.game.physics.Hit;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONIgnore;
+import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkObject;
@@ -54,6 +55,25 @@ public abstract class Entity extends NetworkObject {
         internal_id = UUID.randomUUID().toString();
     }
 
+    public Entity(JSONObject prebuildparams) {
+        prebuld(prebuildparams);
+        this.position = new Vector3();
+        this.rotation = new Vector3();
+        this.velocity = new Vector3();
+        this.body = cache.get(this.getClass());
+        if (body == null) {
+            body = createBody();
+            cache.put(this.getClass(), VoxTranslator.copyModel(body));
+        } else {
+            body = VoxTranslator.copyModel(body);
+        }
+        this.hitbox = createHitbox();
+        internal_id = UUID.randomUUID().toString();
+    }
+
+    protected void prebuld(JSONObject params) {
+    }
+
     public static void register(String className, Supplier<? extends Entity> constructor) {
         if (constructors.get(className) == null) {
             constructors.put(className, constructor);
@@ -88,6 +108,22 @@ public abstract class Entity extends NetworkObject {
             for (Voxel voxel : hitbox) {
                 voxel.getMaterial().setSize(scalar);
                 voxel.position.multiplyBy(scalar);
+            }
+        } else {
+            System.out.println("This method cannot be called at this time");
+        }
+    }
+
+    protected void setOpacity(float value) {
+        if (value > 1) {
+            value = 1;
+        }
+        if (value < 0) {
+            value = 0;
+        }
+        if (body != null) {
+            for (Voxel voxel : body) {
+                voxel.getMaterial().setOpacity(value);
             }
         } else {
             System.out.println("This method cannot be called at this time");
@@ -169,6 +205,10 @@ public abstract class Entity extends NetworkObject {
             velocity.copyFrom(VectorConstants.ZERO);
             rotation.copyFrom(VectorConstants.ZERO);
         }
+    }
+
+    @Override
+    protected void client(double dt) {
     }
 
     @Override
