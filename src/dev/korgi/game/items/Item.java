@@ -135,7 +135,7 @@ public abstract class Item extends Entity {
     protected void handleInPacket(Packet in) {
         super.handleInPacket(in);
         if (!Game.isClient) {
-            in.getData().set("dropped", null);
+            in.getData().set("dropped", dropped);
         }
     }
 
