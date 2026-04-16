@@ -1,7 +1,10 @@
 package dev.korgi.game.rendering;
 
 import dev.korgi.game.physics.WorldEngine;
+import dev.korgi.game.ui.Screen;
+import dev.korgi.utils.ClientSide;
 
+@ClientSide
 public class Graphics {
 
     public static Camera camera = new Camera();

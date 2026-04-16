@@ -54,10 +54,14 @@ public class JSONObject {
         while (clazz != null && clazz != Object.class) {
             for (Field field : clazz.getDeclaredFields()) {
                 int mods = field.getModifiers();
-                if (!Modifier.isStatic(mods) && !Modifier.isFinal(mods)
-                        && !field.isAnnotationPresent(JSONIgnore.class)) {
+                if (field.isAnnotationPresent(JSONUse.class)) {
                     fields.add(field);
+                    continue;
                 }
+                if (Modifier.isStatic(mods) || Modifier.isFinal(mods) || field.isAnnotationPresent(JSONIgnore.class)) {
+                    continue;
+                }
+                fields.add(field);
             }
             clazz = clazz.getSuperclass();
         }

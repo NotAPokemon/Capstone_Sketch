@@ -1,4 +1,4 @@
-package dev.korgi.game.rendering;
+package dev.korgi.game.ui;
 
 import java.awt.AWTException;
 import java.awt.Component;
@@ -6,8 +6,13 @@ import java.awt.Point;
 import java.awt.Robot;
 import java.awt.event.MouseMotionAdapter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.rendering.Graphics;
+import dev.korgi.game.rendering.NativeGPUKernal;
+import dev.korgi.game.ui.elements.UI;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import dev.korgi.utils.ClientSide;
@@ -82,6 +87,9 @@ public class Screen extends PApplet {
     private float[] btnHoverT = new float[4];
 
     private processing.core.PGraphics bgCache;
+
+    @ClientSide
+    private List<UI> openUi = new ArrayList<>();
 
     @Override
     public void settings() {
@@ -345,6 +353,10 @@ public class Screen extends PApplet {
             text(String.format("%.1f  /  %.1f  /  %.1f", pos.x, pos.y, pos.z), width / 2f, 16);
             p.drawHotbar(this);
         });
+
+        for (UI ui : openUi) {
+            ui.draw(this);
+        }
     }
 
     @ServerSide
@@ -691,5 +703,9 @@ public class Screen extends PApplet {
 
     private boolean hitTest(int x, int y, int w, int h) {
         return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+    }
+
+    public List<UI> getOpenUi() {
+        return openUi;
     }
 }

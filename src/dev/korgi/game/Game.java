@@ -14,7 +14,7 @@ import dev.korgi.game.items.JimmyItem;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
-import dev.korgi.game.rendering.Screen;
+import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkStream;

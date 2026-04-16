@@ -3,7 +3,7 @@ package dev.korgi;
 import java.io.File;
 import java.io.IOException;
 
-import dev.korgi.game.rendering.Screen;
+import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONObject;
 import dev.korgi.utils.InstallConstants;
 import processing.core.PApplet;

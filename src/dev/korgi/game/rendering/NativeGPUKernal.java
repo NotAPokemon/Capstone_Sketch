@@ -40,12 +40,12 @@ public class NativeGPUKernal {
 
     public static void loadTextureMap() {
 
-        File dir = new File("./texture/packs/" + Game.config.getString("pack") + "/layout.json");
+        File dir = new File("./texture/" + Game.config.getString("pack") + "/packs/layout.json");
         JSONObject packLayout = JSONObject.fromFile(dir);
         int amt = packLayout.getInt("count");
         Map<Integer, BufferedImage> textures = new HashMap<>();
 
-        Path textureDir = Path.of("./texture/packs/", Game.config.getString("pack"));
+        Path textureDir = Path.of("./texture/", Game.config.getString("pack") + "/packs/");
 
         for (int i = 0; i < amt; i++) {
             File file = textureDir.resolve(packLayout.getString("" + i)).toFile();

@@ -2,6 +2,7 @@ package dev.korgi.player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
@@ -9,15 +10,16 @@ import dev.korgi.game.entites.StorageEntity;
 import dev.korgi.game.items.Item;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
-import dev.korgi.game.rendering.Screen;
 import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.game.rendering.Voxel;
+import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.InstallConstants;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
 import processing.core.PImage;
@@ -93,12 +95,24 @@ public class Player extends Entity implements StorageEntity {
                     WorldEngine.addVoxelWithTexture(newPos, selectedBlock);
                 }
             }, 5);
+            if (InstallConstants.dev) {
+                return;
+            }
+            withHeldItem((itm) -> {
+                itm.rmb();
+            });
         }, true);
         checkKey("LMB", () -> {
             withHit((hit) -> {
                 Vector3 breakPos = hit.getVoxelPos();
                 WorldEngine.removeVoxel(WorldEngine.voxelAt(breakPos));
             }, 5);
+            if (InstallConstants.dev) {
+                return;
+            }
+            withHeldItem((itm) -> {
+                itm.lmb();
+            });
         }, true);
         checkKey(" ", () -> {
             if (!Game.canFly && onGround) {
@@ -114,9 +128,9 @@ public class Player extends Entity implements StorageEntity {
         });
 
         checkKey("q", () -> {
-            if (inventory[selectedSlot] != null) {
-                inventory[selectedSlot].drop(this);
-            }
+            withHeldItem((itm) -> {
+                itm.drop(this);
+            });
         }, true);
 
         for (int i = 0; i < 9; i++) {
@@ -131,6 +145,12 @@ public class Player extends Entity implements StorageEntity {
             return;
         }
         selectedSlot = val;
+    }
+
+    public void withHeldItem(Consumer<Item> handler) {
+        if (inventory[selectedSlot] != null) {
+            handler.accept(inventory[selectedSlot]);
+        }
     }
 
     private void checkKey(String key, Runnable handler) {

@@ -29,7 +29,7 @@ public class VoxTranslator {
             int[] palette = createDefaultPalette();
 
             byte[] magic = new byte[4];
-            in.readFully(magic); // "VOX "
+            in.readFully(magic);
             Integer.reverseBytes(in.readInt());
 
             while (in.available() > 0) {
@@ -46,7 +46,6 @@ public class VoxTranslator {
                     float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, minZ = Float.MAX_VALUE;
                     float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
 
-                    // First pass: find bounds
                     List<Voxel> rawVoxels = new ArrayList<>();
                     for (int i = 0; i < numVoxels; i++) {
                         int x = in.readUnsignedByte();
@@ -64,18 +63,15 @@ public class VoxTranslator {
                         maxZ = Math.max(maxZ, z);
                     }
 
-                    // Center
                     float cx = (minX + maxX) / 2f;
                     float cy = (minY + maxY) / 2f;
                     float cz = (minZ + maxZ) / 2f;
 
-                    // Rotate 180° around Y (yaw)
                     for (Voxel v : rawVoxels) {
                         float x = (float) v.position.x - cx;
                         float y = (float) v.position.y - cy;
                         float z = (float) v.position.z - cz;
 
-                        // 180° yaw: x,z -> -x,-z
                         v.position.x = -x;
                         v.position.y = y;
                         v.position.z = -z;
