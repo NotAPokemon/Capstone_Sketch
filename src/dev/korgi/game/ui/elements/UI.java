@@ -11,9 +11,19 @@ public class UI extends Element {
 
     private Element rootElement;
     private JSONObject style;
+    private Runnable openSubscriber;
+    private Runnable closeSubscriber;
 
     public UI(String name) {
         super(name);
+    }
+
+    public void onOpen(Runnable onOpen) {
+        this.openSubscriber = onOpen;
+    }
+
+    public void onClose(Runnable closeSubscriber) {
+        this.closeSubscriber = closeSubscriber;
     }
 
     public void setRootElement(Element rootElement) {
@@ -58,11 +68,16 @@ public class UI extends Element {
 
     public void open() {
         List<UI> ui = Screen.getInstance().getOpenUi();
-        if (!ui.contains(this))
+        if (!ui.contains(this)) {
             ui.add(this);
+            if (openSubscriber != null)
+                openSubscriber.run();
+        }
     }
 
     public void close() {
         Screen.getInstance().getOpenUi().remove(this);
+        if (closeSubscriber != null)
+            closeSubscriber.run();
     }
 }

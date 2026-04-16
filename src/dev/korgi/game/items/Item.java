@@ -45,6 +45,12 @@ public abstract class Item extends Entity {
             .backToParent()
             .build();
 
+    static {
+        display.onOpen(() -> {
+            display.close();
+        });
+    }
+
     public Item() {
         try {
             icon = iconCache.get(getIconName());
