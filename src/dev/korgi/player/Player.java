@@ -13,7 +13,15 @@ import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.ui.Screen;
+import dev.korgi.game.ui.builder.CanvasBuilder;
+import dev.korgi.game.ui.builder.DrawMode;
+import dev.korgi.game.ui.builder.UIBuilder;
+import dev.korgi.game.ui.elements.Canvas;
+import dev.korgi.game.ui.elements.Image;
+import dev.korgi.game.ui.elements.Text;
+import dev.korgi.game.ui.elements.UI;
 import dev.korgi.json.JSONIgnore;
+import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -22,7 +30,6 @@ import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.InstallConstants;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
-import processing.core.PImage;
 
 public class Player extends Entity implements StorageEntity {
 
@@ -35,6 +42,67 @@ public class Player extends Entity implements StorageEntity {
     @JSONIgnore
     private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
 
+    @JSONIgnore
+    @ClientSide
+    private static UI hotbar;
+
+    static {
+        if (Game.isClient) {
+            Screen screen = Screen.getInstance();
+            int slotSize = 42;
+            int gap = 6;
+
+            int totalW = 9 * slotSize + 8 * gap;
+            int startX = screen.width / 2 - totalW / 2;
+            int y = screen.height - 70;
+
+            int padding = 6;
+            float iconSize = slotSize - padding * 2;
+
+            UIBuilder builder = UIBuilder.create("hotbar")
+                    .drawMode(DrawMode.ABSOLUTE);
+
+            CanvasBuilder<UIBuilder> canvasBuilder = builder.canvas(new Canvas())
+                    .bg(0x78000000)
+                    .position(startX - 12, y - 10)
+                    .size(totalW + 24, slotSize + 20)
+                    .borderRadius(10);
+
+            for (int i = 0; i < 9; i++) {
+                int x = startX + i * (slotSize + gap);
+
+                canvasBuilder = canvasBuilder
+                        .canvas(new Canvas("slot" + i))
+                        .bg(0xFF1C2130)
+                        .borderColor(0xFF252B3B)
+                        .borderSize(1)
+                        .borderRadius(6)
+                        .position(x, y)
+                        .size(slotSize, slotSize)
+
+                        .image(new Image("img" + i))
+                        .imgMode(PApplet.CENTER)
+                        .size(iconSize, iconSize)
+                        .position(x + slotSize / 2f, y + slotSize / 2f)
+                        .backToParent()
+
+                        .text(new Text("num" + i))
+                        .color(0xFF7A8099)
+                        .font(screen.fontSans12)
+                        .align(PApplet.CENTER, PApplet.BOTTOM)
+                        .position(x + slotSize / 2f, y + slotSize - 4)
+                        .setText("" + (i + 1))
+                        .backToParent()
+
+                        .backToParent();
+            }
+
+            builder = canvasBuilder.backToParent();
+
+            hotbar = builder.build();
+        }
+    }
+
     public Player() {
         setCancelProtocol(() -> !connected);
         scale(0.125f);
@@ -43,6 +111,7 @@ public class Player extends Entity implements StorageEntity {
     }
 
     @Override
+    @ClientSide
     protected void client(double dt) {
         if (!internal_id.equals(NetworkStream.clientId)) {
             cancelTickEnd();
@@ -50,6 +119,34 @@ public class Player extends Entity implements StorageEntity {
 
         rotation = Graphics.camera.rotation;
         Graphics.camera.position = position.add(VectorConstants.HALF);
+        if (!hotbar.isOpen()) {
+            hotbar.open();
+        }
+        ensureStyle();
+    }
+
+    @ClientSide
+    private void ensureStyle() {
+        JSONObject rootStyle = hotbar.getStyle();
+        for (int i = 0; i < 9; i++) {
+            JSONObject localStyle = rootStyle.getJSONObject("slot" + i);
+            boolean selected = (i == selectedSlot);
+            if (selected) {
+                localStyle.set("bg", 0xFF4F8EF7);
+                localStyle.set("borderColor", 0xFF4F8EF7);
+                localStyle.set("borderSize", 2);
+            } else {
+                localStyle.set("bg", 0xFF1C2130);
+                localStyle.set("borderColor", 0xFF252B3B);
+                localStyle.set("borderSize", 1);
+            }
+            Image img = (Image) hotbar.findElement("img" + i, true);
+            if (inventory[i] == null) {
+                img.setImg(null);
+            } else {
+                img.setImg(inventory[i].getIcon());
+            }
+        }
     }
 
     @Override
@@ -188,54 +285,6 @@ public class Player extends Entity implements StorageEntity {
     protected void handleOutPacket(Packet out) {
         if (!Game.isClient && out.getType() != NetworkStream.BROADCAST) {
             out.network_destination = internal_id;
-        }
-    }
-
-    @ClientSide
-    public void drawHotbar(Screen screen) {
-
-        int slotSize = 42;
-        int gap = 6;
-
-        int totalW = 9 * slotSize + 8 * gap;
-        int startX = screen.width / 2 - totalW / 2;
-        int y = screen.height - 70;
-
-        screen.noStroke();
-        screen.fill(0, 120);
-        screen.rect(startX - 12, y - 10, totalW + 24, slotSize + 20, 10);
-
-        for (int i = 0; i < 9; i++) {
-            int x = startX + i * (slotSize + gap);
-
-            boolean selected = (i == selectedSlot);
-
-            screen.fill(selected ? 0xFF4F8EF7 : 0xFF1C2130);
-            screen.stroke(selected ? 0xFF4F8EF7 : 0xFF252B3B);
-            screen.strokeWeight(selected ? 2 : 1);
-            screen.rect(x, y, slotSize, slotSize, 6);
-            screen.noStroke();
-
-            if (inventory[i] != null) {
-                PImage icon = inventory[i].getIcon();
-
-                int padding = 6;
-                float iconSize = slotSize - padding * 2;
-
-                screen.imageMode(PApplet.CENTER);
-                screen.image(
-                        icon,
-                        x + slotSize / 2f,
-                        y + slotSize / 2f,
-                        iconSize,
-                        iconSize);
-                screen.imageMode(PApplet.CORNER);
-            }
-
-            screen.fill(0xFF7A8099);
-            screen.textFont(screen.fontSans12);
-            screen.textAlign(PApplet.CENTER, PApplet.BOTTOM);
-            screen.text(String.valueOf(i + 1), x + slotSize / 2f, y + slotSize - 4);
         }
     }
 

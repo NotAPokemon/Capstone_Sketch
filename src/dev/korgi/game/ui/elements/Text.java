@@ -2,17 +2,15 @@ package dev.korgi.game.ui.elements;
 
 import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONObject;
+import dev.korgi.math.Vector2;
+import processing.core.PFont;
 
 public class Text extends Element {
 
-    private static int globalCount = 0;
+    private PFont font;
 
     public Text(String name) {
         super(name);
-    }
-
-    public Text() {
-        this("text%d".formatted(globalCount++));
     }
 
     @Override
@@ -22,13 +20,19 @@ public class Text extends Element {
             txt = "null";
         }
         JSONObject mStyle = data.getJSONObject(id);
-        float x = mStyle.getFloat("x");
-        float y = mStyle.getFloat("y");
+        Vector2 pos = getPosition(data);
 
         screen.push();
         UI.applyStyle(screen, mStyle);
-        screen.text(txt, x, y);
+        if (font != null) {
+            screen.textFont(font);
+        }
+        screen.text(txt, pos.x, pos.y);
         screen.pop();
+    }
+
+    public void setFont(PFont font) {
+        this.font = font;
     }
 
 }

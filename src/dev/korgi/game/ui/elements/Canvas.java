@@ -5,10 +5,10 @@ import java.util.List;
 
 import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONObject;
+import dev.korgi.math.Vector2;
 
 public class Canvas extends Element {
 
-    private static int globalCount = 0;
     private List<Element> children = new ArrayList<>();
 
     public Canvas(String name) {
@@ -16,7 +16,6 @@ public class Canvas extends Element {
     }
 
     public Canvas() {
-        this("canvas%d".formatted(globalCount++));
     }
 
     @Override
@@ -24,12 +23,16 @@ public class Canvas extends Element {
         JSONObject mStyle = data.getJSONObject(id);
         float sizeX = mStyle.getFloat("width");
         float sizeY = mStyle.getFloat("height");
-        float x = mStyle.getFloat("x");
-        float y = mStyle.getFloat("y");
+        Float borderRadius = mStyle.getFloat("borderRadius");
+        Vector2 pos = getPosition(data);
 
         screen.push();
         UI.applyStyle(screen, mStyle);
-        screen.rect(x, y, sizeX, sizeY);
+        if (borderRadius == null) {
+            screen.rect(pos.x, pos.y, sizeX, sizeY);
+        } else {
+            screen.rect(pos.x, pos.y, sizeX, sizeY, borderRadius);
+        }
         screen.pop();
 
         for (Element element : children) {

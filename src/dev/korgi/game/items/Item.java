@@ -14,8 +14,6 @@ import dev.korgi.game.entites.Entity;
 import dev.korgi.game.entites.StorageEntity;
 import dev.korgi.game.rendering.Voxel;
 import dev.korgi.game.ui.builder.UIBuilder;
-import dev.korgi.game.ui.elements.Canvas;
-import dev.korgi.game.ui.elements.Text;
 import dev.korgi.game.ui.elements.UI;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
@@ -36,14 +34,7 @@ public abstract class Item extends Entity {
     private PImage icon;
 
     @JSONIgnore
-    private static UI display = UIBuilder.create("debug")
-            .canvas(new Canvas("Jimmy"))
-            .text(new Text("dropped"))
-            .position(100, 100)
-            .color(0xFFFF0000)
-            .backToParent()
-            .backToParent()
-            .build();
+    private static UI display = UIBuilder.debugValue("debug");
 
     static {
         display.onOpen(() -> {
@@ -74,7 +65,8 @@ public abstract class Item extends Entity {
             e.printStackTrace();
         }
         displayAxis = VectorConstants.ONE;
-        display.open();
+        if (Game.isClient)
+            display.open();
     }
 
     public boolean isDropped() {
@@ -136,7 +128,7 @@ public abstract class Item extends Entity {
         } else if (!dropped && visible) {
             setOpacity(0);
         }
-        display.getStyle().set("dropped.value", Boolean.toString(dropped));
+        display.getStyle().set("display.value", Boolean.toString(dropped));
     }
 
     @Override

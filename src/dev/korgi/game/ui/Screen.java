@@ -91,6 +91,9 @@ public class Screen extends PApplet {
     @ClientSide
     private List<UI> openUi = new ArrayList<>();
 
+    @ServerSide
+    private List<UI> serverUi = new ArrayList<>();
+
     @Override
     public void settings() {
         size(900, 600);
@@ -153,6 +156,7 @@ public class Screen extends PApplet {
                 mouseMoved(e);
             }
         });
+
     }
 
     @Override
@@ -351,7 +355,6 @@ public class Screen extends PApplet {
             fill(TEXT_PRIMARY);
             textAlign(CENTER, TOP);
             text(String.format("%.1f  /  %.1f  /  %.1f", pos.x, pos.y, pos.z), width / 2f, 16);
-            p.drawHotbar(this);
         });
 
         for (UI ui : openUi) {
@@ -707,5 +710,9 @@ public class Screen extends PApplet {
 
     public List<UI> getOpenUi() {
         return openUi;
+    }
+
+    public List<UI> getServerUi() {
+        return serverUi;
     }
 }
