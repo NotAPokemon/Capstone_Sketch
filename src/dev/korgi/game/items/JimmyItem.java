@@ -8,12 +8,12 @@ public class JimmyItem extends Item {
 
     @Override
     protected String getModelName() {
-        return "item";
+        return "jimmy_item";
     }
 
     @Override
     protected String getIconName() {
-        return "item.png";
+        return "jimmy_item.png";
     }
 
 }

@@ -84,18 +84,18 @@ public class Player extends Entity implements StorageEntity {
                         .position(x, y)
                         .size(slotSize, slotSize)
 
-                        .image(new Image("img" + i))
-                        .imgMode(PApplet.CENTER)
-                        .size(iconSize, iconSize)
-                        .position(x + slotSize / 2f, y + slotSize / 2f)
-                        .backToParent()
-
                         .text(new Text("num" + i))
                         .color(0xFF7A8099)
                         .font(screen.fontSans12)
                         .align(PApplet.CENTER, PApplet.BOTTOM)
                         .position(x + slotSize / 2f, y + slotSize - 4)
                         .setText("" + (i + 1))
+                        .backToParent()
+
+                        .image(new Image("img" + i))
+                        .imgMode(PApplet.CENTER)
+                        .size(iconSize, iconSize)
+                        .position(x + slotSize / 2f, y + slotSize / 2f)
                         .backToParent()
 
                         .backToParent();
@@ -171,9 +171,6 @@ public class Player extends Entity implements StorageEntity {
         Graphics.camera.position = position.add(VectorConstants.HALF);
         if (!hotbar.isOpen()) {
             hotbar.open();
-        }
-        if (!eToInteract.isOpen()) {
-            eToInteract.open();
         }
         ensureStyle();
     }
