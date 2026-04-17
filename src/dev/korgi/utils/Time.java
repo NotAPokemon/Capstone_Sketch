@@ -5,13 +5,13 @@ import java.util.Map;
 
 public class Time {
 
-    private static final Map<String, Double> lastTime = new HashMap<>();
-    private static final Map<String, Double> cd = new HashMap<>();
+    private static final Map<String, Long> lastTime = new HashMap<>();
+    private static final Map<String, Long> cd = new HashMap<>();
     private static long startTime;
 
-    public static void createCooldown(String name, double time) {
-        lastTime.put(name, (System.nanoTime() / 1e9) - time);
-        cd.put(name, time);
+    public static void createCooldown(String name, double timeSeconds) {
+        lastTime.put(name, System.nanoTime());
+        cd.put(name, (long) (timeSeconds * 1_000_000_000L));
     }
 
     public static void ensure(String name, double time) {
@@ -21,16 +21,16 @@ public class Time {
     }
 
     public static boolean check(String name) {
-        double last = lastTime.get(name);
-        if (((System.nanoTime() - last) / 1e9) > cd.get(name)) {
-            return true;
-        }
-        return false;
+        if (!lastTime.containsKey(name) || !cd.containsKey(name))
+            return false;
+
+        long elapsed = System.nanoTime() - lastTime.get(name);
+        return elapsed > cd.get(name);
     }
 
     public static void use(String name, Runnable action) {
         if (check(name)) {
-            lastTime.put(name, System.nanoTime() / 1e9);
+            lastTime.put(name, System.nanoTime());
             action.run();
         }
     }

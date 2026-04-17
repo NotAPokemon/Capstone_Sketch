@@ -97,8 +97,14 @@ public abstract class Item extends Entity {
     @Override
     @ServerSide
     public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
-        if (dropped && other instanceof StorageEntity e) {
-            dropped = !e.addToInventory(this);
+
+        if (other instanceof StorageEntity e) {
+            Time.ensure("pickupCd_" + other.internal_id, 0.75);
+            Time.use("pickupCd_" + other.internal_id, () -> {
+                if (dropped) {
+                    dropped = !e.addToInventory(this);
+                }
+            });
         }
     }
 
