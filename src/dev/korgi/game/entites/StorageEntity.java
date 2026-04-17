@@ -8,4 +8,6 @@ public interface StorageEntity {
     public boolean removeFromInventory(Item item);
 
     public void clearInventory(boolean drop);
+
+    public int inventorySize();
 }

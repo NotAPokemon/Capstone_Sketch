@@ -17,6 +17,8 @@ import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkObject;
 import dev.korgi.networking.Packet;
+import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
 
 public abstract class Entity extends NetworkObject {
@@ -31,7 +33,9 @@ public abstract class Entity extends NetworkObject {
     @JSONIgnore
     protected Vector3 displayAxis = VectorConstants.DOWN;
 
+    @JSONIgnore
     private static Map<Class<? extends Entity>, List<Voxel>> cache = new HashMap<>();
+    @JSONIgnore
     private static Map<String, Supplier<? extends Entity>> constructors = new HashMap<>();
 
     @SuppressWarnings("unused")
@@ -150,9 +154,11 @@ public abstract class Entity extends NetworkObject {
         }
     }
 
+    @ServerSide
     public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
     }
 
+    @ServerSide
     public void onCollide(Voxel other, Vector3 bodyVoxelWorldPos, Vector3 penetration) {
         if (penetration != null && penetration.y > 0 && other.position.y < position.y) {
             onGround = true;
@@ -180,11 +186,15 @@ public abstract class Entity extends NetworkObject {
         return hitbox;
     }
 
-    protected void withHit(Consumer<Hit> action, double maxDist) {
-        Vector3 dir = new Vector3(
+    public Vector3 getForward() {
+        return new Vector3(
                 Math.sin(rotation.y) * Math.cos(rotation.x),
                 Math.sin(rotation.x),
                 Math.cos(rotation.y) * Math.cos(rotation.x)).normalizeHere();
+    }
+
+    protected void withHit(Consumer<Hit> action, double maxDist) {
+        Vector3 dir = getForward();
         Vector3 origin = position.add(VectorConstants.HALF);
         Hit hit = WorldEngine.trace(origin, dir, maxDist);
         if (hit != null) {
@@ -192,6 +202,7 @@ public abstract class Entity extends NetworkObject {
         }
     }
 
+    @ServerSide
     protected void handlePhysics(double dt) {
         if (gravityEnabled && !onGround)
             velocity.addTo(VectorConstants.DOWN.multiply(WorldEngine.g * dt));
@@ -208,10 +219,12 @@ public abstract class Entity extends NetworkObject {
     }
 
     @Override
+    @ClientSide
     protected void client(double dt) {
     }
 
     @Override
+    @ServerSide
     protected void server(double dt) {
         checkGravity();
         handlePhysics(dt);
@@ -221,6 +234,7 @@ public abstract class Entity extends NetworkObject {
         return rotation;
     }
 
+    @ClientSide
     public float[] getRotationMatrix() {
         Vector3 rot = rotation.multiply(displayAxis);
         double cx = Math.cos(rot.x), sx = Math.sin(rot.x);
@@ -243,6 +257,7 @@ public abstract class Entity extends NetworkObject {
         };
     }
 
+    @ServerSide
     public void checkGravity() {
         onGround = WorldEngine.voxelAt(position.add(VectorConstants.DOWN)) != null;
     }

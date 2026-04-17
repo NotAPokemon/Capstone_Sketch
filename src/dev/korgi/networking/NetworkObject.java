@@ -1,5 +1,8 @@
 package dev.korgi.networking;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import dev.korgi.game.Game;
@@ -16,6 +19,9 @@ public abstract class NetworkObject {
     @JSONIgnore
     private Supplier<Boolean> cancelTick;
 
+    @JSONIgnore
+    protected List<Runnable> tickTasks = new ArrayList<>();
+
     public void loop(double dt) {
         if (NetworkStream.frameCount >= 50) {
             NetworkStream.frameCount = 0;
@@ -31,6 +37,12 @@ public abstract class NetworkObject {
         if (cancelTick != null && cancelTick.get()) {
             return;
         }
+
+        tickTasks.forEach((task) -> {
+            task.run();
+        });
+        tickTasks.clear();
+
         if (Game.isClient) {
             client(dt);
         } else {
@@ -58,6 +70,11 @@ public abstract class NetworkObject {
 
     protected void handleInPacket(Packet in) {
 
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends NetworkObject> void run(Consumer<T> task) {
+        tickTasks.add(() -> task.accept((T) this));
     }
 
     public void sendOut() {

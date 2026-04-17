@@ -387,6 +387,10 @@ public class Screen extends PApplet {
         drawPrimaryButton("STOP HOSTING", bx, by, bw, bh, btnHoverT[3], DANGER);
 
         drawMessageBanner();
+
+        for (UI ui : serverUi) {
+            ui.draw(this);
+        }
     }
 
     @ClientSide

@@ -13,14 +13,13 @@ import dev.korgi.game.Game;
 import dev.korgi.game.entites.Entity;
 import dev.korgi.game.entites.StorageEntity;
 import dev.korgi.game.rendering.Voxel;
-import dev.korgi.game.ui.builder.UIBuilder;
-import dev.korgi.game.ui.elements.UI;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.ServerSide;
+import dev.korgi.utils.Time;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PImage;
 
@@ -32,15 +31,6 @@ public abstract class Item extends Entity {
 
     @JSONIgnore
     private PImage icon;
-
-    @JSONIgnore
-    private static UI display = UIBuilder.debugValue("debug");
-
-    static {
-        display.onOpen(() -> {
-            display.close();
-        });
-    }
 
     public Item() {
         try {
@@ -65,8 +55,6 @@ public abstract class Item extends Entity {
             e.printStackTrace();
         }
         displayAxis = VectorConstants.ONE;
-        if (Game.isClient)
-            display.open();
     }
 
     public boolean isDropped() {
@@ -76,11 +64,16 @@ public abstract class Item extends Entity {
     @ServerSide
     public void drop(StorageEntity entity) {
         dropped = entity.removeFromInventory(this);
-        if (dropped) {
-            assert entity instanceof Entity;
-            Entity e = (Entity) entity;
-            position.copyFrom(e.getPosition());
-        }
+        Time.ensure("drop", 0.1);
+        Time.use("drop", () -> {
+            run((Item self) -> {
+                dropped = true;
+                assert entity instanceof Entity;
+                Entity e = (Entity) entity;
+                position.copyFrom(e.getPosition().add(e.getForward().multiplyBy(2)));
+            });
+        });
+
     }
 
     @Override
@@ -120,6 +113,14 @@ public abstract class Item extends Entity {
     }
 
     @Override
+    protected void handleInPacket(Packet in) {
+        super.handleInPacket(in);
+        if (!Game.isClient) {
+            in.getData().set("dropped", null);
+        }
+    }
+
+    @Override
     @ClientSide
     protected void client(double dt) {
         boolean visible = getBody().get(0).getMaterial().getOpacity() > 0.001;
@@ -128,15 +129,12 @@ public abstract class Item extends Entity {
         } else if (!dropped && visible) {
             setOpacity(0);
         }
-        display.getStyle().set("display.value", Boolean.toString(dropped));
     }
 
     @Override
-    protected void handleInPacket(Packet in) {
-        super.handleInPacket(in);
-        if (!Game.isClient) {
-            in.getData().set("dropped", dropped);
-        }
+    protected void server(double dt) {
+        gravityEnabled = dropped;
+        super.server(dt);
     }
 
 }

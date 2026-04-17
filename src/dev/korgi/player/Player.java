@@ -278,6 +278,8 @@ public class Player extends Entity implements StorageEntity {
         if (Game.isClient) {
             in.getData().set("pressedKeys", null);
             in.getData().set("cameraRotation", null);
+        } else {
+            in.getData().set("inventory", null);
         }
     }
 
@@ -327,6 +329,17 @@ public class Player extends Entity implements StorageEntity {
                 inventory[i].drop(this);
             }
         }
+    }
+
+    @Override
+    public int inventorySize() {
+        int size = 0;
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] != null) {
+                size++;
+            }
+        }
+        return size;
     }
 
 }
