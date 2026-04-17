@@ -2,25 +2,26 @@
 
 layout(local_size_x = 8, local_size_y = 8) in;
 
-layout(std430, binding = 0) buffer Pixels        { int   pixels[];         };
-layout(std430, binding = 1) buffer Voxels        { int   voxelGrid[];      };
-layout(std430, binding = 2) buffer Colors        { int   colors[];         };
-layout(std430, binding = 3) buffer Opacity       { float opacity[];        };
-layout(std430, binding = 4) buffer TextureLoc    { int   textureLocation[]; };
-layout(std430, binding = 5) buffer TextureAtlas  { int   textureAtlas[];   };
-layout(std430, binding = 6) buffer ChunkGrid     { int   chunkGrid[];      };
-layout(std430, binding = 7) buffer ChunkSize     { int   chunkSize[];      };  // [csx, csy, csz]
+layout(std430, binding = 0) buffer Pixels { int pixels[]; };
+layout(std430, binding = 1) buffer Voxels { int voxelGrid[]; };
+layout(std430, binding = 2) buffer Colors { int colors[]; };
+layout(std430, binding = 3) buffer Opacity { float opacity[]; };
+layout(std430, binding = 4) buffer TextureLoc { int textureLocation[]; };
+layout(std430, binding = 5) buffer TextureAtlas { int textureAtlas[]; };
+layout(std430, binding = 6) buffer ChunkGrid { int chunkGrid[]; };
+layout(std430, binding = 7) buffer ChunkSize { int chunkSize[]; };
+layout(std430, binding = 11) buffer TBuffer { float tBuffer[]; };
 
-uniform vec3  cam;
-uniform vec3  forward;
-uniform vec3  right;
-uniform vec3  up;
+uniform vec3 cam;
+uniform vec3 forward;
+uniform vec3 right;
+uniform vec3 up;
 uniform float tanFov;
-uniform int   voxCount;
+uniform int voxCount;
 uniform ivec3 worldMin;
 uniform ivec3 worldSize;
-uniform int   width;
-uniform int   height;
+uniform int width;
+uniform int height;
 
 const int CHUNK_SIZE = 8;
 
@@ -33,8 +34,8 @@ void main() {
     int idx = py * width + px;
 
     float aspect = float(width) / float(height);
-    float ndcX   = (2.0 * (float(px) + 0.5) / float(width)  - 1.0) * aspect * tanFov;
-    float ndcY   = (1.0 -  2.0 * (float(py) + 0.5) / float(height)) * tanFov;
+    float ndcX = (2.0 * (float(px) + 0.5) / float(width) - 1.0) * aspect * tanFov;
+    float ndcY = (1.0 -  2.0 * (float(py) + 0.5) / float(height)) * tanFov;
 
     vec3 dir = normalize(forward + ndcX * right + ndcY * up);
     vec3 invDir = vec3(
@@ -43,21 +44,20 @@ void main() {
         dir.z != 0.0 ? 1.0 / dir.z : 1e20
     );
 
-    vec3  minB = vec3(worldMin);
-    vec3  maxB = vec3(worldMin + worldSize);
+    vec3 minB = vec3(worldMin);
+    vec3 maxB = vec3(worldMin + worldSize);
     ivec3 worldMax = worldMin + worldSize;
 
     float tMin = 0.0;
     float tMax = 100.0;
 
-    // AABB slab test
     if (dir.x != 0.0) {
         float tx1 = (minB.x - cam.x) * invDir.x;
         float tx2 = (maxB.x - cam.x) * invDir.x;
         tMin = max(tMin, min(tx1, tx2));
         tMax = min(tMax, max(tx1, tx2));
     } else if (cam.x < minB.x || cam.x > maxB.x) {
-        pixels[idx] = 0xFF87CEEB; return;
+        tBuffer[idx] = -1.0; pixels[idx] = 0xFF87CEEB; return;
     }
 
     if (dir.y != 0.0) {
@@ -66,7 +66,7 @@ void main() {
         tMin = max(tMin, min(ty1, ty2));
         tMax = min(tMax, max(ty1, ty2));
     } else if (cam.y < minB.y || cam.y > maxB.y) {
-        pixels[idx] = 0xFF87CEEB; return;
+        tBuffer[idx] = -1.0; pixels[idx] = 0xFF87CEEB; return;
     }
 
     if (dir.z != 0.0) {
@@ -75,20 +75,29 @@ void main() {
         tMin = max(tMin, min(tz1, tz2));
         tMax = min(tMax, max(tz1, tz2));
     } else if (cam.z < minB.z || cam.z > maxB.z) {
-        pixels[idx] = 0xFF87CEEB; return;
+        tBuffer[idx] = -1.0; pixels[idx] = 0xFF87CEEB; return;
     }
 
-    if (tMin > tMax) { pixels[idx] = 0xFF87CEEB; return; }
+    if (tMin > tMax) {
+        tBuffer[idx] = -1.0; pixels[idx] = 0xFF87CEEB; return;
+    }
 
     vec3  startPos = cam + dir * tMin;
-    ivec3 cell     = ivec3(floor(startPos));
-    ivec3 step     = ivec3(sign(dir));
+    ivec3 cell = ivec3(floor(startPos));
 
-    vec3 tMaxVals = vec3(
-        tMin + (float(step.x > 0 ? cell.x + 1 : cell.x) - startPos.x) * invDir.x,
-        tMin + (float(step.y > 0 ? cell.y + 1 : cell.y) - startPos.y) * invDir.y,
-        tMin + (float(step.z > 0 ? cell.z + 1 : cell.z) - startPos.z) * invDir.z
+    ivec3 step = ivec3(
+        dir.x > 0.0 ? 1 : -1,
+        dir.y > 0.0 ? 1 : -1,
+        dir.z > 0.0 ? 1 : -1
     );
+
+    vec3 cellF = vec3(cell);
+    vec3 border = vec3(
+        step.x > 0 ? cellF.x + 1.0 : cellF.x,
+        step.y > 0 ? cellF.y + 1.0 : cellF.y,
+        step.z > 0 ? cellF.z + 1.0 : cellF.z
+    );
+    vec3 tMaxVals = tMin + (border - startPos) * invDir;
 
     vec3 tDelta = vec3(
         dir.x != 0.0 ? abs(invDir.x) : 1e20,
@@ -96,26 +105,25 @@ void main() {
         dir.z != 0.0 ? abs(invDir.z) : 1e20
     );
 
-    const int csx  = chunkSize[0];
-    const int csy  = chunkSize[1];
+    const int csx = chunkSize[0];
+    const int csy = chunkSize[1];
     const int csxy = csx * csy;
-    const int wSX  = worldSize.x;
+    const int wSX = worldSize.x;
     const int wSXY = worldSize.x * worldSize.y;
 
-    int   hitColor  = 0;
+    int hitColor = 0;
     float opacAccum = 1.0;
-    int   hitFace   = -1;
-    vec3  hitPos    = startPos;
-    float t         = tMin;
+    int hitFace = -1;
+    vec3 hitPos = startPos;
+    float t = tMin;
 
     for (int steps = 0; steps < 500 && t < tMax && opacAccum > 0.01; ++steps) {
 
         if (all(greaterThanEqual(cell, worldMin)) && all(lessThan(cell, worldMax))) {
-            ivec3 relCell  = cell - worldMin;
-            ivec3 cIdx3    = relCell / CHUNK_SIZE;
-            int   chunkIdx = cIdx3.x + cIdx3.y * csx + cIdx3.z * csxy;
+            ivec3 relCell = cell - worldMin;
+            ivec3 cIdx3 = relCell / CHUNK_SIZE;
+            int chunkIdx = cIdx3.x + cIdx3.y * csx + cIdx3.z * csxy;
 
-            // Empty-chunk skip — jump ray to the far side of this chunk
             if (chunkGrid[chunkIdx] == 0) {
                 vec3 exitBorder = vec3(
                     float(worldMin.x + (step.x > 0 ? cIdx3.x + 1 : cIdx3.x) * CHUNK_SIZE),
@@ -132,9 +140,9 @@ void main() {
                 float tJump = min(min(tExit.x, tExit.y), tExit.z) + 1e-4;
 
                 if (tJump > t) {
-                    t      = tJump;
+                    t = tJump;
                     hitPos = cam + dir * t;
-                    cell   = ivec3(floor(hitPos));
+                    cell = ivec3(floor(hitPos));
 
                     vec3 newBorder = vec3(
                         float(step.x > 0 ? cell.x + 1 : cell.x),
@@ -152,12 +160,12 @@ void main() {
 
             int voxel = voxelGrid[relCell.x + relCell.y * wSX + relCell.z * wSXY];
 
-            if (voxel >= 0 && voxel < voxCount) {
-                int   texId = textureLocation[voxel];
+            if (uint(voxel) < uint(voxCount)) {
+                int texId = textureLocation[voxel];
                 float alpha = opacity[voxel];
 
                 if (texId != -1 && hitFace >= 0) {
-                    vec3  local = hitPos - floor(hitPos);
+                    vec3 local = hitPos - floor(hitPos);
                     float u, v;
 
                     if (hitFace <= 1) {        // X faces
@@ -171,32 +179,34 @@ void main() {
                         v = 1.0 - local.y;
                     }
 
-                    int iu   = clamp(int(u * 32.0), 0, 31);
-                    int iv   = clamp(int(v * 32.0), 0, 31);
+                    int iu = clamp(int(u * 32.0), 0, 31);
+                    int iv = clamp(int(v * 32.0), 0, 31);
                     int base = texId * (192 * 32);
-                    hitColor  = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    hitColor = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
                     opacAccum = 0.0;
 
                 } else {
-                    int   c  = colors[voxel];
-                    float a  = alpha * opacAccum;
+                    int c = colors[voxel];
+                    float a = alpha * opacAccum;
                     float ia = 1.0 - a;
 
                     int r = int(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
-                    int g = int(((c >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
-                    int b = int(( c        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
-                    hitColor  = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    int g = int(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * ia);
+                    int b = int((c & 0xFF) * a + (hitColor & 0xFF) * ia);
+                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                     opacAccum *= (1.0 - alpha);
                 }
             }
         }
 
-        // DDA step
-        if (tMaxVals.x <= tMaxVals.y && tMaxVals.x <= tMaxVals.z) {
+        bool xMin = (tMaxVals.x <= tMaxVals.y) && (tMaxVals.x <= tMaxVals.z);
+        bool yMin = !xMin && (tMaxVals.y <= tMaxVals.z);
+
+        if (xMin) {
             t = tMaxVals.x;  tMaxVals.x += tDelta.x;  cell.x += step.x;
             hitFace = step.x > 0 ? 0 : 1;
-        } else if (tMaxVals.y <= tMaxVals.z) {
+        } else if (yMin) {
             t = tMaxVals.y;  tMaxVals.y += tDelta.y;  cell.y += step.y;
             hitFace = step.y > 0 ? 3 : 2;
         } else {
@@ -207,11 +217,13 @@ void main() {
         hitPos = cam + dir * t;
     }
 
-    int   sky = 0xFF87CEEB;
-    float a   = opacAccum;
-    float ia  = 1.0 - a;
+    int sky = 0xFF87CEEB;
+    float a = opacAccum;
+    float ia = 1.0 - a;
     int r = int(((sky >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
-    int g = int(((sky >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
-    int b = int(( sky        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
+    int g = int(((sky >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * ia);
+    int b = int((sky & 0xFF) * a + (hitColor & 0xFF) * ia);
+
+    tBuffer[idx] = t;
     pixels[idx] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }
