@@ -23,7 +23,8 @@ public class Installer {
         byte[] output = internalConfigData.toJSONString().getBytes();
         stream.write(output, 0, output.length);
         stream.close();
-        ProcessBuilder builder = new ProcessBuilder("./runjava");
+        ProcessBuilder builder = new ProcessBuilder(
+                "./runjava" + (System.getProperty("os.name").toLowerCase().contains("win") ? ".bat" : ""));
         builder.redirectErrorStream(true);
         Process process = builder.start();
         BufferedReader reader = new BufferedReader(

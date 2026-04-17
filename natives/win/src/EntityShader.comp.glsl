@@ -63,13 +63,6 @@ layout(std430, binding = 5) buffer Atlas { int atlas[]; };
 layout(std430, binding = 6) buffer TBuffer { float tBuffer[]; };
 layout(std430, binding = 7) buffer BVHBuf { BVHNode bvhNodes[]; };
 
-vec3 unpackRGB(int packed) {
-    return vec3(
-        float((packed >> 16) & 0xFF) / 255.0,
-        float((packed >> 8) & 0xFF) / 255.0,
-        float(packed & 0xFF) / 255.0
-    );
-}
 
 int packARGB(vec3 c, float a) {
     return (int(clamp(a, 0.0, 1.0) * 255.0) << 24) |
@@ -162,7 +155,11 @@ void main() {
     int pixIdx = gid.y * params.width + gid.x;
 
     int bg = pixels[pixIdx];
-    vec3 outColor = unpackRGB(bg);
+    vec3 outColor = vec3(
+        float((bg >> 16) & 0xFF) / 255.0,
+        float((bg >> 8) & 0xFF) / 255.0,
+        float(bg & 0xFF) / 255.0
+    );
     float outAlpha = float((bg >> 24) & 0xFF) / 255.0;
 
     float tVal = 1e30;
@@ -226,7 +223,11 @@ void main() {
             BVCold cold = bvCold[ent.voxelOffset + bestVox];
 
             vec3 voxColor = (cold.textureId < 0)
-                ? unpackRGB(cold.color)
+                ? vec3(
+                    float((cold.color >> 16) & 0xFF) / 255.0,
+                    float((cold.color >> 8) & 0xFF) / 255.0,
+                    float(cold.color & 0xFF) / 255.0
+                )
                 : vec3(1.0);
 
             voxColor *= faceLighting(bestFace);
