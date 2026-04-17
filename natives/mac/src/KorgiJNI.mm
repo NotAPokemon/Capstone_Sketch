@@ -348,6 +348,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
         headerScratch = new EntityHeaderC[entityCount];
         headerScratchCount = entityCount;
     }
+    
     if (voxelScratchCount < totalVoxels) {
         delete[] voxelHotScratch;
         delete[] voxelColdScratch;
@@ -355,6 +356,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
         voxelColdScratch = new BVColdC[totalVoxels];
         voxelScratchCount = totalVoxels;
     }
+
     if (bvhNodeScratchCount < totalBvhNodes) {
         delete[] bvhNodeScratch;
         bvhNodeScratch = new BVHNodeC[totalBvhNodes];
