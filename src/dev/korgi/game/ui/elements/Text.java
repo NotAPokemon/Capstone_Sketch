@@ -13,6 +13,10 @@ public class Text extends Element {
         super(name);
     }
 
+    public Text() {
+        super();
+    }
+
     @Override
     void draw(Screen screen, JSONObject data) {
         String txt = data.getString(id + ".value");

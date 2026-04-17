@@ -46,6 +46,10 @@ public class Player extends Entity implements StorageEntity {
     @ClientSide
     private static UI hotbar;
 
+    @JSONIgnore
+    @ClientSide
+    private static UI eToInteract;
+
     static {
         if (Game.isClient) {
             Screen screen = Screen.getInstance();
@@ -100,6 +104,52 @@ public class Player extends Entity implements StorageEntity {
             builder = canvasBuilder.backToParent();
 
             hotbar = builder.build();
+
+            eToInteract = UIBuilder.create("eToInteract")
+                    .drawMode(DrawMode.ABSOLUTE)
+
+                    .canvas(new Canvas("root"))
+                    .bg(0x78000000)
+                    .borderRadius(10)
+                    .size(220, 56)
+                    .position(screen.width / 2f - 110, screen.height - 190)
+
+                    .canvas(new Canvas("inner"))
+                    .bg(0xFF1C2130)
+                    .borderColor(0xFF252B3B)
+                    .borderSize(1)
+                    .borderRadius(8)
+                    .size(200, 40)
+                    .position(screen.width / 2f - 100, screen.height - 182)
+
+                    .canvas(new Canvas("key"))
+                    .bg(0xFF4F8EF7)
+                    .borderRadius(6)
+                    .size(30, 30)
+                    .position(screen.width / 2f - 92, screen.height - 177)
+
+                    .text(new Text("keyText"))
+                    .setText("E")
+                    .font(screen.fontSans12)
+                    .align(PApplet.CENTER, PApplet.CENTER)
+                    .position(screen.width / 2f - 77, screen.height - 162)
+                    .color(0xFFFFFFFF)
+                    .backToParent()
+
+                    .backToParent()
+
+                    .text(new Text("label"))
+                    .setText("Interact")
+                    .font(screen.fontSans12)
+                    .align(PApplet.LEFT, PApplet.CENTER)
+                    .position(screen.width / 2f - 50, screen.height - 162)
+                    .color(0xFFB8B9BA)
+                    .backToParent()
+
+                    .backToParent()
+
+                    .backToParent()
+                    .build();
         }
     }
 
@@ -121,6 +171,9 @@ public class Player extends Entity implements StorageEntity {
         Graphics.camera.position = position.add(VectorConstants.HALF);
         if (!hotbar.isOpen()) {
             hotbar.open();
+        }
+        if (!eToInteract.isOpen()) {
+            eToInteract.open();
         }
         ensureStyle();
     }
