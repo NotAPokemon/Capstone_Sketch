@@ -28,15 +28,21 @@ import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.InstallConstants;
+import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
 
 public class Player extends Entity implements StorageEntity {
 
     public boolean connected;
+
+    @ClientSide
     public List<String> pressedKeys = new ArrayList<>();
+
     private int speed = 4;
     private int selectedSlot = 0;
+
+    @ServerSide
     private Item[] inventory = new Item[9];
 
     @JSONIgnore
@@ -319,17 +325,6 @@ public class Player extends Entity implements StorageEntity {
             if (!pos.equals(position)) {
                 WorldEngine.validatePosition(this);
             }
-        }
-    }
-
-    @Override
-    protected void handleInPacket(Packet in) {
-        super.handleInPacket(in);
-        if (Game.isClient) {
-            in.getData().set("pressedKeys", null);
-            in.getData().set("cameraRotation", null);
-        } else {
-            in.getData().set("inventory", null);
         }
     }
 

@@ -7,7 +7,6 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import dev.korgi.game.Game;
 import dev.korgi.game.physics.Hit;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Voxel;
@@ -16,14 +15,15 @@ import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkObject;
-import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
 
 public abstract class Entity extends NetworkObject {
 
+    @ServerSide
     protected Vector3 velocity;
+    @ServerSide
     protected Vector3 position;
     protected Vector3 rotation;
     @JSONIgnore
@@ -41,7 +41,9 @@ public abstract class Entity extends NetworkObject {
     @SuppressWarnings("unused")
     private String name = getClass().getSimpleName();
 
+    @ServerSide
     protected boolean gravityEnabled = true;
+    @ServerSide
     protected boolean onGround = false;
 
     public Entity() {
@@ -260,15 +262,6 @@ public abstract class Entity extends NetworkObject {
     @ServerSide
     public void checkGravity() {
         onGround = WorldEngine.voxelAt(position.add(VectorConstants.DOWN)) != null;
-    }
-
-    @Override
-    protected void handleInPacket(Packet in) {
-        if (!Game.isClient) {
-            in.getData().set("position", null);
-            in.getData().set("velocity", null);
-            in.getData().set("onGround", onGround);
-        }
     }
 
 }

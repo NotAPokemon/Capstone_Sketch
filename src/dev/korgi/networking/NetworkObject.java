@@ -1,5 +1,7 @@
 package dev.korgi.networking;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -68,8 +70,29 @@ public abstract class NetworkObject {
 
     }
 
-    protected void handleInPacket(Packet in) {
+    private void handleInPacket(Packet in) {
+        Class<?> clazz = this.getClass();
+        List<Field> fields = new ArrayList<>();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                int mods = field.getModifiers();
+                if (Modifier.isStatic(mods) || Modifier.isFinal(mods) || field.isAnnotationPresent(JSONIgnore.class)) {
+                    continue;
+                }
+                if (Game.isClient && field.isAnnotationPresent(ClientSide.class)) {
+                    fields.add(field);
+                } else if (!Game.isClient && field.isAnnotationPresent(ServerSide.class)) {
+                    fields.add(field);
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
 
+        JSONObject inData = in.getData();
+
+        for (Field field : fields) {
+            inData.set(field.getName(), null);
+        }
     }
 
     @SuppressWarnings("unchecked")

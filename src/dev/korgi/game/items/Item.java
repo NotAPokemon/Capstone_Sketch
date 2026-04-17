@@ -16,7 +16,6 @@ import dev.korgi.game.rendering.Voxel;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
-import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.Time;
@@ -27,6 +26,7 @@ public abstract class Item extends Entity {
 
     private static Map<String, PImage> iconCache = new HashMap<>();
 
+    @ServerSide
     private boolean dropped = true;
 
     @JSONIgnore
@@ -97,7 +97,6 @@ public abstract class Item extends Entity {
     @Override
     @ServerSide
     public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
-
         if (other instanceof StorageEntity e) {
             Time.ensure("pickupCd_" + other.internal_id, 0.75);
             Time.use("pickupCd_" + other.internal_id, () -> {
@@ -116,14 +115,6 @@ public abstract class Item extends Entity {
 
     public PImage getIcon() {
         return icon;
-    }
-
-    @Override
-    protected void handleInPacket(Packet in) {
-        super.handleInPacket(in);
-        if (!Game.isClient) {
-            in.getData().set("dropped", null);
-        }
     }
 
     @Override
