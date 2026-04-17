@@ -69,10 +69,10 @@ public class Installer {
                     Path.of(installPath, "glfw3.dll").toAbsolutePath());
             Files.copy(Path.of("./natives/win/build/korgikompute-win.dll"),
                     Path.of(installPath, "korgikompute-win.dll").toAbsolutePath());
-            Files.copy(Path.of("./natives/win/src/Shaders.comp.glsl"),
-                    Path.of(installPath, "Shaders.comp.glsl").toAbsolutePath());
-            Files.copy(Path.of("./natives/win/src/EntityShader.comp.glsl"),
-                    Path.of(installPath, "EntityShader.comp.glsl").toAbsolutePath());
+            Files.copy(Path.of("./natives/win/src/Shaders.glsl"),
+                    Path.of(installPath, "Shaders.glsl").toAbsolutePath());
+            Files.copy(Path.of("./natives/win/src/EntityShader.glsl"),
+                    Path.of(installPath, "EntityShader.glsl").toAbsolutePath());
         }
         Files.copy(internalConfig.toPath(), Path.of(installPath, "internal_config.json").toAbsolutePath());
         deepCopy(Path.of("./texture"), Path.of(installPath, "texture"));

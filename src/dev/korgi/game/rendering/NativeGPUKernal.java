@@ -98,8 +98,8 @@ public class NativeGPUKernal {
             path += "/Shaders.metallib";
             path2 += "/EntityShader.metallib";
         } else if (os.contains("win")) {
-            path += "\\Shaders.comp.glsl";
-            path2 += "\\EntityShader.comp.glsl";
+            path += "\\Shaders.glsl";
+            path2 += "\\EntityShader.glsl";
         }
     }
 
