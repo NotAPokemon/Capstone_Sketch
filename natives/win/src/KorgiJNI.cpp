@@ -169,16 +169,12 @@ struct BVHNodeC
 
 struct EntityParams
 {
-    float cam[3];
-    float tanFov;
-    float forward[3];
-    int32_t entityCount;
-    float right[3];
-    int32_t totalVoxels;
-    float up[3];
-    int32_t width;
-    int32_t height;
-    int32_t pad0, pad1;
+    float cam[4];
+    float forward[4];
+    float right[4];
+    float up[4];
+    float misc0[4];
+    float misc1[4];
 };
 
 extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
@@ -312,134 +308,163 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKerna
     jintArray textureAtlas,
     jstring path)
 {
-    if (!initGL(w, h))
-        return;
+    if (!initGL(w, h)) return;
 
     if (!entityProgram)
     {
         entityProgram = compileComputeShader(toString(env, path));
-        if (!entityProgram)
-            return;
+        if (!entityProgram) return;
     }
 
-    jint *pixelsPtr = (jint *)env->GetPrimitiveArrayCritical(pixels, nullptr);
-    jfloat *camPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(camPos, nullptr);
-    jfloat *camFwdPtr = (jfloat *)env->GetPrimitiveArrayCritical(camFwd, nullptr);
-    jfloat *camRightPtr = (jfloat *)env->GetPrimitiveArrayCritical(camRight, nullptr);
-    jfloat *camUpPtr = (jfloat *)env->GetPrimitiveArrayCritical(camUp, nullptr);
-    jfloat *entPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(entPositions, nullptr);
-    jfloat *entRotPtr = (jfloat *)env->GetPrimitiveArrayCritical(entRotations, nullptr);
-    jfloat *entRaddiPtr = (jfloat *)env->GetPrimitiveArrayCritical(entRaddi, nullptr);
-    jint *entOffsetPtr = (jint *)env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
-    jint *entBvhOffPtr = (jint *)env->GetPrimitiveArrayCritical(entBvhOffsets, nullptr);
-    jfloat *bvPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvPositions, nullptr);
-    jfloat *bvSizePtr = (jfloat *)env->GetPrimitiveArrayCritical(bvSizes, nullptr);
-    jint *bvColorPtr = (jint *)env->GetPrimitiveArrayCritical(bvColors, nullptr);
-    jfloat *bvOpacityPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvOpacities, nullptr);
-    jint *bvTexIdPtr = (jint *)env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
-    jfloat *bvhMinsPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvhMins, nullptr);
-    jfloat *bvhMaxsPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvhMaxs, nullptr);
-    jint *bvhLinksPtr = (jint *)env->GetPrimitiveArrayCritical(bvhLinks, nullptr);
-    jint *atlasPtr = (jint *)env->GetPrimitiveArrayCritical(textureAtlas, nullptr);
+    jint *pixelsPtr = (jint*)env->GetPrimitiveArrayCritical(pixels, nullptr);
 
+    jfloat *camPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(camPos, nullptr);
+    jfloat *camFwdPtr = (jfloat*)env->GetPrimitiveArrayCritical(camFwd, nullptr);
+    jfloat *camRightPtr = (jfloat*)env->GetPrimitiveArrayCritical(camRight, nullptr);
+    jfloat *camUpPtr = (jfloat*)env->GetPrimitiveArrayCritical(camUp, nullptr);
+
+    jfloat *entPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(entPositions, nullptr);
+    jfloat *entRotPtr = (jfloat*)env->GetPrimitiveArrayCritical(entRotations, nullptr);
+    jfloat *entRadPtr = (jfloat*)env->GetPrimitiveArrayCritical(entRaddi, nullptr);
+
+    jint *entVoxelOffPtr = (jint*)env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
+    jint *entBvhOffPtr = (jint*)env->GetPrimitiveArrayCritical(entBvhOffsets, nullptr);
+
+    jfloat *bvPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvPositions, nullptr);
+    jfloat *bvSizePtr = (jfloat*)env->GetPrimitiveArrayCritical(bvSizes, nullptr);
+    jint *bvColorPtr = (jint*)env->GetPrimitiveArrayCritical(bvColors, nullptr);
+    jfloat *bvOpPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvOpacities, nullptr);
+    jint *bvTexPtr = (jint*)env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
+
+    jfloat *bvhMinPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvhMins, nullptr);
+    jfloat *bvhMaxPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvhMaxs, nullptr);
+    jint *bvhLinkPtr = (jint*)env->GetPrimitiveArrayCritical(bvhLinks, nullptr);
+
+    jint *atlasPtr = (jint*)env->GetPrimitiveArrayCritical(textureAtlas, nullptr);
     jsize atlasLength = env->GetArrayLength(textureAtlas);
 
-    std::vector<EntityHeaderC> headers(entityCount);
+    std::vector<int> headers(entityCount * 16);
+
     for (int i = 0; i < entityCount; i++)
     {
-        EntityHeaderC &hdr = headers[i];
-        hdr.wx = entPosPtr[i * 3];
-        hdr.wy = entPosPtr[i * 3 + 1];
-        hdr.wz = entPosPtr[i * 3 + 2];
-        hdr.voxelOffset = entOffsetPtr[i * 2];
-        hdr.voxelCount = entOffsetPtr[i * 2 + 1];
-        memcpy(hdr.rot, &entRotPtr[i * 9], sizeof(float) * 9);
-        hdr.radius = entRaddiPtr[i];
-        hdr.bvhOffset = entBvhOffPtr[i];
-        hdr.pad1 = 0;
+        int base = i * 16;
+
+        headers[base + 0] = *(int*)&entPosPtr[i * 3 + 0];
+        headers[base + 1] = *(int*)&entPosPtr[i * 3 + 1];
+        headers[base + 2] = *(int*)&entPosPtr[i * 3 + 2];
+
+        headers[base + 3] = entVoxelOffPtr[i * 2];
+        headers[base + 4] = entVoxelOffPtr[i * 2 + 1];
+
+        for (int r = 0; r < 9; r++)
+            headers[base + 5 + r] = *(int*)&entRotPtr[i * 9 + r];
+
+        headers[base + 14] = *(int*)&entRadPtr[i];
+        headers[base + 15] = entBvhOffPtr[i];
     }
 
-    std::vector<BVHotC> hotVoxels(totalVoxels);
-    std::vector<BVColdC> coldVoxels(totalVoxels);
+    std::vector<float> hot(totalVoxels * 4);
     for (int i = 0; i < totalVoxels; i++)
     {
-        hotVoxels[i] = {bvPosPtr[i * 3], bvPosPtr[i * 3 + 1], bvPosPtr[i * 3 + 2], bvSizePtr[i]};
-        coldVoxels[i] = {bvColorPtr[i], bvOpacityPtr[i], bvTexIdPtr[i], 0};
+        hot[i * 4 + 0] = bvPosPtr[i * 3 + 0];
+        hot[i * 4 + 1] = bvPosPtr[i * 3 + 1];
+        hot[i * 4 + 2] = bvPosPtr[i * 3 + 2];
+        hot[i * 4 + 3] = bvSizePtr[i];
     }
 
-    std::vector<BVHNodeC> bvhNodes(totalBvhNodes);
+
+    std::vector<int> cold(totalVoxels * 4);
+    for (int i = 0; i < totalVoxels; i++)
+    {
+        cold[i * 4 + 0] = bvColorPtr[i];
+        cold[i * 4 + 1] = *(int*)&bvOpPtr[i];
+        cold[i * 4 + 2] = bvTexPtr[i];
+        cold[i * 4 + 3] = 0;
+    }
+
+
+    std::vector<int> nodes(totalBvhNodes * 12);
     for (int i = 0; i < totalBvhNodes; i++)
     {
-        BVHNodeC &node = bvhNodes[i];
-        node.aabbMinX = bvhMinsPtr[i * 3];
-        node.aabbMinY = bvhMinsPtr[i * 3 + 1];
-        node.aabbMinZ = bvhMinsPtr[i * 3 + 2];
-        node.aabbMaxX = bvhMaxsPtr[i * 3];
-        node.aabbMaxY = bvhMaxsPtr[i * 3 + 1];
-        node.aabbMaxZ = bvhMaxsPtr[i * 3 + 2];
-        node.leftChild = bvhLinksPtr[i * 3];
-        node.rightChild = bvhLinksPtr[i * 3 + 1];
-        node.voxelIndex = bvhLinksPtr[i * 3 + 2];
-        node.pad0 = node.pad1 = node.pad2 = 0;
+        int base = i * 12;
+
+        nodes[base + 0] = *(int*)&bvhMinPtr[i * 3 + 0];
+        nodes[base + 1] = *(int*)&bvhMinPtr[i * 3 + 1];
+        nodes[base + 2] = *(int*)&bvhMinPtr[i * 3 + 2];
+
+        nodes[base + 3] = bvhLinkPtr[i * 3 + 0];
+
+        nodes[base + 4] = *(int*)&bvhMaxPtr[i * 3 + 0];
+        nodes[base + 5] = *(int*)&bvhMaxPtr[i * 3 + 1];
+        nodes[base + 6] = *(int*)&bvhMaxPtr[i * 3 + 2];
+
+        nodes[base + 7] = bvhLinkPtr[i * 3 + 1];
+        nodes[base + 8] = bvhLinkPtr[i * 3 + 2];
+
+        nodes[base + 9]  = 0;
+        nodes[base + 10] = 0;
+        nodes[base + 11] = 0;
     }
 
-    EntityParams params;
+    EntityParams params{};
     params.cam[0] = camPosPtr[0];
     params.cam[1] = camPosPtr[1];
     params.cam[2] = camPosPtr[2];
+
     params.forward[0] = camFwdPtr[0];
     params.forward[1] = camFwdPtr[1];
     params.forward[2] = camFwdPtr[2];
+
     params.right[0] = camRightPtr[0];
     params.right[1] = camRightPtr[1];
     params.right[2] = camRightPtr[2];
+
     params.up[0] = camUpPtr[0];
     params.up[1] = camUpPtr[1];
     params.up[2] = camUpPtr[2];
-    params.tanFov = tanFov;
-    params.entityCount = (int32_t)entityCount;
-    params.totalVoxels = (int32_t)totalVoxels;
-    params.width = (int32_t)w;
-    params.height = (int32_t)h;
-    params.pad0 = params.pad1 = 0;
 
-    env->ReleasePrimitiveArrayCritical(entPositions, entPosPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(entRotations, entRotPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(entRaddi, entRaddiPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(entVoxelOffsets, entOffsetPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(entBvhOffsets, entBvhOffPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvPositions, bvPosPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvSizes, bvSizePtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvColors, bvColorPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvOpacities, bvOpacityPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvTextureIds, bvTexIdPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvhMins, bvhMinsPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvhMaxs, bvhMaxsPtr, JNI_ABORT);
-    env->ReleasePrimitiveArrayCritical(bvhLinks, bvhLinksPtr, JNI_ABORT);
+    params.misc0[0] = tanFov;
+    params.misc0[1] = (float)entityCount;
+    params.misc0[2] = (float)totalVoxels;
+
+    params.misc1[0] = (float)w;
+    params.misc1[1] = (float)h;
+
+    env->ReleasePrimitiveArrayCritical(pixels, pixelsPtr, 0);
+
     env->ReleasePrimitiveArrayCritical(camPos, camPosPtr, JNI_ABORT);
     env->ReleasePrimitiveArrayCritical(camFwd, camFwdPtr, JNI_ABORT);
     env->ReleasePrimitiveArrayCritical(camRight, camRightPtr, JNI_ABORT);
     env->ReleasePrimitiveArrayCritical(camUp, camUpPtr, JNI_ABORT);
 
-    uploadSSBO(entityPixelsBuffer, sizeof(jint) * w * h, pixelsPtr);
-    uploadSSBO(entHeaderBuffer, sizeof(EntityHeaderC) * entityCount, headers.data());
-    uploadSSBO(bvHotBuffer, sizeof(BVHotC) * totalVoxels, hotVoxels.data());
-    uploadSSBO(bvColdBuffer, sizeof(BVColdC) * totalVoxels, coldVoxels.data());
-    uploadSSBO(bvhNodeBuffer, sizeof(BVHNodeC) * totalBvhNodes, bvhNodes.data());
-    uploadSSBO(entityAtlasBuffer, sizeof(jint) * atlasLength, atlasPtr);
-    uploadSSBO(entityParamsBuffer, sizeof(EntityParams), &params);
+    env->ReleasePrimitiveArrayCritical(entPositions, entPosPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(entRotations, entRotPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(entRaddi, entRadPtr, JNI_ABORT);
+
+    env->ReleasePrimitiveArrayCritical(entVoxelOffsets, entVoxelOffPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(entBvhOffsets, entBvhOffPtr, JNI_ABORT);
+
+    env->ReleasePrimitiveArrayCritical(bvPositions, bvPosPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvSizes, bvSizePtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvColors, bvColorPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvOpacities, bvOpPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvTextureIds, bvTexPtr, JNI_ABORT);
+
+    env->ReleasePrimitiveArrayCritical(bvhMins, bvhMinPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvhMaxs, bvhMaxPtr, JNI_ABORT);
+    env->ReleasePrimitiveArrayCritical(bvhLinks, bvhLinkPtr, JNI_ABORT);
 
     env->ReleasePrimitiveArrayCritical(textureAtlas, atlasPtr, JNI_ABORT);
 
-    if (!tBuffer)
-    {
-        glGenBuffers(1, &tBuffer);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, tBuffer);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(float) * w * h, nullptr, GL_DYNAMIC_DRAW);
-    }
+    uploadSSBO(entityPixelsBuffer, sizeof(jint) * w * h, pixelsPtr);
+    uploadSSBO(entHeaderBuffer, sizeof(int) * headers.size(), headers.data());
+    uploadSSBO(bvHotBuffer, sizeof(float) * hot.size(), hot.data());
+    uploadSSBO(bvColdBuffer, sizeof(int) * cold.size(), cold.data());
+    uploadSSBO(bvhNodeBuffer, sizeof(int) * nodes.size(), nodes.data());
+    uploadSSBO(entityAtlasBuffer, sizeof(jint) * atlasLength, atlasPtr);
+    uploadSSBO(entityParamsBuffer, sizeof(EntityParams), &params);
 
     glUseProgram(entityProgram);
-
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, entityPixelsBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, entityParamsBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, entHeaderBuffer);
@@ -449,9 +474,10 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKerna
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, tBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, bvhNodeBuffer);
 
-    GLuint groupsX = ((GLuint)w + 7) / 8;
-    GLuint groupsY = ((GLuint)h + 7) / 8;
-    glDispatchCompute(groupsX, groupsY, 1);
+    GLuint gx = (w + 7) / 8;
+    GLuint gy = (h + 7) / 8;
+
+    glDispatchCompute(gx, gy, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, entityPixelsBuffer);

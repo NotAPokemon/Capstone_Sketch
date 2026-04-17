@@ -5,12 +5,12 @@ layout(local_size_x = 8, local_size_y = 8) in;
 layout(std430, binding = 0) buffer Pixels { int pixels[]; };
 
 layout(std430, binding = 1) buffer Params {
-    vec3 cam; float tanFov;
-    vec3 fwd; int entityCount;
-    vec3 right; int totalVoxels;
-    vec3 up; int screenW;
-    int screenH;
-    int pad0; intpad1;
+    vec4 cam;
+    vec4 fwd;
+    vec4 right;
+    vec4 up;
+    vec4 misc0;
+    vec4 misc1;
 };
 
 layout(std430, binding = 2) buffer Headers {
@@ -57,14 +57,6 @@ float hotSize(int base, int vi) { return bvHotData[(base+vi)*BVHOT_STRIDE + 3]; 
 int coldColor(int base, int vi) { return bvColdData[(base+vi)*BVCOLD_STRIDE]; }
 float coldOpacity(int base, int vi) { return intBitsToFloat(bvColdData[(base+vi)*BVCOLD_STRIDE + 1]); }
 int coldTexId(int base, int vi) { return bvColdData[(base+vi)*BVCOLD_STRIDE + 2]; }
-
-vec3 unpackRGB(int packed) {
-    return vec3(
-        float((packed >> 16) & 0xFF) / 255.0,
-        float((packed >> 8) & 0xFF) / 255.0,
-        float(packed & 0xFF) / 255.0
-    );
-}
 
 int packARGB(vec3 c, float a) {
     return (int(clamp(a, 0.0, 1.0) * 255.0) << 24)
@@ -128,16 +120,31 @@ float faceLighting(int face) {
 
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    
+    int screenW = int(misc1.x);
+    int screenH = int(misc1.y);
+
     if (gid.x >= screenW || gid.y >= screenH) return;
+
+    float tanFov = misc0.x;
+    int entityCount = int(misc0.y);
+    int totalVoxels = int(misc0.z);
+
+    
 
     float aspect = float(screenW) / float(screenH);
     float ndcX = ((float(gid.x) + 0.5) / float(screenW) * 2.0 - 1.0) * tanFov * aspect;
     float ndcY = -((float(gid.y) + 0.5) / float(screenH) * 2.0 - 1.0) * tanFov;
-    vec3 worldRd = normalize(fwd + ndcX * right + ndcY * up);
+    vec3 worldRd = normalize(fwd.xyz + ndcX * right.xyz + ndcY * up.xyz);
 
     int pixIdx = gid.y * screenW + gid.x;
     int bg = pixels[pixIdx];
-    vec3 outColor = unpackRGB(bg);
+    vec3 outColor = vec3(
+        float((bg >> 16) & 0xFF) / 255.0,
+        float((bg >> 8) & 0xFF) / 255.0,
+        float(bg & 0xFF) / 255.0        
+    );
+
     float outAlpha = float((bg >> 24) & 0xFF) / 255.0;
 
     float tVal = 1e20;
@@ -148,7 +155,7 @@ void main() {
         int voxBase = entVoxOffset(e);
         int bvhBase = entBvhOffset(e);
 
-        vec3 localRo = rotateInv(e, cam - entPos);
+        vec3 localRo = rotateInv(e, cam.xyz - entPos);
         vec3 localRd = rotateInv(e, worldRd);
         float b = dot(localRo, localRd);
         float c = dot(localRo, localRo) - radius * radius;
@@ -196,7 +203,7 @@ void main() {
             entRot(e,1)*hitLocal.x + entRot(e,4)*hitLocal.y + entRot(e,7)*hitLocal.z,
             entRot(e,2)*hitLocal.x + entRot(e,5)*hitLocal.y + entRot(e,8)*hitLocal.z
         );
-        float worldT = dot(hitWorld - cam, worldRd);
+        float worldT = dot(hitWorld - cam.xyz, worldRd);
 
         if (worldT < tVal) {
             tVal = worldT;
@@ -207,7 +214,11 @@ void main() {
             int col = coldColor(voxBase, bestVox);
             alpha = coldOpacity(voxBase, bestVox);
 
-            voxColor = (texId < 0) ? unpackRGB(col) : vec3(1.0);
+            voxColor = (texId < 0) ? vec3(
+                float((col >> 16) & 0xFF) / 255.0,
+                float((col >> 8) & 0xFF) / 255.0,
+                float(col & 0xFF) / 255.0
+            ) : vec3(1.0);
             voxColor *= faceLighting(bestFace);
 
             outColor = voxColor * alpha + outColor * (1.0 - alpha);
