@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.Game;
+import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
 import dev.korgi.game.ui.elements.UI;
@@ -46,7 +47,7 @@ public class Screen extends PApplet {
     public PFont fontSans11, fontSans12, fontSans13, fontSans14, fontSans20, fontSans22, fontSans28;
 
     private enum MenuState {
-        SELECTOR, CONFIG, GAME
+        SELECTOR, CONFIG, GAME, LOADING
     }
 
     private MenuState menuState = MenuState.SELECTOR;
@@ -159,17 +160,88 @@ public class Screen extends PApplet {
 
     }
 
+    private void initalizeGame() {
+        new Thread(() -> {
+            try {
+                menuState = MenuState.LOADING;
+                Game.init();
+                while (!Game.isInitialized()) {
+                    Game.networkStartLoop();
+                    WorldEngine.updateClient();
+                    Game.networkEndLoop();
+                }
+                menuState = MenuState.GAME;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, "intialize-game").start();
+    }
+
     @Override
     public void draw() {
         if (!Game.isInitialized()) {
             if (menuState == MenuState.CONFIG) {
                 drawConfigMenu();
+            } else if (menuState == MenuState.LOADING) {
+                drawLoadingScreen();
             } else {
                 drawSelector();
             }
             return;
         }
         Game.loop(this);
+    }
+
+    private void drawLoadingScreen() {
+        background(BG_DARK);
+        drawGrid();
+
+        int cx = width / 2;
+        int cy = height / 2;
+
+        int spokes = 12;
+        float angleStep = TWO_PI / spokes;
+        float t = (float) (millis() % 1000) / 1000f;
+
+        strokeWeight(2.5f);
+        noFill();
+        for (int i = 0; i < spokes; i++) {
+            float angle = i * angleStep - HALF_PI;
+            float spokeFade = ((i / (float) spokes) - t + 1f) % 1f;
+            int alpha = (int) (spokeFade * 220);
+            stroke(ACCENT & 0x00FFFFFF | (alpha << 24));
+            float inner = 22, outer = 34;
+            line(
+                    cx + cos(angle) * inner, cy + sin(angle) * inner,
+                    cx + cos(angle) * outer, cy + sin(angle) * outer);
+        }
+        noStroke();
+
+        String dots = ".".repeat((int) ((millis() / 400) % 4));
+        fill(TEXT_DIM);
+        textFont(fontSans13);
+        textAlign(CENTER, TOP);
+        text("Loading" + dots, cx, cy + 70);
+
+        float progress = (float) ((millis() % 3000) / 3000.0);
+        progress = Game.getInitProgress();
+
+        int barW = 240, barH = 3;
+        int barX = cx - barW / 2, barY = cy + 100;
+
+        noStroke();
+        fill(BORDER);
+        rect(barX, barY, barW, barH, barH / 2f);
+
+        fill(ACCENT_DIM);
+        rect(barX, barY, barW * progress, barH, barH / 2f);
+
+        if (progress > 0.02f) {
+            fill(ACCENT);
+            ellipse(barX + barW * progress, barY + barH / 2f, 6, 6);
+        }
+
+        drawMessageBanner();
     }
 
     private void drawSelector() {
@@ -445,11 +517,20 @@ public class Screen extends PApplet {
     @Override
     @ClientSide
     public void focusLost() {
-        if (!Game.isClient)
+        if (!Game.isClient || !Game.isInitialized()) {
             return;
+        }
         Player client = Game.getClient();
         if (client != null)
             client.pressedKeys.clear();
+        cursor();
+    }
+
+    @Override
+    public void focusGained() {
+        if (Game.isClient && Game.isInitialized()) {
+            noCursor();
+        }
     }
 
     @ClientSide
@@ -545,9 +626,11 @@ public class Screen extends PApplet {
     private void launchGame(boolean asClient) {
         try {
             Game.isClient = asClient;
+
             if (asClient)
                 NativeGPUKernal.loadTextureMap();
-            Game.init();
+            initalizeGame();
+
         } catch (Exception e) {
             e.printStackTrace();
             showMessage("Failed to start: " + e.getMessage(), 180);

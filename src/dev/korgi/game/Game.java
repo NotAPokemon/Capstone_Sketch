@@ -55,13 +55,21 @@ public class Game {
         Entity.register(JimmyItem.class.getSimpleName(), JimmyItem::new);
     }
 
+    private static float initProgress = 0;
+
+    public static float getInitProgress() {
+        return initProgress;
+    }
+
     public static void init() throws IOException {
 
         loadEntities();
+        initProgress += 0.05;
 
         lastTime = System.nanoTime();
         if (isClient) {
             NetworkStream.startClient(config.getString("ip"), config.getInt("port"));
+            initProgress += 0.2;
             JSONObject obj = new JSONObject();
             obj.addBoolean("full", true);
             obj.addString("id", NetworkStream.clientId);
@@ -70,11 +78,19 @@ public class Game {
             NetworkStream.sendPacket(worldRequest);
             NativeGPUKernal.render_dist = config.getInt("render_dist");
             Graphics.camera.fov = config.getFloat("fov");
+            initProgress += 0.8;
         } else {
             NetworkStream.startServer(config.getInt("port"));
+            initProgress += 0.45;
             WorldEngine.init();
+            initProgress += 0.5;
+            initialized = true;
         }
+    }
+
+    public static void forceCompleteInit() {
         initialized = true;
+        initProgress = 1;
     }
 
     public static List<Player> getPlayers() {

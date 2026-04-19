@@ -70,7 +70,7 @@ public abstract class NetworkObject {
 
     }
 
-    private void handleInPacket(Packet in) {
+    protected void handleInPacket(Packet in) {
         Class<?> clazz = this.getClass();
         List<Field> fields = new ArrayList<>();
         while (clazz != null && clazz != Object.class) {

@@ -14,6 +14,7 @@ import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.player.Player;
+import dev.korgi.utils.ClientSide;
 
 public class WorldEngine {
 
@@ -65,6 +66,7 @@ public class WorldEngine {
         addVoxel(v);
     }
 
+    @ClientSide
     public static void updateClient() {
         List<Packet> inPackets = NetworkStream.getAllPackets("world", true);
         for (Packet in : inPackets) {
@@ -73,7 +75,15 @@ public class WorldEngine {
             obj.addBoolean("full", false);
             if (obj.getBoolean("full")) {
                 JSONObject w = obj.getJSONObject("obj");
-                w.fillObject(world);
+                int vcount = w.getInt("vcount");
+
+                for (int i = 0; i < vcount; i++) {
+                    JSONObject vObj = w.getJSONObject("v%d".formatted(i));
+                    Voxel v = new Voxel();
+                    vObj.fillObject(v);
+                    addVoxel(v);
+                }
+
                 int ecount = obj.getInt("ecount");
 
                 for (int i = 0; i < ecount; i++) {
@@ -86,7 +96,11 @@ public class WorldEngine {
                     eObj.fillObject(e);
                     addEntity(e);
                 }
-
+                if (w.getBoolean("done")) {
+                    Game.forceCompleteInit();
+                } else {
+                    NetworkStream.sendPacket(in);
+                }
                 return;
             }
 
@@ -175,20 +189,46 @@ public class WorldEngine {
         }
     }
 
+    private static final int maxNetworkVoxelLoad = 5000;
+
     public static void execute() {
         List<Packet> in = NetworkStream.getAllPackets("world", false);
         for (Packet p : in) {
             JSONObject data = p.getData();
             data.addBoolean("full", false);
             if (data.getBoolean("full")) {
-                data.set("obj", world);
+                JSONObject voxelData = new JSONObject();
+                if (data.hasKey("obj")) {
+                    voxelData = data.getJSONObject("obj");
+                }
+                int total = Math.max(1, (world.voxels.size() + maxNetworkVoxelLoad - 1) / maxNetworkVoxelLoad);
+                voxelData.addInt("total", total);
+                voxelData.addInt("progress", 0);
+
+                List<Voxel> vs = world.getFlat();
+
+                int page = maxNetworkVoxelLoad * voxelData.getInt("progress");
+
+                int vcount = Math.min(world.voxels.size() - page, maxNetworkVoxelLoad);
+                voxelData.set("vcount", vcount);
+
+                for (int i = page; i < page + vcount; i++) {
+                    voxelData.set("v%d".formatted(i - page), vs.get(i));
+                }
+
+                voxelData.set("progress", voxelData.getInt("progress") + 1);
+                voxelData.set("done", voxelData.getInt("progress") == voxelData.getInt("total"));
+                data.set("obj", voxelData);
+
                 int c = 0;
-                for (Entity e : world.entities) {
-                    if (e instanceof Player || e == null) {
-                        continue;
+                if (voxelData.getBoolean("done")) {
+                    for (Entity e : world.entities) {
+                        if (e instanceof Player || e == null) {
+                            continue;
+                        }
+                        data.set("e%d".formatted(c), e);
+                        c++;
                     }
-                    data.set("e%d".formatted(c), e);
-                    c++;
                 }
                 data.set("ecount", c);
                 Packet fufillRequest = new Packet("world", NetworkStream.CLIENT, NetworkStream.PRIVATE_MESSAGE,
@@ -214,8 +254,8 @@ public class WorldEngine {
 
         if (world.updated) {
             JSONObject outData = new JSONObject();
-            int tou = Math.max(Math.min(world.updates.size(), 5000), 0);
-            int tor = Math.max(Math.min(world.removes.size(), 5000), 0);
+            int tou = Math.max(Math.min(world.updates.size(), maxNetworkVoxelLoad), 0);
+            int tor = Math.max(Math.min(world.removes.size(), maxNetworkVoxelLoad), 0);
             List<Voxel> u = world.updates.subList(0, tou);
             List<Vector3> r = world.removes.subList(0, tor);
             outData.set("uc", u.size());

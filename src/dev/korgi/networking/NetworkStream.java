@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import dev.korgi.game.Game;
 import dev.korgi.json.JSONObject;
 import dev.korgi.player.Player;
+import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ServerSide;
 
 public class NetworkStream {
 
@@ -48,7 +50,9 @@ public class NetworkStream {
     public static final List<Packet> serverPackets = new ArrayList<>();
     public static final List<Packet> clientPackets = new ArrayList<>();
 
+    @ServerSide
     private static ServerSocket serverSocket;
+    @ClientSide
     private static Socket clientSocket;
 
     private static final Map<String, Socket> clientSockets = new HashMap<>();
@@ -57,6 +61,7 @@ public class NetworkStream {
     private static final Map<Socket, Long> pendingSince = new HashMap<>();
     private static final Map<String, Long> lastPing = new HashMap<>();
 
+    @ClientSide
     public static String clientId = null;
     private static long lastPingSent = 0;
     private static long lastRoundTripPing = -1;
@@ -65,6 +70,9 @@ public class NetworkStream {
     public static double packetCount = 0;
 
     private static final Queue<Incoming> incoming = new ConcurrentLinkedQueue<>();
+
+    private NetworkStream() {
+    };
 
     private static class Incoming {
         Socket socket;
@@ -76,12 +84,14 @@ public class NetworkStream {
         }
     }
 
+    @ServerSide
     public static void startServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
         serverSocket.setSoTimeout(1);
         System.out.println("Server listening on port " + port);
     }
 
+    @ClientSide
     public static void startClient(String host, int port) throws IOException {
         clientSocket = new Socket(host, port);
         new Thread(() -> listenSocket(clientSocket)).start();
@@ -100,9 +110,6 @@ public class NetworkStream {
         lastPingSent = timestamp;
     }
 
-    // ========================
-    // Tick update
-    // ========================
     public static void update(boolean isServer) {
         try {
             if (isServer && serverSocket != null) {
@@ -149,7 +156,6 @@ public class NetworkStream {
         try {
             String json = new JSONObject(packet).toJSONString();
 
-            // BROADCAST handling
             if (packet.getType() == BROADCAST && packet.getDestination() == CLIENT) {
                 for (Socket s : clientSockets.values())
                     sendString(s, json);
@@ -188,9 +194,6 @@ public class NetworkStream {
         out.println(msg);
     }
 
-    // ========================
-    // Receiving
-    // ========================
     private static void acceptPacket(Socket socket, String packetString) {
         JSONObject obj = JSONObject.fromJSONString(packetString);
         Packet packet = new Packet(
@@ -209,7 +212,6 @@ public class NetworkStream {
     }
 
     private static boolean handleProtocolPackets(Socket socket, Packet packet, JSONObject raw) {
-        // HANDSHAKE REQUEST (server side)
         if (packet.getType() == HANDSHAKE_REQUEST) {
             if (!pendingSockets.contains(socket))
                 return true;
@@ -235,7 +237,6 @@ public class NetworkStream {
             return true;
         }
 
-        // HANDSHAKE RESPONSE (client side)
         if (packet.getType() == HANDSHAKE_RESPONSE) {
             boolean ok = raw.getJSONObject("data").getBoolean("accepted");
             if (!ok) {
@@ -248,7 +249,6 @@ public class NetworkStream {
             return true;
         }
 
-        // PING
         if (packet.getType() == PING) {
             if (Game.isClient) {
                 JSONObject data = packet.getData();
@@ -270,7 +270,6 @@ public class NetworkStream {
             return true;
         }
 
-        // DISCONNECT
         if (packet.getType() == DISCONNECT) {
             disconnectClient(packet.getInternalId());
             return true;
