@@ -27,7 +27,6 @@ import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
-import dev.korgi.utils.InstallConstants;
 import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
 import processing.core.PApplet;
@@ -248,9 +247,6 @@ public class Player extends Entity implements StorageEntity {
                     WorldEngine.addVoxelWithTexture(newPos, selectedBlock);
                 }
             }, 5);
-            if (InstallConstants.dev) {
-                return;
-            }
             withHeldItem((itm) -> {
                 itm.rmb();
             });
@@ -260,9 +256,6 @@ public class Player extends Entity implements StorageEntity {
                 Vector3 breakPos = hit.getVoxelPos();
                 WorldEngine.removeVoxel(WorldEngine.voxelAt(breakPos));
             }, 5);
-            if (InstallConstants.dev) {
-                return;
-            }
             withHeldItem((itm) -> {
                 itm.lmb();
             });

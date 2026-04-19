@@ -50,6 +50,10 @@
         "variant": "cpp",
         "vector": "cpp",
         "algorithm": "cpp"
+    },
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always"
     }
 
 }
