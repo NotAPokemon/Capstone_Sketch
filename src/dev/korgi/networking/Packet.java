@@ -33,4 +33,12 @@ public class Packet {
         return data;
     }
 
+    public void setDestination(int destination) {
+        this.destination = destination;
+    }
+
+    public void setType(int type) {
+        this.type = type;
+    }
+
 }

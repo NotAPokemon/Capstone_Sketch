@@ -465,8 +465,13 @@ public class Screen extends PApplet {
         }
     }
 
+    private boolean cursorEnabled;
+
     @ClientSide
     public void handleMouseMovement() {
+        if (cursorEnabled) {
+            return;
+        }
         noCursor();
         Point p = ((Component) surface.getNative()).getLocationOnScreen();
         if (firstMouse) {
@@ -524,6 +529,7 @@ public class Screen extends PApplet {
         if (client != null)
             client.pressedKeys.clear();
         cursor();
+        cursorEnabled = true;
     }
 
     @Override
@@ -531,6 +537,7 @@ public class Screen extends PApplet {
         if (Game.isClient && Game.isInitialized()) {
             noCursor();
         }
+        cursorEnabled = false;
     }
 
     @ClientSide
@@ -564,6 +571,9 @@ public class Screen extends PApplet {
 
     @Override
     public void mousePressed() {
+        if (menuState == MenuState.LOADING) {
+            return;
+        }
         if (!Game.isInitialized()) {
             if (menuState == MenuState.CONFIG) {
                 handleConfigClick();

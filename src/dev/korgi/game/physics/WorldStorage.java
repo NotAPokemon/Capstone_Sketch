@@ -2,6 +2,7 @@ package dev.korgi.game.physics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ import dev.korgi.math.Vector3;
 public class WorldStorage {
 
     @JSONFillOverride("overrideVoxelFill")
-    public HashMap<Long, Voxel> voxels = new HashMap<>();
+    public HashMap<Long, Voxel> voxels = new LinkedHashMap<>();
 
     @JSONIgnore
     public List<Entity> entities = new ArrayList<>();

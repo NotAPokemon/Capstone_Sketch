@@ -212,9 +212,10 @@ public abstract class Entity extends NetworkObject {
         position.addTo(velocity.multiply(dt));
         WorldEngine.validatePosition(this);
 
-        if (position.y < -70 && WorldEngine.getWorld().getFlat().size() > 0) {
-            position.copyFrom(WorldEngine.getWorld().getFlat().get(0).position.add(VectorConstants.HALF)
-                    .addTo(VectorConstants.UP.multiply(2))).addTo(VectorConstants.UP);
+        if (position.y < -70 && WorldEngine.getWorld().voxels.size() > 0) {
+            position.copyFrom(
+                    WorldEngine.getWorld().voxels.values().stream().toList().get(0).position.add(VectorConstants.HALF)
+                            .addTo(VectorConstants.UP.multiply(3)));
             velocity.copyFrom(VectorConstants.ZERO);
             rotation.copyFrom(VectorConstants.ZERO);
         }

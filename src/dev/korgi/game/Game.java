@@ -61,10 +61,13 @@ public class Game {
         return initProgress;
     }
 
+    public static void setInitProgress(float initProgress) {
+        Game.initProgress = initProgress;
+    }
+
     public static void init() throws IOException {
 
         loadEntities();
-        initProgress += 0.05;
 
         lastTime = System.nanoTime();
         if (isClient) {
@@ -78,13 +81,12 @@ public class Game {
             NetworkStream.sendPacket(worldRequest);
             NativeGPUKernal.render_dist = config.getInt("render_dist");
             Graphics.camera.fov = config.getFloat("fov");
-            initProgress += 0.8;
+            initProgress += 0.1;
         } else {
             NetworkStream.startServer(config.getInt("port"));
-            initProgress += 0.45;
-            WorldEngine.init();
             initProgress += 0.5;
-            initialized = true;
+            WorldEngine.init();
+            forceCompleteInit();
         }
     }
 

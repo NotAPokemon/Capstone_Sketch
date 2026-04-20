@@ -1,5 +1,6 @@
 package dev.korgi.game.physics;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.Game;
@@ -26,13 +27,15 @@ public class WorldEngine {
     public static void init() {
         Vector4 color = new Vector4(Vector3.random());
         double opacity = Math.random();
-        for (int x = 0; x < 10; x++) {
-            for (int z = 0; z < 10; z++) {
+        int xtotal = 1000;
+        int ztotal = 994;
+        for (int x = 0; x < xtotal; x++) {
+            for (int z = 0; z < ztotal; z++) {
                 Voxel v = new Voxel(x, -5, z, color);
                 v.getMaterial().setOpacity(opacity);
                 v.getMaterial().setTextureLocation(0);
                 addVoxel(v);
-                world.updates.add(v);
+                Game.setInitProgress(0.5f * ((float) (x * ztotal + z) / (float) (xtotal * ztotal)) + 0.5f);
             }
         }
         jimmy = new Jimmy();
@@ -42,6 +45,8 @@ public class WorldEngine {
         JimmyItem jimmyItem = new JimmyItem();
         jimmyItem.getPosition().copyFrom(6, -1, 6);
         addEntity(jimmyItem);
+        world.updated = false;
+        world.updates.clear();
     }
 
     public static void addEntity(Entity e) {
@@ -66,9 +71,15 @@ public class WorldEngine {
         addVoxel(v);
     }
 
+    private static List<Packet> onHold = new ArrayList<>();
+
     @ClientSide
     public static void updateClient() {
         List<Packet> inPackets = NetworkStream.getAllPackets("world", true);
+        if (Game.isInitialized() && !onHold.isEmpty()) {
+            inPackets.addAll(onHold);
+            onHold.clear();
+        }
         for (Packet in : inPackets) {
             JSONObject obj = in.getData();
 
@@ -77,11 +88,18 @@ public class WorldEngine {
                 JSONObject w = obj.getJSONObject("obj");
                 int vcount = w.getInt("vcount");
 
+                int progress = w.getInt("progress");
+                float total = w.getFloat("total");
+
                 for (int i = 0; i < vcount; i++) {
                     JSONObject vObj = w.getJSONObject("v%d".formatted(i));
                     Voxel v = new Voxel();
                     vObj.fillObject(v);
                     addVoxel(v);
+
+                    Game.setInitProgress(
+                            ((((progress - 1) * maxNetworkVoxelLoad) + (i + 1)) / (total * maxNetworkVoxelLoad)) * 0.7f
+                                    + 0.3f);
                 }
 
                 int ecount = obj.getInt("ecount");
@@ -99,9 +117,14 @@ public class WorldEngine {
                 if (w.getBoolean("done")) {
                     Game.forceCompleteInit();
                 } else {
+                    in.setDestination(NetworkStream.SERVER);
+                    in.network_destination = null;
                     NetworkStream.sendPacket(in);
                 }
-                return;
+                continue;
+            } else if (!Game.isInitialized()) {
+                onHold.add(in);
+                continue;
             }
 
             int updateCount = obj.getInt("uc");
@@ -192,6 +215,9 @@ public class WorldEngine {
     private static final int maxNetworkVoxelLoad = 5000;
 
     public static void execute() {
+
+        manageLoad();
+
         List<Packet> in = NetworkStream.getAllPackets("world", false);
         for (Packet p : in) {
             JSONObject data = p.getData();
@@ -201,23 +227,25 @@ public class WorldEngine {
                 if (data.hasKey("obj")) {
                     voxelData = data.getJSONObject("obj");
                 }
-                int total = Math.max(1, (world.voxels.size() + maxNetworkVoxelLoad - 1) / maxNetworkVoxelLoad);
-                voxelData.addInt("total", total);
                 voxelData.addInt("progress", 0);
 
-                List<Voxel> vs = world.getFlat();
+                int total = Math.max(1, (world.voxels.size() + maxNetworkVoxelLoad - 1) / maxNetworkVoxelLoad);
+                voxelData.addInt("total", total);
 
                 int page = maxNetworkVoxelLoad * voxelData.getInt("progress");
 
-                int vcount = Math.min(world.voxels.size() - page, maxNetworkVoxelLoad);
-                voxelData.set("vcount", vcount);
+                List<Voxel> chunk = world.voxels.values().stream()
+                        .skip(page)
+                        .limit(maxNetworkVoxelLoad)
+                        .toList();
 
-                for (int i = page; i < page + vcount; i++) {
-                    voxelData.set("v%d".formatted(i - page), vs.get(i));
+                voxelData.set("vcount", chunk.size());
+                for (int i = 0; i < chunk.size(); i++) {
+                    voxelData.set("v%d".formatted(i), chunk.get(i));
                 }
 
                 voxelData.set("progress", voxelData.getInt("progress") + 1);
-                voxelData.set("done", voxelData.getInt("progress") == voxelData.getInt("total"));
+                voxelData.set("done", voxelData.getInt("progress") >= voxelData.getInt("total"));
                 data.set("obj", voxelData);
 
                 int c = 0;
@@ -283,6 +311,11 @@ public class WorldEngine {
                 world.updated = false;
             }
         }
+    }
+
+    private static void manageLoad() {
+        // offload voxels and entites that are to far away to be of signifgance and load
+        // voxels and entites that are needed
     }
 
     public static WorldStorage getWorld() {
