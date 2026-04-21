@@ -38,7 +38,10 @@ public class Player extends Entity implements StorageEntity {
     @ClientSide
     public List<String> pressedKeys = new ArrayList<>();
 
-    private int speed = 4;
+    @ServerSide
+    private boolean fallProtected;
+
+    private int speed;
     private int selectedSlot = 0;
 
     @ServerSide
@@ -54,6 +57,16 @@ public class Player extends Entity implements StorageEntity {
     @JSONIgnore
     @ClientSide
     private static UI eToInteract;
+
+    @JSONIgnore
+    @ClientSide
+    private static UI debug = UIBuilder.debugValue(200, 200, "player_debug");
+
+    static {
+        debug.onOpen(() -> {
+            debug.close();
+        });
+    }
 
     static {
         if (Game.isClient) {
@@ -163,6 +176,8 @@ public class Player extends Entity implements StorageEntity {
         scale(0.125f);
         scaleHitbox(-1);
         hitboxOffset(VectorConstants.FORWARD.multiply(VectorConstants.HALF));
+
+        debug.open();
     }
 
     @Override
@@ -205,21 +220,35 @@ public class Player extends Entity implements StorageEntity {
     }
 
     @Override
+    @ServerSide
     protected void server(double dt) {
+        Vector3 posSnapshot = position.copy();
         handleKeyPresses(dt);
         super.server(dt);
+
+        if (fallProtected && !onGround) {
+            Vector3 dist = posSnapshot.subtract(position).multiplyBy(1, 0, 1);
+            position.copyFrom(posSnapshot);
+            position.addTo(dist.multiplyBy(0.01));
+            velocity.copyFrom(VectorConstants.ZERO);
+            position.y = posSnapshot.y;
+            checkGravity();
+        }
     }
 
     @Override
+    @ServerSide
     protected void handlePhysics(double dt) {
         gravityEnabled = !Game.canFly;
         super.handlePhysics(dt);
     }
 
+    @ServerSide
     private void handleKeyPresses(double dt) {
-        speed = 3;
+        fallProtected = false;
+        speed = 5;
 
-        checkKey("CTRL", () -> speed = 5);
+        checkKey("CTRL", () -> speed = 10);
 
         Vector3 forward = new Vector3(Math.sin(rotation.y), 0, Math.cos(
                 rotation.y)).normalizeHere().multiplyBy(speed * dt);
@@ -262,16 +291,23 @@ public class Player extends Entity implements StorageEntity {
         }, true);
         checkKey(" ", () -> {
             if (!Game.canFly && onGround) {
-                velocity.addTo(VectorConstants.UP.multiply(5));
+                velocity.y = 7;
+                onGround = false;
             } else if (Game.canFly) {
                 position.addTo(amt);
             }
-            onGround = false;
         });
+
         checkKey("SHIFT", () -> {
-            if (Game.canFly)
+            if (Game.canFly) {
                 position.subtractFrom(amt);
+            }
+            fallProtected = true;
         });
+
+        checkKey("SHIFT", () -> {
+            fallProtected = true;
+        }, true);
 
         checkKey("q", () -> {
             withHeldItem((itm) -> {
@@ -301,7 +337,6 @@ public class Player extends Entity implements StorageEntity {
 
     private void checkKey(String key, Runnable handler) {
         if (pressedKeys.contains(key) || pressedKeys.contains(key + "_HOLD")) {
-            pressedKeys.remove(key);
             Vector3 pos = position.copy();
             handler.run();
             if (!pos.equals(position)) {
@@ -312,7 +347,6 @@ public class Player extends Entity implements StorageEntity {
 
     private void checkKey(String key, Runnable handler, boolean onlyPress) {
         if (pressedKeys.contains(key) || (!onlyPress && pressedKeys.contains(key + "_HOLD"))) {
-            pressedKeys.remove(key);
             Vector3 pos = position.copy();
             handler.run();
             if (!pos.equals(position)) {

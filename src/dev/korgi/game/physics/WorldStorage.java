@@ -62,7 +62,7 @@ public class WorldStorage {
     }
 
     public Voxel at(Vector3 pos) {
-        return voxels.get(voxelKey(pos));
+        return voxels.get(voxelKey((int) pos.x, (int) pos.y, (int) pos.z));
     }
 
     public void overrideVoxelFill(Object serialized) {

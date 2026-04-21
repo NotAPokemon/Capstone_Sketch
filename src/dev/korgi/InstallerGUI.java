@@ -15,37 +15,37 @@ public class InstallerGUI extends PApplet {
         return mInstance;
     }
 
-    static final int SCREEN_WELCOME = 0;
-    static final int SCREEN_LICENSE = 1;
-    static final int SCREEN_OPTIONS = 2;
-    static final int SCREEN_INSTALL = 3;
-    static final int SCREEN_DONE = 4;
+    private static final int SCREEN_WELCOME = 0;
+    private static final int SCREEN_LICENSE = 1;
+    private static final int SCREEN_OPTIONS = 2;
+    private static final int SCREEN_INSTALL = 3;
+    private static final int SCREEN_DONE = 4;
 
-    int screen = SCREEN_WELCOME;
+    private int screen = SCREEN_WELCOME;
 
-    final int BG = 0xFF0F0F13;
-    final int PANEL = 0xFF1A1A22;
-    final int ACCENT = 0xFF5B8CFF;
-    final int ACCENT2 = 0xFF8F5BFF;
-    final int TEXT_HI = 0xFFE8E8F0;
-    final int TEXT_MID = 0xFF9090A8;
-    final int TEXT_DIM = 0xFF44445A;
-    final int SUCCESS = 0xFF4DFFA0;
-    final int BTN_HOVER = 0xFF2A2A38;
+    private final int BG = 0xFF0F0F13;
+    private final int PANEL = 0xFF1A1A22;
+    private final int ACCENT = 0xFF5B8CFF;
+    private final int ACCENT2 = 0xFF8F5BFF;
+    private final int TEXT_HI = 0xFFE8E8F0;
+    private final int TEXT_MID = 0xFF9090A8;
+    private final int TEXT_DIM = 0xFF44445A;
+    private final int SUCCESS = 0xFF4DFFA0;
+    private final int BTN_HOVER = 0xFF2A2A38;
 
     static String installPath = "./";
 
-    PFont fontBold, fontRegular, fontMono;
+    private PFont fontBold, fontRegular, fontMono;
 
-    float progress = 0;
-    float progressTarget = 0;
-    float barPulse = 0;
-    boolean installing = false;
-    boolean installDone = false;
-    int installStep = 0;
-    int lastStepTime = 0;
+    private float progress = 0;
+    private float progressTarget = 0;
+    private float barPulse = 0;
+    private boolean installing = false;
+    private boolean installDone = false;
+    private int installStep = 0;
+    private int lastStepTime = 0;
 
-    final String[] INSTALL_STEPS = {
+    private final String[] INSTALL_STEPS = {
             "Initialising file system...",
             "Extracting core libraries...",
             "Configuring runtime environment...",
@@ -55,33 +55,33 @@ public class InstallerGUI extends PApplet {
             "Finalising installation...",
             "Installation complete!"
     };
-    final float[] STEP_TARGETS = {
+    private final float[] STEP_TARGETS = {
             0.06f, 0.22f, 0.40f, 0.55f, 0.70f, 0.83f, 0.95f, 1.0f
     };
 
-    volatile boolean asyncTaskDone = false;
-    volatile boolean asyncTaskStarted = false;
+    private volatile boolean asyncTaskDone = false;
+    private volatile boolean asyncTaskStarted = false;
 
-    boolean optDesktop = true;
-    boolean optStartMenu = true;
+    private boolean optDesktop = true;
+    private boolean optStartMenu = true;
 
-    float licenseScroll = 0;
-    float licenseScrollTarget = 0;
-    boolean licenseAccepted = false;
+    private float licenseScroll = 0;
+    private float licenseScrollTarget = 0;
+    private boolean licenseAccepted = false;
 
-    float[] starX = new float[120];
-    float[] starY = new float[120];
-    float[] starA = new float[120];
-    float[] starB = new float[120];
+    private float[] starX = new float[120];
+    private float[] starY = new float[120];
+    private float[] starA = new float[120];
+    private float[] starB = new float[120];
 
-    float checkAlpha[] = new float[INSTALL_STEPS.length];
+    private float checkAlpha[] = new float[INSTALL_STEPS.length];
 
-    float btnNextHover = 0;
-    float btnBackHover = 0;
-    float btnCancelHover = 0;
+    private float btnNextHover = 0;
+    private float btnBackHover = 0;
+    private float btnCancelHover = 0;
 
-    float doneRadius = 0;
-    float doneAlpha = 0;
+    private float doneRadius = 0;
+    private float doneAlpha = 0;
 
     @Override
     public void settings() {
@@ -113,7 +113,7 @@ public class InstallerGUI extends PApplet {
         drawBottomBar();
     }
 
-    void updateLogic() {
+    private void updateLogic() {
         barPulse += 0.06f;
 
         for (int i = 0; i < starX.length; i++) {
@@ -155,7 +155,7 @@ public class InstallerGUI extends PApplet {
         licenseScroll = lerp(licenseScroll, licenseScrollTarget, 0.12f);
     }
 
-    void drawBackground() {
+    private void drawBackground() {
         background(BG);
 
         stroke(TEXT_DIM, 20);
@@ -183,7 +183,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawSidebar() {
+    private void drawSidebar() {
         fill(PANEL, 230);
         noStroke();
         rect(0, 0, 280, height);
@@ -213,7 +213,7 @@ public class InstallerGUI extends PApplet {
         text("NotAPokemon's capstone Software.", 140, height - 18);
     }
 
-    void drawAppIcon(float cx, float cy, float r) {
+    private void drawAppIcon(float cx, float cy, float r) {
         for (int g = 20; g > 0; g -= 2) {
             fill(ACCENT, map(g, 20, 0, 0, 30));
             ellipse(cx, cy, r * 2 + g * 3, r * 2 + g * 3);
@@ -231,7 +231,7 @@ public class InstallerGUI extends PApplet {
         text("K", cx, cy + 1);
     }
 
-    void drawSidebarStep(int idx, String label) {
+    private void drawSidebarStep(int idx, String label) {
         float y = 240 + idx * 54;
         boolean active = screen == idx;
         boolean done = screen > idx;
@@ -271,7 +271,7 @@ public class InstallerGUI extends PApplet {
         text(label, 162, y);
     }
 
-    void drawContent() {
+    private void drawContent() {
         int cx = 280;
         int cw = width - cx;
 
@@ -294,7 +294,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawWelcome(int cx, int cw) {
+    private void drawWelcome(int cx, int cw) {
         textAlign(LEFT, TOP);
 
         fill(TEXT_MID);
@@ -333,7 +333,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawLicense(int cx, int cw) {
+    private void drawLicense(int cx, int cw) {
         textAlign(LEFT, TOP);
 
         fill(TEXT_MID);
@@ -393,7 +393,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawOptions(int cx, int cw) {
+    private void drawOptions(int cx, int cw) {
         textAlign(LEFT, TOP);
 
         fill(TEXT_MID);
@@ -466,7 +466,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawInstall(int cx, int cw) {
+    private void drawInstall(int cx, int cw) {
         textAlign(LEFT, TOP);
 
         fill(TEXT_MID);
@@ -532,7 +532,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void drawDone(int cx, int cw) {
+    private void drawDone(int cx, int cw) {
         float midX = cx + cw / 2f;
         float midY = height / 2f - 40;
 
@@ -559,7 +559,7 @@ public class InstallerGUI extends PApplet {
                 midY + 134);
     }
 
-    void drawBottomBar() {
+    private void drawBottomBar() {
         stroke(TEXT_DIM, 50);
         strokeWeight(1);
         line(280, height - 68, width, height - 68);
@@ -660,7 +660,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    void nextScreen() {
+    private void nextScreen() {
         if (screen == SCREEN_INSTALL) {
             if (installDone)
                 screen = SCREEN_DONE;
@@ -681,7 +681,7 @@ public class InstallerGUI extends PApplet {
         }
     }
 
-    boolean canAdvance() {
+    private boolean canAdvance() {
         if (screen == SCREEN_LICENSE && !licenseAccepted)
             return false;
         if (screen == SCREEN_INSTALL && !installDone)
@@ -689,22 +689,22 @@ public class InstallerGUI extends PApplet {
         return true;
     }
 
-    boolean isOverNextBtn() {
+    private boolean isOverNextBtn() {
         return mouseX > width - 110 && mouseX < width - 20 &&
                 mouseY > height - 50 && mouseY < height - 16;
     }
 
-    boolean isOverBackBtn() {
+    private boolean isOverBackBtn() {
         return mouseX > width - 210 && mouseX < width - 120 &&
                 mouseY > height - 50 && mouseY < height - 16;
     }
 
-    boolean isOverCancelBtn() {
+    private boolean isOverCancelBtn() {
         return mouseX > width - 310 && mouseX < width - 220 &&
                 mouseY > height - 50 && mouseY < height - 16;
     }
 
-    void runAsyncTask() {
+    private void runAsyncTask() {
         new Thread(() -> {
             try {
                 doHeavyWork();
@@ -716,11 +716,11 @@ public class InstallerGUI extends PApplet {
         }, "korgi-async-task").start();
     }
 
-    void doHeavyWork() throws Exception {
+    private void doHeavyWork() throws Exception {
         Installer.runInstall();
     }
 
-    String getLicenseText() {
+    private String getLicenseText() {
         return "END-USER LICENSE AGREEMENT\n" +
                 InstallConstants.appName + " " + InstallConstants.version + "\n\n" +
                 "IMPORTANT - READ CAREFULLY\n\n" +

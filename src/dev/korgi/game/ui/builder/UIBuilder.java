@@ -23,7 +23,7 @@ public class UIBuilder {
     public static UI debugValue(float x, float y, String name) {
         return create(name)
                 .drawMode(DrawMode.ABSOLUTE)
-                .canvas(new Canvas(name + "main_canvas"))
+                .canvas(new Canvas(name + "_main_canvas"))
                 .text(new Text("display"))
                 .position(x, y)
                 .color(0xFFFF0000)

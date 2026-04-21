@@ -209,6 +209,17 @@ public class Vector3 {
         return new Vector3(Math.floor(x), Math.floor(y), Math.floor(z));
     }
 
+    public Vector3 truncate() {
+        return new Vector3((int) x, (int) y, (int) z);
+    }
+
+    public Vector3 truncateMe() {
+        this.x = (int) x;
+        this.y = (int) y;
+        this.z = (int) z;
+        return this;
+    }
+
     public Vector3 floorMe() {
         x = Math.floor(x);
         y = Math.floor(y);

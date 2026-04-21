@@ -51,6 +51,7 @@ public class Game {
     }
 
     public static void loadEntities() {
+        Entity.register(Player.class.getSimpleName(), Player::new);
         Entity.register(Jimmy.class.getSimpleName(), Jimmy::new);
         Entity.register(JimmyItem.class.getSimpleName(), JimmyItem::new);
     }

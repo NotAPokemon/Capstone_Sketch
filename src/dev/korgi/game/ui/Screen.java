@@ -13,10 +13,12 @@ import dev.korgi.game.Game;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
+import dev.korgi.game.ui.builder.UIBuilder;
 import dev.korgi.game.ui.elements.UI;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ErrorHandler;
 import dev.korgi.utils.InstallConstants;
 import dev.korgi.utils.ServerSide;
 import processing.core.PApplet;
@@ -95,6 +97,8 @@ public class Screen extends PApplet {
     @ServerSide
     private List<UI> serverUi = new ArrayList<>();
 
+    public static UI errorMsg;
+
     @Override
     public void settings() {
         size(900, 600);
@@ -157,7 +161,8 @@ public class Screen extends PApplet {
                 mouseMoved(e);
             }
         });
-
+        errorMsg = UIBuilder.debugValue(width / 2.0f, height / 2.0f, "error");
+        errorMsg.getStyle().set("display.value", "");
     }
 
     private void initalizeGame() {
@@ -187,9 +192,11 @@ public class Screen extends PApplet {
             } else {
                 drawSelector();
             }
-            return;
+        } else {
+            Game.loop(this);
         }
-        Game.loop(this);
+        ErrorHandler.loòp();
+        errorMsg.draw(this);
     }
 
     private void drawLoadingScreen() {

@@ -1,5 +1,7 @@
 package dev.korgi.utils;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,6 +57,11 @@ public class Time {
         double time = (System.nanoTime() - startTime) / 1e9;
         if (time > threashold)
             System.out.println(output.formatted(time));
+    }
+
+    public static String now() {
+        return LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("HH:mm:ss, d MMM uuuu"));
     }
 
 }

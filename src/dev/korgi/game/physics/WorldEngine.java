@@ -20,19 +20,16 @@ import dev.korgi.utils.ClientSide;
 public class WorldEngine {
 
     private static final WorldStorage world = new WorldStorage();
-    public static final double g = 9.80665;
+    public static final double g = 16;
 
     private static Jimmy jimmy;
 
     public static void init() {
-        Vector4 color = new Vector4(Vector3.random());
-        double opacity = Math.random();
-        int xtotal = 1000;
-        int ztotal = 994;
+        int xtotal = 100;
+        int ztotal = 100;
         for (int x = 0; x < xtotal; x++) {
             for (int z = 0; z < ztotal; z++) {
-                Voxel v = new Voxel(x, -5, z, color);
-                v.getMaterial().setOpacity(opacity);
+                Voxel v = new Voxel(x, -5, z);
                 v.getMaterial().setTextureLocation(0);
                 addVoxel(v);
                 Game.setInitProgress(0.5f * ((float) (x * ztotal + z) / (float) (xtotal * ztotal)) + 0.5f);

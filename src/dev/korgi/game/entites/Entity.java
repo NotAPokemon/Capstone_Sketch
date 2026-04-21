@@ -16,6 +16,7 @@ import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkObject;
 import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ErrorHandler;
 import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
 
@@ -38,11 +39,11 @@ public abstract class Entity extends NetworkObject {
     @JSONIgnore
     private static Map<String, Supplier<? extends Entity>> constructors = new HashMap<>();
 
-    @SuppressWarnings("unused")
     private String name = getClass().getSimpleName();
 
     @ServerSide
     protected boolean gravityEnabled = true;
+
     @ServerSide
     protected boolean onGround = false;
 
@@ -59,6 +60,9 @@ public abstract class Entity extends NetworkObject {
         }
         this.hitbox = createHitbox();
         internal_id = UUID.randomUUID().toString();
+        if (!constructors.containsKey(name)) {
+            ErrorHandler.error("Entity %s has not been registered", name);
+        }
     }
 
     public Entity(JSONObject prebuildparams) {
@@ -262,7 +266,7 @@ public abstract class Entity extends NetworkObject {
 
     @ServerSide
     public void checkGravity() {
-        onGround = WorldEngine.voxelAt(position.add(VectorConstants.DOWN)) != null;
+        onGround = WorldEngine.voxelAt(position.truncate().addTo(VectorConstants.DOWN)) != null;
     }
 
 }
