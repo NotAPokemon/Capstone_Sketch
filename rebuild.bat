@@ -1,7 +1,21 @@
 @echo off
 
-del /f /q internal_config.json
-rmdir /s /q Korgi
+if exist internal_config.json (
+    del /f internal_config.json
+)
 
-call runjava
-call runjava
+if exist Korgi\config.json (
+    move Korgi\config.json config.json
+)
+
+if exist Korgi\ (
+    rmdir /s /q Korgi
+)
+
+runjava.bat
+
+if exist config.json (
+    move config.json Korgi\config.json
+)
+
+runjava.bat

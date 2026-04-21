@@ -71,18 +71,23 @@ public class Screen extends PApplet {
 
     private boolean stopHostingHover = false;
 
-    // Config menu
-    // Config items are stored as parallel arrays for simplicity.
-    // Add/remove entries here — the menu renders them dynamically.
-    private final String[] cfgKeys = { "mouse_sensitivity", "fov", "render_distance" };
-    private final String[] cfgLabels = { "Mouse Sensitivity", "Field of View", "Render Distance" };
-    private final float[] cfgMin = { 1f, 40f, 10 };
-    private final float[] cfgMax = { 100f, 120f, 80f };
-    private final boolean[] cfgIsToggle = { false, false, false };
+    private final String[] cfgKeys = { "mouse_sensitivity", "fov", "render_dist", "ip", "pack" };
+    private final String[] cfgLabels = { "Mouse Sensitivity", "Field of View", "Render Distance", "Server IP",
+            "Resource Pack" };
+    private final float[] cfgMin = { 1f, 40f, 10f, 0, 0 };
+    private final float[] cfgMax = { 100f, 120f, 80f, 0, 0 };
 
-    private float[] cfgValues = new float[] { 3, 80, 50 };
+    private final boolean[] cfgIsToggle = { false, false, false, false, false };
+    private final boolean[] cfgIsString = { false, false, false, true, true };
+
+    private float[] cfgValues = new float[] { 3f, 60f, 50f, 0f, 0f };
+
+    private String[] cfgStrings = new String[] { "", "", "", "localhost", "default" };
+
     private boolean cfgDragging = false;
     private int cfgDragIndex = -1;
+
+    private int cfgEditIndex = -1;
 
     private boolean hoverBack = false;
     private boolean hoverApply = false;
@@ -120,8 +125,14 @@ public class Screen extends PApplet {
 
         for (int i = 0; i < cfgKeys.length; i++) {
             try {
-                cfgValues[i] = Game.config.getFloat(cfgKeys[i]);
-            } catch (Exception e) {
+                if (cfgIsString[i]) {
+                    String v = Game.config.getString(cfgKeys[i]);
+                    if (v != null)
+                        cfgStrings[i] = v;
+                } else {
+                    cfgValues[i] = Game.config.getFloat(cfgKeys[i]);
+                }
+            } catch (Exception ignored) {
             }
         }
 
@@ -230,8 +241,7 @@ public class Screen extends PApplet {
         textAlign(CENTER, TOP);
         text("Loading" + dots, cx, cy + 70);
 
-        float progress = (float) ((millis() % 3000) / 3000.0);
-        progress = Game.getInitProgress();
+        float progress = Game.getInitProgress();
 
         int barW = 240, barH = 3;
         int barX = cx - barW / 2, barY = cy + 100;
@@ -290,7 +300,7 @@ public class Screen extends PApplet {
         drawGrid();
 
         int panelW = 560;
-        int panelH = 420;
+        int panelH = 96 + cfgKeys.length * ROW_H + 70;
         int panelX = width / 2 - panelW / 2;
         int panelY = height / 2 - panelH / 2;
         drawPanel(panelX, panelY, panelW, panelH);
@@ -301,11 +311,10 @@ public class Screen extends PApplet {
 
         int rowX = panelX + 32;
         int rowY = panelY + 96;
-        int rowH = 58;
         int sliderW = 200;
 
         for (int i = 0; i < cfgKeys.length; i++) {
-            int ry = rowY + i * rowH;
+            int ry = rowY + i * ROW_H;
             drawConfigRow(i, rowX, ry, panelW - 64, sliderW);
         }
 
@@ -320,9 +329,9 @@ public class Screen extends PApplet {
         drawMessageBanner();
     }
 
-    private void drawConfigRow(int idx, int x, int y, int totalW, int sliderW) {
-        boolean isToggle = cfgIsToggle[idx];
+    private static final int ROW_H = 58;
 
+    private void drawConfigRow(int idx, int x, int y, int totalW, int sliderW) {
         textFont(fontSans13);
         fill(TEXT_PRIMARY);
         textAlign(LEFT, CENTER);
@@ -332,12 +341,14 @@ public class Screen extends PApplet {
         textFont(fontMono10);
         text(cfgKeys[idx], x, y + 32);
 
-        if (isToggle) {
+        if (cfgIsString[idx]) {
+            drawTextInputRow(idx, x, y, totalW);
+
+        } else if (cfgIsToggle[idx]) {
             boolean on = cfgValues[idx] > 0.5f;
             int tx = x + totalW - 52;
             int ty = y + 10;
-            int tw = 44;
-            int th = 22;
+            int tw = 44, th = 22;
             float t = on ? 1f : 0f;
 
             noStroke();
@@ -368,18 +379,18 @@ public class Screen extends PApplet {
             rect(sx, sy, max(sh, fillW), sh, sh / 2f);
 
             boolean dragging = cfgDragging && cfgDragIndex == idx;
-            boolean hovering = !cfgDragging && mouseX >= sx - 8 && mouseX <= sx + sliderW + 8
+            boolean hovering = !cfgDragging
+                    && mouseX >= sx - 8 && mouseX <= sx + sliderW + 8
                     && mouseY >= sy - 10 && mouseY <= sy + sh + 10;
 
             fill(dragging || hovering ? ACCENT : color(180));
             ellipse(sx + fillW, sy + sh / 2f, dragging ? 14 : 10, dragging ? 14 : 10);
 
             String fmt = (cfgMax[idx] <= 1f) ? "%.2f" : "%.0f";
-            String valStr = String.format(fmt, cfgValues[idx]);
             fill(TEXT_DIM);
             textAlign(RIGHT, CENTER);
             textFont(fontMono11);
-            text(valStr, sx - 12, sy + sh / 2f);
+            text(String.format(fmt, cfgValues[idx]), sx - 12, sy + sh / 2f);
 
             if (dragging) {
                 float newPct = constrain((float) (mouseX - sx) / sliderW, 0, 1);
@@ -389,12 +400,225 @@ public class Screen extends PApplet {
 
         stroke(BORDER);
         strokeWeight(1);
-        line(x, y + rowH(idx) - 2, x + totalW, y + rowH(idx) - 2);
+        line(x, y + ROW_H - 2, x + totalW, y + ROW_H - 2);
         noStroke();
     }
 
-    private int rowH(int idx) {
-        return 58;
+    private void drawTextInputRow(int idx, int x, int y, int totalW) {
+        boolean active = cfgEditIndex == idx;
+        int fw = 200, fh = 26;
+        int fx = x + totalW - fw;
+        int fy = y + 8;
+
+        noStroke();
+        fill(active ? (BG_DARK) : BORDER);
+        rect(fx, fy, fw, fh, 4);
+
+        stroke(active ? ACCENT : TEXT_LABEL);
+        strokeWeight(1);
+        noFill();
+        rect(fx, fy, fw, fh, 4);
+        noStroke();
+
+        String display = cfgStrings[idx];
+        if (active && (millis() / 500) % 2 == 0)
+            display += "|";
+
+        textFont(fontMono11);
+        while (display.length() > 1 && textWidth(display) > fw - 12)
+            display = display.substring(1);
+
+        fill(active ? TEXT_PRIMARY : TEXT_DIM);
+        textAlign(LEFT, CENTER);
+        text(display, fx + 6, fy + fh / 2f);
+    }
+
+    @Override
+    public void keyPressed() {
+        if (cfgEditIndex >= 0 && menuState == MenuState.CONFIG) {
+            handleTextFieldKey();
+            return;
+        }
+
+        if (Game.isClient) {
+            Player client = Game.getClient();
+            String k = normalizeKey();
+            if (k != null && client != null && !client.pressedKeys.contains(k + "_HOLD")
+                    && !client.pressedKeys.contains(k)) {
+                client.pressedKeys.add(k);
+            } else if (client != null && client.pressedKeys.contains(k)) {
+                client.pressedKeys.remove(k);
+                client.pressedKeys.add(k + "_HOLD");
+            }
+        }
+    }
+
+    private void handleTextFieldKey() {
+        if (key == BACKSPACE) {
+            String s = cfgStrings[cfgEditIndex];
+            if (s.length() > 0)
+                cfgStrings[cfgEditIndex] = s.substring(0, s.length() - 1);
+        } else if (key == ENTER || key == RETURN || key == ESC) {
+            cfgEditIndex = -1;
+            if (key == ESC)
+                key = 0;
+        } else if (key >= 32 && key < 127) {
+            if (cfgStrings[cfgEditIndex].length() < 64)
+                cfgStrings[cfgEditIndex] += key;
+        }
+    }
+
+    @Override
+    @ClientSide
+    public void keyReleased() {
+        if (cfgEditIndex >= 0)
+            return;
+
+        if (Game.isClient) {
+            Player client = Game.getClient();
+            if (client != null) {
+                client.pressedKeys.remove(normalizeKey() + "_HOLD");
+                client.pressedKeys.remove(normalizeKey());
+            }
+        }
+    }
+
+    @Override
+    public void mousePressed() {
+        if (menuState == MenuState.LOADING)
+            return;
+
+        if (!Game.isInitialized()) {
+            if (menuState == MenuState.CONFIG) {
+                handleConfigClick();
+            } else {
+                handleSelectorClick();
+            }
+            return;
+        }
+
+        if (Game.isClient) {
+            Game.withClient((client) -> {
+                if (mouseButton == LEFT && !client.pressedKeys.contains("LMB")
+                        && !client.pressedKeys.contains("LMB_HOLD"))
+                    client.pressedKeys.add("LMB");
+                if (mouseButton == RIGHT && !client.pressedKeys.contains("RMB")
+                        && !client.pressedKeys.contains("RMB_HOLD"))
+                    client.pressedKeys.add("RMB");
+                if (mouseButton == CENTER && !client.pressedKeys.contains("WD"))
+                    client.pressedKeys.add("WD");
+            });
+        } else {
+            if (stopHostingHover)
+                exit();
+        }
+    }
+
+    @Override
+    @ClientSide
+    public void mouseReleased() {
+        cfgDragging = false;
+        cfgDragIndex = -1;
+
+        Game.withClient((client) -> {
+            if (mouseButton == LEFT)
+                client.pressedKeys.remove("LMB_HOLD");
+            if (mouseButton == RIGHT)
+                client.pressedKeys.remove("RMB_HOLD");
+            if (mouseButton == CENTER)
+                client.pressedKeys.remove("WD");
+        });
+    }
+
+    @Override
+    public void mouseDragged() {
+    }
+
+    private void handleSelectorClick() {
+        if (hoverHost)
+            launchGame(false);
+        else if (hoverJoin)
+            launchGame(true);
+        else if (hoverConfig)
+            menuState = MenuState.CONFIG;
+    }
+
+    private void launchGame(boolean asClient) {
+        try {
+            Game.isClient = asClient;
+            if (asClient)
+                NativeGPUKernal.loadTextureMap();
+            initalizeGame();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showMessage("Failed to start: " + e.getMessage(), 180);
+        }
+    }
+
+    private void handleConfigClick() {
+        cfgEditIndex = -1;
+
+        if (hoverBack) {
+            menuState = MenuState.SELECTOR;
+            return;
+        }
+        if (hoverApply) {
+            applyConfig();
+            showMessage("Settings saved!", 120);
+            menuState = MenuState.SELECTOR;
+            return;
+        }
+
+        int panelW = 560;
+        int panelH = 96 + cfgKeys.length * ROW_H + 70;
+        int panelX = width / 2 - panelW / 2;
+        int panelY = height / 2 - panelH / 2;
+        int rowX = panelX + 32;
+        int rowY = panelY + 96;
+        int totalW = panelW - 64;
+        int sliderW = 200;
+
+        for (int i = 0; i < cfgKeys.length; i++) {
+            int ry = rowY + i * ROW_H;
+
+            if (cfgIsString[i]) {
+                int fw = 200, fh = 26;
+                int fx = rowX + totalW - fw;
+                int fy = ry + 8;
+                if (mouseX >= fx && mouseX <= fx + fw && mouseY >= fy && mouseY <= fy + fh) {
+                    cfgEditIndex = i;
+                }
+
+            } else if (cfgIsToggle[i]) {
+                int tx = rowX + totalW - 52;
+                int ty = ry + 10;
+                if (mouseX >= tx && mouseX <= tx + 44 && mouseY >= ty && mouseY <= ty + 22)
+                    cfgValues[i] = cfgValues[i] > 0.5f ? 0f : 1f;
+
+            } else {
+                int sx = rowX + totalW - sliderW;
+                int sy = ry + 14;
+                if (mouseX >= sx - 8 && mouseX <= sx + sliderW + 8 && mouseY >= sy - 10 && mouseY <= sy + 14) {
+                    cfgDragging = true;
+                    cfgDragIndex = i;
+                }
+            }
+        }
+    }
+
+    private void applyConfig() {
+        for (int i = 0; i < cfgKeys.length; i++) {
+            if (cfgIsString[i]) {
+                Game.config.set(cfgKeys[i], cfgStrings[i]);
+            } else {
+                Game.config.set(cfgKeys[i], cfgValues[i]);
+            }
+        }
+        try {
+            Game.updateConfig();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void drawHUD() {
@@ -403,7 +627,6 @@ public class Screen extends PApplet {
         textAlign(LEFT, TOP);
         text("FPS  " + (int) frameRate, 16, 16);
         text("Sync " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 16, 32);
-
         drawMessageBanner();
     }
 
@@ -422,7 +645,6 @@ public class Screen extends PApplet {
 
     @ClientSide
     public void drawOpenClientMenus() {
-
         drawCrosshair();
 
         textFont(fontSans14);
@@ -476,9 +698,8 @@ public class Screen extends PApplet {
 
     @ClientSide
     public void handleMouseMovement() {
-        if (cursorEnabled) {
+        if (cursorEnabled)
             return;
-        }
         noCursor();
         Point p = ((Component) surface.getNative()).getLocationOnScreen();
         if (firstMouse) {
@@ -500,38 +721,9 @@ public class Screen extends PApplet {
 
     @Override
     @ClientSide
-    public void keyPressed() {
-        if (Game.isClient) {
-            Player client = Game.getClient();
-            String k = normalizeKey();
-            if (k != null && client != null && !client.pressedKeys.contains(k + "_HOLD")
-                    && !client.pressedKeys.contains(k)) {
-                client.pressedKeys.add(k);
-            } else if (client != null && client.pressedKeys.contains(k)) {
-                client.pressedKeys.remove(k);
-                client.pressedKeys.add(k + "_HOLD");
-            }
-        }
-    }
-
-    @Override
-    @ClientSide
-    public void keyReleased() {
-        if (Game.isClient) {
-            Player client = Game.getClient();
-            if (client != null) {
-                client.pressedKeys.remove(normalizeKey() + "_HOLD");
-                client.pressedKeys.remove(normalizeKey());
-            }
-        }
-    }
-
-    @Override
-    @ClientSide
     public void focusLost() {
-        if (!Game.isClient || !Game.isInitialized()) {
+        if (!Game.isClient || !Game.isInitialized())
             return;
-        }
         Player client = Game.getClient();
         if (client != null)
             client.pressedKeys.clear();
@@ -541,9 +733,8 @@ public class Screen extends PApplet {
 
     @Override
     public void focusGained() {
-        if (Game.isClient && Game.isInitialized()) {
+        if (Game.isClient && Game.isInitialized())
             noCursor();
-        }
         cursorEnabled = false;
     }
 
@@ -574,136 +765,6 @@ public class Screen extends PApplet {
                 return "RIGHT";
         }
         return null;
-    }
-
-    @Override
-    public void mousePressed() {
-        if (menuState == MenuState.LOADING) {
-            return;
-        }
-        if (!Game.isInitialized()) {
-            if (menuState == MenuState.CONFIG) {
-                handleConfigClick();
-            } else {
-                handleSelectorClick();
-            }
-            return;
-        }
-
-        if (Game.isClient) {
-            Game.withClient((client) -> {
-                if (mouseButton == LEFT && !client.pressedKeys.contains("LMB")
-                        && !client.pressedKeys.contains("LMB_HOLD"))
-                    client.pressedKeys.add("LMB");
-                if (mouseButton == RIGHT && !client.pressedKeys.contains("RMB")
-                        && !client.pressedKeys.contains("RMB_HOLD"))
-                    client.pressedKeys.add("RMB");
-                if (mouseButton == CENTER && !client.pressedKeys.contains("WD"))
-                    client.pressedKeys.add("WD");
-            });
-        } else {
-            if (stopHostingHover)
-                exit();
-        }
-    }
-
-    @Override
-    @ClientSide
-    public void mouseReleased() {
-        cfgDragging = false;
-        cfgDragIndex = -1;
-
-        Game.withClient((client) -> {
-            if (mouseButton == LEFT)
-                client.pressedKeys.remove("LMB_HOLD");
-            if (mouseButton == RIGHT)
-                client.pressedKeys.remove("RMB_HOLD");
-            if (mouseButton == CENTER)
-                client.pressedKeys.remove("WD");
-        });
-    }
-
-    @Override
-    public void mouseDragged() {
-        if (menuState == MenuState.CONFIG && cfgDragging) {
-            // values updated inside drawConfigRow each frame
-        }
-    }
-
-    private void handleSelectorClick() {
-        if (hoverHost) {
-            launchGame(false);
-        } else if (hoverJoin) {
-            launchGame(true);
-        } else if (hoverConfig) {
-            menuState = MenuState.CONFIG;
-        }
-    }
-
-    private void launchGame(boolean asClient) {
-        try {
-            Game.isClient = asClient;
-
-            if (asClient)
-                NativeGPUKernal.loadTextureMap();
-            initalizeGame();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            showMessage("Failed to start: " + e.getMessage(), 180);
-        }
-    }
-
-    private void handleConfigClick() {
-        if (hoverBack) {
-            menuState = MenuState.SELECTOR;
-            return;
-        }
-
-        if (hoverApply) {
-            applyConfig();
-            showMessage("Settings saved!", 120);
-            menuState = MenuState.SELECTOR;
-            return;
-        }
-
-        int panelW = 560;
-        int panelX = width / 2 - panelW / 2;
-        int panelY = height / 2 - 210;
-        int rowX = panelX + 32;
-        int rowY = panelY + 96;
-        int totalW = panelW - 64;
-        int rowH = 58;
-        int sliderW = 200;
-
-        for (int i = 0; i < cfgKeys.length; i++) {
-            int ry = rowY + i * rowH;
-            if (cfgIsToggle[i]) {
-                int tx = rowX + totalW - 52;
-                int ty = ry + 10;
-                if (mouseX >= tx && mouseX <= tx + 44 && mouseY >= ty && mouseY <= ty + 22) {
-                    cfgValues[i] = cfgValues[i] > 0.5f ? 0f : 1f;
-                }
-            } else {
-                int sx = rowX + totalW - sliderW;
-                int sy = ry + 14;
-                if (mouseX >= sx - 8 && mouseX <= sx + sliderW + 8 && mouseY >= sy - 10 && mouseY <= sy + 14) {
-                    cfgDragging = true;
-                    cfgDragIndex = i;
-                }
-            }
-        }
-    }
-
-    private void applyConfig() {
-        for (int i = 0; i < cfgKeys.length; i++) {
-            Game.config.set(cfgKeys[i], cfgValues[i]);
-        }
-        try {
-            Game.updateConfig();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public void showMessage(String msg, int durationFrames) {

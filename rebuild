@@ -1,7 +1,21 @@
 #!/bin/bash
 
-rm ./internal_config.json
-rm -rf ./Korgi/
+if [ -f ./internal_config.json ]; then
+    rm ./internal_config.json
+fi
+
+if [ -f ./Korgi/config.json ]; then
+    mv ./Korgi/config.json ./config.json
+fi
+
+if [ -d ./Korgi/ ]; then
+    rm -rf ./Korgi/
+fi
 
 ./runjava
+
+if [ -f ./config.json ]; then
+    mv ./config.json ./Korgi/config.json
+fi
+
 ./runjava
