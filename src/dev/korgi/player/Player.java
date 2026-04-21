@@ -51,6 +51,9 @@ public class Player extends Entity implements StorageEntity {
     private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
 
     @JSONIgnore
+    private Voxel last;
+
+    @JSONIgnore
     @ClientSide
     private static UI hotbar;
 
@@ -193,6 +196,22 @@ public class Player extends Entity implements StorageEntity {
             hotbar.open();
         }
         ensureStyle();
+        overlay();
+
+    }
+
+    private void overlay() {
+
+        if (last != null) {
+            last.getMaterial().setOverlayLocation(-1);
+        }
+
+        withHit((hit) -> {
+            Vector3 pos = hit.getVoxelPos();
+            Voxel voxel = WorldEngine.voxelAt(pos);
+            voxel.getMaterial().setOverlayLocation(TextureAtlas.OUTLINE);
+            last = voxel;
+        }, 5);
     }
 
     @ClientSide
@@ -289,6 +308,7 @@ public class Player extends Entity implements StorageEntity {
                 itm.lmb();
             });
         }, true);
+
         checkKey(" ", () -> {
             if (!Game.canFly && onGround) {
                 velocity.y = 7;

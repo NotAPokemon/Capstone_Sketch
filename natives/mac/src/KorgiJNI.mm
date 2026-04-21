@@ -71,6 +71,7 @@ static id<MTLBuffer> voxelBuffer = nil;
 static id<MTLBuffer> colorBuffer = nil;
 static id<MTLBuffer> opacityBuffer = nil;
 static id<MTLBuffer> textureLocationBuffer = nil;
+static id<MTLBuffer> overlayLocationBuffer = nil;
 static id<MTLBuffer> textureAtlasBuffer = nil;
 static id<MTLBuffer> paramsBuffer = nil;
 static id<MTLBuffer> widthBuffer = nil;
@@ -202,6 +203,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray voxelGrid,
     jstring path,
     jintArray textureLocation,
+    jintArray overlayLocation,
     jintArray textureAtlas,
     jintArray chunkGrid,
     jintArray chunkSize
@@ -220,6 +222,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jint* worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
     jint* voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
     jint* textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
+    jint* overlayLocationPtr = env->GetIntArrayElements(overlayLocation, nullptr);
     jint* textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
     jint* chunkGridPtr = env->GetIntArrayElements(chunkGrid, nullptr);
     jint* chunkSizePtr = env->GetIntArrayElements(chunkSize, nullptr);
@@ -236,6 +239,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     ensureBuffer(&colorBuffer, voxCountSize);
     ensureBuffer(&opacityBuffer, sizeof(float) * voxCount);
     ensureBuffer(&textureLocationBuffer, voxCountSize);
+    ensureBuffer(&overlayLocationBuffer, voxCountSize);
     ensureBuffer(&textureAtlasBuffer, jintSize * length);
     ensureBuffer(&widthBuffer, sizeof(int32_t));
     ensureBuffer(&heightBuffer, sizeof(int32_t));
@@ -247,6 +251,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     memcpy(colorBuffer.contents, colorPtr, voxCountSize);
     memcpy(opacityBuffer.contents, opacityPtr, voxCountSize); // sizeof(jint) == sizeof(float)
     memcpy(textureLocationBuffer.contents, textureLocationPtr, voxCountSize);
+    memcpy(overlayLocationBuffer.contents, overlayLocationPtr, voxCountSize);
     memcpy(textureAtlasBuffer.contents, textureAtlasPtr, jintSize * length);
     memcpy(widthBuffer.contents,  &w, sizeof(int32_t));
     memcpy(heightBuffer.contents, &h, sizeof(int32_t));
@@ -280,10 +285,11 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     [encoder setBuffer:widthBuffer offset:0 atIndex:5];
     [encoder setBuffer:heightBuffer offset:0 atIndex:6];
     [encoder setBuffer:textureLocationBuffer offset:0 atIndex:7];
-    [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:8];
-    [encoder setBuffer:chunkGridBuffer offset:0 atIndex: 9];
-    [encoder setBuffer:chunkSizeBuffer offset:0 atIndex: 10];
-    [encoder setBuffer:tBuffer offset:0 atIndex: 11];
+    [encoder setBuffer:overlayLocationBuffer offset:0 atIndex:8];
+    [encoder setBuffer:textureAtlasBuffer offset:0 atIndex:9];
+    [encoder setBuffer:chunkGridBuffer offset:0 atIndex:10];
+    [encoder setBuffer:chunkSizeBuffer offset:0 atIndex:11];
+    [encoder setBuffer:tBuffer offset:0 atIndex: 12];
 
     NSUInteger tw = pipelineState.threadExecutionWidth;
     NSUInteger th = pipelineState.maxTotalThreadsPerThreadgroup / tw;
@@ -308,6 +314,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     env->ReleaseIntArrayElements(worldSizeArray, worldSize, 0);
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
     env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
+    env->ReleaseIntArrayElements(overlayLocation, overlayLocationPtr, 0);
     env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
     env->ReleaseIntArrayElements(chunkGrid, chunkGridPtr, 0);
     env->ReleaseIntArrayElements(chunkSize, chunkSizePtr, 0);
@@ -348,7 +355,7 @@ JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKernal(
         headerScratch = new EntityHeaderC[entityCount];
         headerScratchCount = entityCount;
     }
-    
+
     if (voxelScratchCount < totalVoxels) {
         delete[] voxelHotScratch;
         delete[] voxelColdScratch;

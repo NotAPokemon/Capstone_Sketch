@@ -23,10 +23,11 @@ kernel void raytraceKernel(
     device int* widthBuf        [[buffer(5)]],
     device int* heightBuf       [[buffer(6)]],
     device int* textureLocation [[buffer(7)]],
-    device int* textureAtlas    [[buffer(8)]],
-    device int* chunkGrid       [[buffer(9)]],
-    device int* chunkSize       [[buffer(10)]],
-    device float* tBuffer       [[buffer(11)]],
+    device int* overlayLocation [[buffer(8)]],
+    device int* textureAtlas    [[buffer(9)]],
+    device int* chunkGrid       [[buffer(10)]],
+    device int* chunkSize       [[buffer(11)]],
+    device float* tBuffer       [[buffer(12)]],
     uint2 gid                   [[thread_position_in_grid]]
 ) {
     const int width = widthBuf[0];
@@ -164,6 +165,7 @@ kernel void raytraceKernel(
             if ((uint)voxel < (uint)params.voxelCount) {
 
                 const int texId = textureLocation[voxel];
+                const int overlayId = overlayLocation[voxel];
                 const float alpha = opacity[voxel];
 
                 if (texId != -1 && hitFace >= 0) {
@@ -184,20 +186,55 @@ kernel void raytraceKernel(
                     const int iu = clamp((int)(u * 32.0f), 0, 31);
                     const int iv = clamp((int)(v * 32.0f), 0, 31);
                     const int base = texId * (192 * 32);
-                    hitColor = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    const int lookupIdx = iv * 192 + hitFace * 32 + iu;
+                    hitColor = textureAtlas[base + lookupIdx];
                     opacAccum = 0.0f;
+                    if (overlayId != -1){
+                        const int overlayBase = overlayId * (192 * 32);
+                        const int overlayHitColor = textureAtlas[overlayBase + lookupIdx];
+                        const int overlayAlpha = (overlayHitColor >> 24) & 0xFF;
+                        if (overlayAlpha != 0 && (overlayHitColor & 0x00FFFFFF) != 0x00FFFFFF) {
+                            hitColor = overlayHitColor;
+                        }
+                    }
 
                 } else {
-                    const int   c  = colors[voxel];
-                    const float a  = alpha * opacAccum;
+                    const int c = colors[voxel];
+                    const float a = alpha * opacAccum;
                     const float ia = 1.0f - a;
 
                     const int r = (int)(((c >> 16) & 0xFF) * a + ((hitColor >> 16) & 0xFF) * ia);
-                    const int g = (int)(((c >>  8) & 0xFF) * a + ((hitColor >>  8) & 0xFF) * ia);
-                    const int b = (int)( (c        & 0xFF) * a + ( hitColor        & 0xFF) * ia);
-                    hitColor    = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                    const int g = (int)(((c >> 8) & 0xFF) * a + ((hitColor >> 8) & 0xFF) * ia);
+                    const int b = (int)((c & 0xFF) * a + (hitColor & 0xFF) * ia);
+                    hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                     opacAccum *= (1.0f - alpha);
+
+                    if (overlayId != -1){
+                        const float3 localUV = hitPos - floor(hitPos);
+
+                        float u, v;
+                        if (hitFace <= 1) {          // X faces
+                            u = localUV.z;
+                            v = 1.0f - localUV.y;
+                        } else if (hitFace <= 3) {   // Y faces
+                            u = localUV.x;
+                            v = 1.0f - localUV.z;
+                        } else {                     // Z faces
+                            u = localUV.x;  
+                            v = 1.0f - localUV.y;
+                        }
+
+                        const int iu = clamp((int)(u * 32.0f), 0, 31);
+                        const int iv = clamp((int)(v * 32.0f), 0, 31);
+                        const int lookupIdx = iv * 192 + hitFace * 32 + iu;
+                        const int overlayBase = overlayId * (192 * 32);
+                        const int overlayHitColor = textureAtlas[overlayBase + lookupIdx];
+                        const int overlayAlpha = (overlayHitColor >> 24) & 0xFF;
+                        if (overlayAlpha != 0 && (overlayHitColor & 0x00FFFFFF) != 0x00FFFFFF) {
+                            hitColor = overlayHitColor;
+                        }
+                    }
                 }
             }
         }

@@ -33,6 +33,7 @@ public class NativeGPUKernal {
     private static int[] vcolor;
     public static TextureAtlas textureAtlas;
     private static int[] textureLocation;
+    private static int[] overlayLocation;
     private static float[] opacity;
     private static int[] voxelGrid;
     private static int[] chunkGrid;
@@ -54,6 +55,15 @@ public class NativeGPUKernal {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        Path overlays = textureDir.resolve("overlays");
+        File outline = overlays.resolve("outline.png").toFile();
+
+        try {
+            textures.put(amt++, ImageIO.read(outline));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         textureAtlas = new TextureAtlas(amt);
@@ -205,6 +215,7 @@ public class NativeGPUKernal {
             vcolor = new int[voxelCount];
             opacity = new float[voxelCount];
             textureLocation = new int[voxelCount];
+            overlayLocation = new int[voxelCount];
         }
 
         if (voxelGrid == null || voxelGrid.length != (int) size.multiplyComp())
@@ -221,6 +232,7 @@ public class NativeGPUKernal {
                 continue;
 
             textureLocation[i] = v.getMaterial().getTextureLocation();
+            overlayLocation[i] = v.getMaterial().getOverlayLocation();
             if (textureLocation[i] == -1) {
                 Vector4 color = v.getMaterial().getColor();
                 vcolor[i] = rgbToARGB((float) color.x, (float) color.y, (float) color.z, 1);
@@ -246,6 +258,7 @@ public class NativeGPUKernal {
                     voxelGrid,
                     path,
                     textureLocation,
+                    overlayLocation,
                     textureAtlas.getAtlas(),
                     chunkGrid,
                     chunckSize.toIntArray());

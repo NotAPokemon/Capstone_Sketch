@@ -7,6 +7,7 @@ public class Material {
     private Vector4 color;
     private boolean rigid;
     private Integer textureLocation;
+    private Integer overlayLocation;
     private double size = 1;
 
     public Material() {
@@ -17,6 +18,8 @@ public class Material {
         this.rigid = true;
 
         this.textureLocation = -1;
+
+        this.overlayLocation = -1;
 
         this.size = 1;
     }
@@ -31,6 +34,10 @@ public class Material {
 
     public Integer getTextureLocation() {
         return textureLocation;
+    }
+
+    public Integer getOverlayLocation() {
+        return overlayLocation;
     }
 
     public boolean isRigid() {
@@ -55,6 +62,10 @@ public class Material {
 
     public void setTextureLocation(Integer textureLocation) {
         this.textureLocation = textureLocation;
+    }
+
+    public void setOverlayLocation(Integer overlayLocation) {
+        this.overlayLocation = overlayLocation;
     }
 
     public void setSize(double size) {

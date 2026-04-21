@@ -17,7 +17,8 @@ public class KorgiJNI {
 
     public static native void executeKernal(int[] pixels, int w, int h, float[] cam, float[] foward, float[] right,
             float[] up, float tanFov, int voxCount, int[] color, float[] opacity, int[] worldMin, int[] worldSize,
-            int[] voxelGrid, String path, int[] textureLocation, int[] textureAtlas, int[] chunkGrid, int[] chunckSize);
+            int[] voxelGrid, String path, int[] textureLocation, int[] overlayLocation, int[] textureAtlas,
+            int[] chunkGrid, int[] chunckSize);
 
     public static native void executeEntityKernal(int[] pixels, int width, int height, float[] floatArray,
             float[] floatArray2,

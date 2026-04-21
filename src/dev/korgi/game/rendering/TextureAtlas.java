@@ -14,6 +14,8 @@ public class TextureAtlas {
     public static final int GALAXY_BLOCK = 2;
     public static final int amt = 3;
 
+    public static final int OUTLINE = 3;
+
     public TextureAtlas(int size) {
         this.atlas = new int[size][widthPerTexture][height];
     }
