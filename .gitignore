@@ -2,4 +2,6 @@
 /src/resources/config.json
 /Korgi/
 
+internal_config.json
+
 .DS_STORE
