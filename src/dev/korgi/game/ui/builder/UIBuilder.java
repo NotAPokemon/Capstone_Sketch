@@ -8,22 +8,20 @@ import dev.korgi.json.JSONObject;
 
 public class UIBuilder {
 
-    private final String name;
     private Element rootElement;
     private final JSONObject style = new JSONObject();
 
-    private UIBuilder(String name) {
-        this.name = name;
+    private UIBuilder() {
     }
 
-    public static UIBuilder create(String name) {
-        return new UIBuilder(name);
+    public static UIBuilder create() {
+        return new UIBuilder();
     }
 
-    public static UI debugValue(float x, float y, String name) {
-        return create(name)
+    public static UI debugValue(float x, float y) {
+        return create()
                 .drawMode(DrawMode.ABSOLUTE)
-                .canvas(new Canvas(name + "_main_canvas"))
+                .canvas(new Canvas("main_canvas"))
                 .text(new Text("display"))
                 .position(x, y)
                 .color(0xFFFF0000)
@@ -32,8 +30,8 @@ public class UIBuilder {
                 .build();
     }
 
-    public static UI debugValue(String name) {
-        return debugValue(100, 100, name);
+    public static UI debugValue() {
+        return debugValue(100, 100);
     }
 
     public UIBuilder drawMode(DrawMode mode) {
@@ -43,7 +41,7 @@ public class UIBuilder {
 
     public CanvasBuilder<UIBuilder> canvas(Canvas canvas) {
         this.rootElement = canvas;
-        return new CanvasBuilder<>(canvas, this, name, this);
+        return new CanvasBuilder<>(canvas, this, null, this);
     }
 
     public UIBuilder setText(String elementName, String value) {
@@ -61,10 +59,7 @@ public class UIBuilder {
     }
 
     public UI build() {
-        if (rootElement == null)
-            throw new IllegalStateException("UI '%s' must have a root element".formatted(name));
-
-        UI ui = new UI(name);
+        UI ui = new UI();
         ui.setRootElement(rootElement);
         ensureDefaults();
         ui.setStyle(style);

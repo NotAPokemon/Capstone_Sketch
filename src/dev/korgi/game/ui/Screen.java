@@ -161,7 +161,7 @@ public class Screen extends PApplet {
                 mouseMoved(e);
             }
         });
-        errorMsg = UIBuilder.debugValue(width / 2.0f, height / 2.0f, "error");
+        errorMsg = UIBuilder.debugValue(width / 2.0f, height / 2.0f);
         errorMsg.getStyle().set("display.value", "");
     }
 

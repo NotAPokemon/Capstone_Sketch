@@ -9,14 +9,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import dev.korgi.json.JSONObject;
-import dev.korgi.utils.InstallConstants;
 
 public class Installer {
 
     public static void runInstall() throws IOException, InterruptedException {
         File internalConfig = new File("./internal_config.json");
         JSONObject internalConfigData = new JSONObject();
-        String installPath = InstallerGUI.installPath + "Korgi/" + InstallConstants.appName + "/";
+        String installPath = InstallerGUI.installPath + "Korgi/";
         internalConfigData.set("path", installPath);
         internalConfig.createNewFile();
         FileOutputStream stream = new FileOutputStream(internalConfig);

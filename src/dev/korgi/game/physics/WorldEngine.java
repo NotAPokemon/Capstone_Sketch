@@ -16,7 +16,6 @@ import dev.korgi.networking.NetworkStream;
 import dev.korgi.networking.Packet;
 import dev.korgi.player.Player;
 import dev.korgi.utils.ClientSide;
-import dev.korgi.utils.VoxTranslator;
 
 public class WorldEngine {
 
@@ -26,21 +25,18 @@ public class WorldEngine {
     private static Jimmy jimmy;
 
     public static void init() {
-        // int xtotal = 100;
-        // int ztotal = 100;
-        // for (int x = 0; x < xtotal; x++) {
-        // for (int z = 0; z < ztotal; z++) {
-        // Voxel v = new Voxel(x, -5, z);
-        // v.getMaterial().setTextureLocation(0);
-        // addVoxel(v);
-        // Game.setInitProgress(0.5f * ((float) (x * ztotal + z) / (float) (xtotal *
-        // ztotal)) + 0.5f);
-        // }
-        // }
-        List<Voxel> voxels = VoxTranslator.fromModel("castle");
-        for (Voxel voxel : voxels) {
-            addVoxel(voxel);
+        int xtotal = 100;
+        int ztotal = 100;
+        for (int x = 0; x < xtotal; x++) {
+            for (int z = 0; z < ztotal; z++) {
+                Voxel v = new Voxel(x, -5, z);
+                v.getMaterial().setTextureLocation(0);
+                addVoxel(v);
+                Game.setInitProgress(0.5f * ((float) (x * ztotal + z) / (float) (xtotal *
+                        ztotal)) + 0.5f);
+            }
         }
+
         jimmy = new Jimmy();
         jimmy.getPosition().copyFrom(3, -1, 3);
         jimmy.getVelocity().addTo(0, 20, 0);

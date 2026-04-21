@@ -11,15 +11,9 @@ public class Time {
     private static final Map<String, Long> cd = new HashMap<>();
     private static long startTime;
 
-    public static void createCooldown(String name, double timeSeconds) {
+    private static void createCooldown(String name, double timeSeconds) {
         lastTime.put(name, System.nanoTime());
         cd.put(name, (long) (timeSeconds * 1_000_000_000L));
-    }
-
-    public static void ensure(String name, double time) {
-        if (cd.get(name) == null || Math.abs(cd.get(name) - time) < 0.001) {
-            createCooldown(name, time);
-        }
     }
 
     public static boolean check(String name) {
@@ -30,30 +24,24 @@ public class Time {
         return elapsed > cd.get(name);
     }
 
-    public static void use(String name, Runnable action) {
-        if (check(name)) {
+    public static void cooldown(String name, Runnable action, double timeSeconds) {
+        boolean shouldUse = false;
+
+        if (cd.get(name) == null || Math.abs(cd.get(name) - timeSeconds) < 0.001) {
+            createCooldown(name, timeSeconds);
+            shouldUse = true;
+        }
+        if (shouldUse || check(name)) {
             lastTime.put(name, System.nanoTime());
             action.run();
         }
     }
 
-    public static void time(Runnable runnable, double threashold, String output) {
-        long time = System.nanoTime();
-        runnable.run();
-        if ((System.nanoTime() - time) / 1e9 > threashold) {
-            System.out.println(output.formatted((System.nanoTime() - time) / 1e9));
-        }
-    }
-
-    public static void staticTime() {
+    public static void startTimer() {
         startTime = System.nanoTime();
     }
 
-    public static void staticTime(String output) {
-        System.out.println(output.formatted((System.nanoTime() - startTime) / 1e9));
-    }
-
-    public static void staticTime(String output, double threashold) {
+    public static void stopTimer(String output, double threashold) {
         double time = (System.nanoTime() - startTime) / 1e9;
         if (time > threashold)
             System.out.println(output.formatted(time));

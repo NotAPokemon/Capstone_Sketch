@@ -92,10 +92,10 @@ public class NativeGPUKernal {
 
     public static void execute(WorldStorage world, Camera camera) {
         NativeGPUKernal.camera = camera;
-        Time.time(() -> {
-            precompute(world);
-            precomputeEntites(world);
-        }, 0.05, "Warning High Kernal Latency: %f");
+        Time.startTimer();
+        precompute(world);
+        precomputeEntites(world);
+        Time.stopTimer("Warning High Kernal Latency: %f", 0.05);
     }
 
     private static String path = System.getProperty("user.dir");
@@ -247,22 +247,22 @@ public class NativeGPUKernal {
             chunkGrid[cx + cy * (int) chunckSize.x + cz * (int) chunckSize.x * (int) chunckSize.y] = 1;
         }
 
-        Time.time(() -> {
-            KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
-                    right.toFloatArray(),
-                    up.toFloatArray(), tanFov,
-                    voxelCount,
-                    vcolor, opacity,
-                    min.toIntArray(),
-                    size.toIntArray(),
-                    voxelGrid,
-                    path,
-                    textureLocation,
-                    overlayLocation,
-                    textureAtlas.getAtlas(),
-                    chunkGrid,
-                    chunckSize.toIntArray());
-        }, 0.05, "High Render Latency: %f");
+        Time.startTimer();
+        KorgiJNI.executeKernal(pixels, width, height, camera.position.toFloatArray(), forward.toFloatArray(),
+                right.toFloatArray(),
+                up.toFloatArray(), tanFov,
+                voxelCount,
+                vcolor, opacity,
+                min.toIntArray(),
+                size.toIntArray(),
+                voxelGrid,
+                path,
+                textureLocation,
+                overlayLocation,
+                textureAtlas.getAtlas(),
+                chunkGrid,
+                chunckSize.toIntArray());
+        Time.stopTimer("High Render Latency: %f", 0.05);
     }
 
     private static float[] entityPositions;
@@ -473,7 +473,7 @@ public class NativeGPUKernal {
             bvhLinks[i * 3 + 2] = lk[2];
         }
 
-        Time.staticTime();
+        Time.startTimer();
         KorgiJNI.executeEntityKernal(
                 pixels, width, height,
                 camera.position.toFloatArray(),
@@ -499,7 +499,7 @@ public class NativeGPUKernal {
                 totalBvhNodes,
                 textureAtlas.getAtlas(),
                 path2);
-        Time.staticTime("High Entity render: %f", 0.02f);
+        Time.stopTimer("High Entity render: %f", 0.02f);
         entities.add(client);
     }
 

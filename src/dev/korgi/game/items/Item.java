@@ -64,15 +64,14 @@ public abstract class Item extends Entity {
     @ServerSide
     public void drop(StorageEntity entity) {
         dropped = entity.removeFromInventory(this);
-        Time.ensure("drop", 0.1);
-        Time.use("drop", () -> {
+        Time.cooldown("drop", () -> {
             run((Item self) -> {
                 dropped = true;
                 assert entity instanceof Entity;
                 Entity e = (Entity) entity;
-                position.copyFrom(e.getPosition().add(e.getForward().multiplyBy(2)));
+                position.copyFrom(e.getPosition().add(e.getForward().multiplyBy(2, 0, 2)));
             });
-        });
+        }, 0.1);
 
     }
 
@@ -98,12 +97,11 @@ public abstract class Item extends Entity {
     @ServerSide
     public void onCollide(Entity other, Vector3 bodyPart, Vector3 otherBodyPart, Vector3 penetration) {
         if (other instanceof StorageEntity e) {
-            Time.ensure("pickupCd_" + other.internal_id, 0.75);
-            Time.use("pickupCd_" + other.internal_id, () -> {
+            Time.cooldown("pickupCd_" + other.internal_id, () -> {
                 if (dropped) {
                     dropped = !e.addToInventory(this);
                 }
-            });
+            }, 0.75);
         }
     }
 

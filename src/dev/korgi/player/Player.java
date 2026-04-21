@@ -63,7 +63,7 @@ public class Player extends Entity implements StorageEntity {
 
     @JSONIgnore
     @ClientSide
-    private static UI debug = UIBuilder.debugValue(200, 200, "player_debug");
+    private static UI debug = UIBuilder.debugValue(200, 200);
 
     static {
         debug.onOpen(() -> {
@@ -84,8 +84,7 @@ public class Player extends Entity implements StorageEntity {
             int padding = 6;
             float iconSize = slotSize - padding * 2;
 
-            UIBuilder builder = UIBuilder.create("hotbar")
-                    .drawMode(DrawMode.ABSOLUTE);
+            UIBuilder builder = UIBuilder.create().drawMode(DrawMode.ABSOLUTE);
 
             CanvasBuilder<UIBuilder> canvasBuilder = builder.canvas(new Canvas())
                     .bg(0x78000000)
@@ -126,7 +125,7 @@ public class Player extends Entity implements StorageEntity {
 
             hotbar = builder.build();
 
-            eToInteract = UIBuilder.create("eToInteract")
+            eToInteract = UIBuilder.create()
                     .drawMode(DrawMode.ABSOLUTE)
 
                     .canvas(new Canvas("root"))

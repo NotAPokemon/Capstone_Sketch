@@ -15,8 +15,7 @@ public class UI extends Element {
     private Runnable openSubscriber;
     private Runnable closeSubscriber;
 
-    public UI(String name) {
-        super(name);
+    public UI() {
     }
 
     public void onOpen(Runnable onOpen) {
