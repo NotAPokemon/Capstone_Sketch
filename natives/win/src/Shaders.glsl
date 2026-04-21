@@ -11,7 +11,7 @@ layout(std430, binding = 5) buffer OverlayLoc { int overlayLocation[]; };
 layout(std430, binding = 6) buffer TextureAtlas { int textureAtlas[]; };
 layout(std430, binding = 7) buffer ChunkGrid { int chunkGrid[]; };
 layout(std430, binding = 8) buffer ChunkSize { int chunkSize[]; };
-layout(std430, binding = 11) buffer TBuffer { float tBuffer[]; };
+layout(std430, binding = 9) buffer TBuffer { float tBuffer[]; };
 
 uniform vec3 cam;
 uniform vec3 forward;
