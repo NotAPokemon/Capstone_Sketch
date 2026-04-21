@@ -18,6 +18,7 @@ import dev.korgi.game.ui.elements.UI;
 import dev.korgi.networking.NetworkStream;
 import dev.korgi.player.Player;
 import dev.korgi.utils.ClientSide;
+import dev.korgi.utils.ColorConstants;
 import dev.korgi.utils.ErrorHandler;
 import dev.korgi.utils.InstallConstants;
 import dev.korgi.utils.ServerSide;
@@ -33,17 +34,6 @@ public class Screen extends PApplet {
             mInstance = new Screen();
         return mInstance;
     }
-
-    private static final int BG_DARK = 0xFF0D0F14;
-    private static final int BG_CARD = 0xFF1C2130;
-    private static final int ACCENT = 0xFF4F8EF7;
-    private static final int ACCENT_DIM = 0xFF2A4F9A;
-    private static final int TEXT_PRIMARY = 0xFFE8EAF0;
-    private static final int TEXT_DIM = 0xFF7A8099;
-    private static final int TEXT_LABEL = 0xFF4F5A72;
-    private static final int DANGER = 0xFFE05C5C;
-    private static final int SUCCESS = 0xFF4FD17A;
-    private static final int BORDER = 0xFF252B3B;
 
     public PFont fontMono10, fontMono11;
     public PFont fontSans11, fontSans12, fontSans13, fontSans14, fontSans20, fontSans22, fontSans28;
@@ -138,16 +128,16 @@ public class Screen extends PApplet {
 
         bgCache = createGraphics(width, height);
         bgCache.beginDraw();
-        bgCache.background(BG_DARK);
+        bgCache.background(ColorConstants.BG_DARK);
         int spacing = 30;
-        bgCache.stroke(BORDER);
+        bgCache.stroke(ColorConstants.BORDER);
         bgCache.strokeWeight(1);
         for (int x = spacing; x < width; x += spacing)
             for (int y = spacing; y < height; y += spacing)
                 bgCache.point(x, y);
         bgCache.noStroke();
         for (int r = min(width, height); r > 0; r -= 8) {
-            bgCache.fill(BG_DARK, map(r, 0, min(width, height), 0, 80));
+            bgCache.fill(ColorConstants.BG_DARK, map(r, 0, min(width, height), 0, 80));
             bgCache.noStroke();
             bgCache.ellipse(width / 2f, height / 2f, r * 2, r * 2);
         }
@@ -211,7 +201,7 @@ public class Screen extends PApplet {
     }
 
     private void drawLoadingScreen() {
-        background(BG_DARK);
+        background(ColorConstants.BG_DARK);
         drawGrid();
 
         int cx = width / 2;
@@ -227,7 +217,7 @@ public class Screen extends PApplet {
             float angle = i * angleStep - HALF_PI;
             float spokeFade = ((i / (float) spokes) - t + 1f) % 1f;
             int alpha = (int) (spokeFade * 220);
-            stroke(ACCENT & 0x00FFFFFF | (alpha << 24));
+            stroke(ColorConstants.ACCENT & 0x00FFFFFF | (alpha << 24));
             float inner = 22, outer = 34;
             line(
                     cx + cos(angle) * inner, cy + sin(angle) * inner,
@@ -236,7 +226,7 @@ public class Screen extends PApplet {
         noStroke();
 
         String dots = ".".repeat((int) ((millis() / 400) % 4));
-        fill(TEXT_DIM);
+        fill(ColorConstants.TEXT_DIM);
         textFont(fontSans13);
         textAlign(CENTER, TOP);
         text("Loading" + dots, cx, cy + 70);
@@ -247,14 +237,14 @@ public class Screen extends PApplet {
         int barX = cx - barW / 2, barY = cy + 100;
 
         noStroke();
-        fill(BORDER);
+        fill(ColorConstants.BORDER);
         rect(barX, barY, barW, barH, barH / 2f);
 
-        fill(ACCENT_DIM);
+        fill(ColorConstants.ACCENT_DIM);
         rect(barX, barY, barW * progress, barH, barH / 2f);
 
         if (progress > 0.02f) {
-            fill(ACCENT);
+            fill(ColorConstants.ACCENT);
             ellipse(barX + barW * progress, barY + barH / 2f, 6, 6);
         }
 
@@ -262,11 +252,11 @@ public class Screen extends PApplet {
     }
 
     private void drawSelector() {
-        background(BG_DARK);
+        background(ColorConstants.BG_DARK);
         drawGrid();
 
         int titleY = height / 2 - 110;
-        drawLabel("KORGI ENGINE", width / 2, titleY - 22, TEXT_LABEL, 11);
+        drawLabel("KORGI ENGINE", width / 2, titleY - 22, ColorConstants.TEXT_LABEL, 11);
         drawHeading("GAME LAUNCHER", width / 2, titleY, 28);
         drawDivider(width / 2 - 120, titleY + 27, 240);
 
@@ -286,17 +276,18 @@ public class Screen extends PApplet {
         btnHoverT[1] = lerp(btnHoverT[1], hoverJoin ? 1 : 0, 0.15f);
         btnHoverT[2] = lerp(btnHoverT[2], hoverConfig ? 1 : 0, 0.15f);
 
-        drawPrimaryButton("HOST GAME", hostX, row2Y, BTN_W, BTN_H, btnHoverT[0], ACCENT);
-        drawPrimaryButton("JOIN GAME", joinX, row2Y, BTN_W, BTN_H, btnHoverT[1], SUCCESS);
+        drawPrimaryButton("HOST GAME", hostX, row2Y, BTN_W, BTN_H, btnHoverT[0], ColorConstants.ACCENT);
+        drawPrimaryButton("JOIN GAME", joinX, row2Y, BTN_W, BTN_H, btnHoverT[1], ColorConstants.SUCCESS);
         drawGhostButton("SETTINGS", cfgX, cfgY, BTN_W, BTN_H - 10, btnHoverT[2]);
 
-        drawLabel("v" + InstallConstants.version + " · korgi engine", width / 2, height - 30, TEXT_LABEL, 10);
+        drawLabel("v" + InstallConstants.version + " · korgi engine", width / 2, height - 30, ColorConstants.TEXT_LABEL,
+                10);
 
         drawMessageBanner();
     }
 
     private void drawConfigMenu() {
-        background(BG_DARK);
+        background(ColorConstants.BG_DARK);
         drawGrid();
 
         int panelW = 560;
@@ -305,7 +296,7 @@ public class Screen extends PApplet {
         int panelY = height / 2 - panelH / 2;
         drawPanel(panelX, panelY, panelW, panelH);
 
-        drawLabel("CONFIGURATION", panelX + panelW / 2, panelY + 28, TEXT_LABEL, 10);
+        drawLabel("CONFIGURATION", panelX + panelW / 2, panelY + 28, ColorConstants.TEXT_LABEL, 10);
         drawHeading("Settings", panelX + panelW / 2, panelY + 52, 22);
         drawDivider(panelX + 32, panelY + 77, panelW - 64);
 
@@ -324,7 +315,7 @@ public class Screen extends PApplet {
         hoverApply = hitTest(panelX + panelW - 152, btnY, 120, 36);
 
         drawGhostButton("← BACK", panelX + 32, btnY, 120, 36, hoverBack ? 1 : 0);
-        drawPrimaryButton("APPLY", panelX + panelW - 152, btnY, 120, 36, hoverApply ? 1 : 0, ACCENT);
+        drawPrimaryButton("APPLY", panelX + panelW - 152, btnY, 120, 36, hoverApply ? 1 : 0, ColorConstants.ACCENT);
 
         drawMessageBanner();
     }
@@ -333,11 +324,11 @@ public class Screen extends PApplet {
 
     private void drawConfigRow(int idx, int x, int y, int totalW, int sliderW) {
         textFont(fontSans13);
-        fill(TEXT_PRIMARY);
+        fill(ColorConstants.TEXT_PRIMARY);
         textAlign(LEFT, CENTER);
         text(cfgLabels[idx], x, y + 16);
 
-        fill(TEXT_LABEL);
+        fill(ColorConstants.TEXT_LABEL);
         textFont(fontMono10);
         text(cfgKeys[idx], x, y + 32);
 
@@ -352,14 +343,14 @@ public class Screen extends PApplet {
             float t = on ? 1f : 0f;
 
             noStroke();
-            fill(lerpColor(BORDER, ACCENT_DIM, t));
+            fill(lerpColor(ColorConstants.BORDER, ColorConstants.ACCENT_DIM, t));
             rect(tx, ty, tw, th, th / 2f);
 
             float knobX = lerp(tx + 4, tx + tw - 18, t);
-            fill(on ? ACCENT : TEXT_DIM);
+            fill(on ? ColorConstants.ACCENT : ColorConstants.TEXT_DIM);
             ellipse(knobX + 7, ty + th / 2f, 16, 16);
 
-            fill(on ? ACCENT : TEXT_DIM);
+            fill(on ? ColorConstants.ACCENT : ColorConstants.TEXT_DIM);
             textAlign(RIGHT, CENTER);
             textFont(fontMono11);
             text(on ? "ON" : "OFF", tx - 8, ty + th / 2f);
@@ -372,10 +363,10 @@ public class Screen extends PApplet {
             float fillW = pct * sliderW;
 
             noStroke();
-            fill(BORDER);
+            fill(ColorConstants.BORDER);
             rect(sx, sy, sliderW, sh, sh / 2f);
 
-            fill(ACCENT_DIM);
+            fill(ColorConstants.ACCENT_DIM);
             rect(sx, sy, max(sh, fillW), sh, sh / 2f);
 
             boolean dragging = cfgDragging && cfgDragIndex == idx;
@@ -383,11 +374,11 @@ public class Screen extends PApplet {
                     && mouseX >= sx - 8 && mouseX <= sx + sliderW + 8
                     && mouseY >= sy - 10 && mouseY <= sy + sh + 10;
 
-            fill(dragging || hovering ? ACCENT : color(180));
+            fill(dragging || hovering ? ColorConstants.ACCENT : color(180));
             ellipse(sx + fillW, sy + sh / 2f, dragging ? 14 : 10, dragging ? 14 : 10);
 
             String fmt = (cfgMax[idx] <= 1f) ? "%.2f" : "%.0f";
-            fill(TEXT_DIM);
+            fill(ColorConstants.TEXT_DIM);
             textAlign(RIGHT, CENTER);
             textFont(fontMono11);
             text(String.format(fmt, cfgValues[idx]), sx - 12, sy + sh / 2f);
@@ -398,7 +389,7 @@ public class Screen extends PApplet {
             }
         }
 
-        stroke(BORDER);
+        stroke(ColorConstants.BORDER);
         strokeWeight(1);
         line(x, y + ROW_H - 2, x + totalW, y + ROW_H - 2);
         noStroke();
@@ -411,10 +402,10 @@ public class Screen extends PApplet {
         int fy = y + 8;
 
         noStroke();
-        fill(active ? (BG_DARK) : BORDER);
+        fill(active ? (ColorConstants.BG_DARK) : ColorConstants.BORDER);
         rect(fx, fy, fw, fh, 4);
 
-        stroke(active ? ACCENT : TEXT_LABEL);
+        stroke(active ? ColorConstants.ACCENT : ColorConstants.TEXT_LABEL);
         strokeWeight(1);
         noFill();
         rect(fx, fy, fw, fh, 4);
@@ -428,7 +419,7 @@ public class Screen extends PApplet {
         while (display.length() > 1 && textWidth(display) > fw - 12)
             display = display.substring(1);
 
-        fill(active ? TEXT_PRIMARY : TEXT_DIM);
+        fill(active ? ColorConstants.TEXT_PRIMARY : ColorConstants.TEXT_DIM);
         textAlign(LEFT, CENTER);
         text(display, fx + 6, fy + fh / 2f);
     }
@@ -623,7 +614,7 @@ public class Screen extends PApplet {
 
     public void drawHUD() {
         textFont(fontSans14);
-        fill(TEXT_LABEL);
+        fill(ColorConstants.TEXT_LABEL);
         textAlign(LEFT, TOP);
         text("FPS  " + (int) frameRate, 16, 16);
         text("Sync " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 16, 32);
@@ -648,12 +639,12 @@ public class Screen extends PApplet {
         drawCrosshair();
 
         textFont(fontSans14);
-        fill(TEXT_DIM);
+        fill(ColorConstants.TEXT_DIM);
         textAlign(LEFT, TOP);
         text("PING " + (int) NetworkStream.getPing() + "ms", 16, 48);
 
         Game.withClient((p, pos) -> {
-            fill(TEXT_PRIMARY);
+            fill(ColorConstants.TEXT_PRIMARY);
             textAlign(CENTER, TOP);
             text(String.format("%.1f  /  %.1f  /  %.1f", pos.x, pos.y, pos.z), width / 2f, 16);
         });
@@ -665,7 +656,7 @@ public class Screen extends PApplet {
 
     @ServerSide
     public void drawServerInfo() {
-        background(BG_DARK);
+        background(ColorConstants.BG_DARK);
         drawGrid();
 
         int panelW = 340;
@@ -674,7 +665,7 @@ public class Screen extends PApplet {
         int panelY = height / 2 - panelH / 2;
         drawPanel(panelX, panelY, panelW, panelH);
 
-        drawLabel("SERVER CONTROL", panelX + panelW / 2, panelY + 24, TEXT_LABEL, 10);
+        drawLabel("SERVER CONTROL", panelX + panelW / 2, panelY + 24, ColorConstants.TEXT_LABEL, 10);
         drawHeading("Hosting", panelX + panelW / 2, panelY + 46, 20);
         drawDivider(panelX + 24, panelY + 71, panelW - 48);
 
@@ -685,7 +676,7 @@ public class Screen extends PApplet {
 
         stopHostingHover = hitTest(bx, by, bw, bh);
         btnHoverT[3] = lerp(btnHoverT[3], stopHostingHover ? 1 : 0, 0.15f);
-        drawPrimaryButton("STOP HOSTING", bx, by, bw, bh, btnHoverT[3], DANGER);
+        drawPrimaryButton("STOP HOSTING", bx, by, bw, bh, btnHoverT[3], ColorConstants.DANGER);
 
         drawMessageBanner();
 
@@ -781,10 +772,10 @@ public class Screen extends PApplet {
         fill(0, 60);
         rect(x + 4, y + 6, w, h, 12);
 
-        fill(BG_CARD);
+        fill(ColorConstants.BG_CARD);
         rect(x, y, w, h, 10);
 
-        stroke(BORDER);
+        stroke(ColorConstants.BORDER);
         strokeWeight(1);
         noFill();
         rect(x, y, w, h, 10);
@@ -798,9 +789,9 @@ public class Screen extends PApplet {
             rect(x - 4, y - 4, w + 8, h + 8, 14);
         }
 
-        int bg = lerpColor(BG_CARD, col, hoverT * 0.85f);
+        int bg = lerpColor(ColorConstants.BG_CARD, col, hoverT * 0.85f);
         fill(bg);
-        stroke(lerpColor(BORDER, col, hoverT));
+        stroke(lerpColor(ColorConstants.BORDER, col, hoverT));
         strokeWeight(1);
         rect(x, y, w, h, 8);
         noStroke();
@@ -808,7 +799,7 @@ public class Screen extends PApplet {
         fill(col);
         rect(x, y, 3, h, 8, 0, 0, 8);
 
-        fill(lerpColor(TEXT_DIM, TEXT_PRIMARY, hoverT));
+        fill(lerpColor(ColorConstants.TEXT_DIM, ColorConstants.TEXT_PRIMARY, hoverT));
         textFont(fontSans12);
         textAlign(CENTER, CENTER);
         text(label, x + w / 2f + 1, y + h / 2f);
@@ -816,12 +807,12 @@ public class Screen extends PApplet {
 
     private void drawGhostButton(String label, int x, int y, int w, int h, float hoverT) {
         noFill();
-        stroke(lerpColor(BORDER, TEXT_DIM, hoverT));
+        stroke(lerpColor(ColorConstants.BORDER, ColorConstants.TEXT_DIM, hoverT));
         strokeWeight(1);
         rect(x, y, w, h, 6);
         noStroke();
 
-        fill(lerpColor(TEXT_LABEL, TEXT_DIM, hoverT));
+        fill(lerpColor(ColorConstants.TEXT_LABEL, ColorConstants.TEXT_DIM, hoverT));
         textFont(fontSans11);
         textAlign(CENTER, CENTER);
         text(label, x + w / 2f, y + h / 2f);
@@ -829,7 +820,7 @@ public class Screen extends PApplet {
 
     private void drawHeading(String txt, int cx, int y, int sz) {
         PFont f = sz >= 26 ? fontSans28 : sz >= 21 ? fontSans22 : fontSans20;
-        fill(TEXT_PRIMARY);
+        fill(ColorConstants.TEXT_PRIMARY);
         textFont(f);
         textAlign(CENTER, TOP);
         text(txt, cx, y);
@@ -843,7 +834,7 @@ public class Screen extends PApplet {
     }
 
     private void drawDivider(int x, int y, int w) {
-        stroke(BORDER);
+        stroke(ColorConstants.BORDER);
         strokeWeight(1);
         line(x, y, x + w, y);
         noStroke();
@@ -854,15 +845,15 @@ public class Screen extends PApplet {
             return;
         float alpha = uiMessageTimer > 30 ? 255 : map(uiMessageTimer, 0, 30, 0, 255);
         noStroke();
-        fill(DANGER & 0x00FFFFFF | (int) (alpha * 0.15f) << 24);
+        fill(ColorConstants.DANGER & 0x00FFFFFF | (int) (alpha * 0.15f) << 24);
         rect(width / 2f - 200, 12, 400, 30, 6);
-        stroke(DANGER & 0x00FFFFFF | (int) (alpha * 0.4f) << 24);
+        stroke(ColorConstants.DANGER & 0x00FFFFFF | (int) (alpha * 0.4f) << 24);
         strokeWeight(1);
         noFill();
         rect(width / 2f - 200, 12, 400, 30, 6);
         noStroke();
 
-        fill(DANGER & 0x00FFFFFF | (int) alpha << 24);
+        fill(ColorConstants.DANGER & 0x00FFFFFF | (int) alpha << 24);
         textFont(fontSans12);
         textAlign(CENTER, CENTER);
         text(uiMessage, width / 2f, 27);

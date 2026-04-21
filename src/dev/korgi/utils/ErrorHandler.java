@@ -15,7 +15,7 @@ public class ErrorHandler {
         canavsLocal.set("x", screen.width / 2.0f);
         canavsLocal.set("y", screen.height / 2.0f);
         JSONObject textLocal = style.getJSONObject("display");
-        textLocal.set("bg", 0xFFFF0000);
+        textLocal.set("bg", ColorConstants.RED);
         String error = "ERROR: %s".formatted(message).formatted(format);
         style.set("display.value", error);
         Thread thread = Thread.currentThread();
@@ -40,7 +40,7 @@ public class ErrorHandler {
         canavsLocal.set("x", screen.width / 2.0f);
         canavsLocal.set("y", screen.height / 2.0f);
         JSONObject textLocal = style.getJSONObject("display");
-        textLocal.set("bg", 0xFFE9D502);
+        textLocal.set("bg", ColorConstants.WARN);
         String error = "WARNING: %s".formatted(message).formatted(format);
         style.set("display.value", error);
     }
