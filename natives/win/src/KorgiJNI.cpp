@@ -15,6 +15,7 @@ static GLuint voxelBuffer = 0;
 static GLuint colorBuffer = 0;
 static GLuint opacityBuffer = 0;
 static GLuint textureLocationBuffer = 0;
+static GLuint overlayLocationBuffer = 0;
 static GLuint textureAtlasBuffer = 0;
 static GLuint chunkGridBuffer = 0;
 static GLuint chunkSizeBuffer = 0;
@@ -194,6 +195,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jintArray voxelGrid,
     jstring path,
     jintArray textureLocation,
+    jintArray overlayLocation,
     jintArray textureAtlas,
     jintArray chunkGrid,
     jintArray chunkSize)
@@ -219,6 +221,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     jint *worldSize = env->GetIntArrayElements(worldSizeArray, nullptr);
     jint *voxelGridPtr = env->GetIntArrayElements(voxelGrid, nullptr);
     jint *textureLocationPtr = env->GetIntArrayElements(textureLocation, nullptr);
+    jint *overlayLocationPtr = env->GetIntArrayElements(overlayLocation, nullptr);
     jint *textureAtlasPtr = env->GetIntArrayElements(textureAtlas, nullptr);
     jint *chunkGridPtr = env->GetIntArrayElements(chunkGrid, nullptr);
     jint *chunkSizePtr = env->GetIntArrayElements(chunkSize, nullptr);
@@ -231,6 +234,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     uploadSSBO(colorBuffer, sizeof(jint) * voxCount, colorPtr);
     uploadSSBO(opacityBuffer, sizeof(float) * voxCount, opacityPtr);
     uploadSSBO(textureLocationBuffer, sizeof(jint) * voxCount, textureLocationPtr);
+    uploadSSBO(overlayLocationBuffer, sizeof(jint) * voxCount, overlayLocationPtr);
     uploadSSBO(textureAtlasBuffer, sizeof(jint) * atlasLen, textureAtlasPtr);
     uploadSSBO(chunkGridBuffer, sizeof(jint) * chunkGridLen, chunkGridPtr);
     uploadSSBO(chunkSizeBuffer, sizeof(jint) * 3, chunkSizePtr);
@@ -250,9 +254,10 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, colorBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, opacityBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, textureLocationBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, textureAtlasBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, chunkGridBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, chunkSizeBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, overlayLocationBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, textureAtlasBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, chunkGridBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, chunkSizeBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, tBuffer);
 
     glUniform3f(glGetUniformLocation(computeProgram, "cam"), camPtr[0], camPtr[1], camPtr[2]);
@@ -287,6 +292,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     env->ReleaseIntArrayElements(worldSizeArray, worldSize, 0);
     env->ReleaseIntArrayElements(voxelGrid, voxelGridPtr, 0);
     env->ReleaseIntArrayElements(textureLocation, textureLocationPtr, 0);
+    env->ReleaseIntArrayElements(overlayLocation, overlayLocationPtr, 0);
     env->ReleaseIntArrayElements(textureAtlas, textureAtlasPtr, 0);
     env->ReleaseIntArrayElements(chunkGrid, chunkGridPtr, 0);
     env->ReleaseIntArrayElements(chunkSize, chunkSizePtr, 0);
@@ -308,39 +314,41 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKerna
     jintArray textureAtlas,
     jstring path)
 {
-    if (!initGL(w, h)) return;
+    if (!initGL(w, h))
+        return;
 
     if (!entityProgram)
     {
         entityProgram = compileComputeShader(toString(env, path));
-        if (!entityProgram) return;
+        if (!entityProgram)
+            return;
     }
 
-    jint *pixelsPtr = (jint*)env->GetPrimitiveArrayCritical(pixels, nullptr);
+    jint *pixelsPtr = (jint *)env->GetPrimitiveArrayCritical(pixels, nullptr);
 
-    jfloat *camPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(camPos, nullptr);
-    jfloat *camFwdPtr = (jfloat*)env->GetPrimitiveArrayCritical(camFwd, nullptr);
-    jfloat *camRightPtr = (jfloat*)env->GetPrimitiveArrayCritical(camRight, nullptr);
-    jfloat *camUpPtr = (jfloat*)env->GetPrimitiveArrayCritical(camUp, nullptr);
+    jfloat *camPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(camPos, nullptr);
+    jfloat *camFwdPtr = (jfloat *)env->GetPrimitiveArrayCritical(camFwd, nullptr);
+    jfloat *camRightPtr = (jfloat *)env->GetPrimitiveArrayCritical(camRight, nullptr);
+    jfloat *camUpPtr = (jfloat *)env->GetPrimitiveArrayCritical(camUp, nullptr);
 
-    jfloat *entPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(entPositions, nullptr);
-    jfloat *entRotPtr = (jfloat*)env->GetPrimitiveArrayCritical(entRotations, nullptr);
-    jfloat *entRadPtr = (jfloat*)env->GetPrimitiveArrayCritical(entRaddi, nullptr);
+    jfloat *entPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(entPositions, nullptr);
+    jfloat *entRotPtr = (jfloat *)env->GetPrimitiveArrayCritical(entRotations, nullptr);
+    jfloat *entRadPtr = (jfloat *)env->GetPrimitiveArrayCritical(entRaddi, nullptr);
 
-    jint *entVoxelOffPtr = (jint*)env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
-    jint *entBvhOffPtr = (jint*)env->GetPrimitiveArrayCritical(entBvhOffsets, nullptr);
+    jint *entVoxelOffPtr = (jint *)env->GetPrimitiveArrayCritical(entVoxelOffsets, nullptr);
+    jint *entBvhOffPtr = (jint *)env->GetPrimitiveArrayCritical(entBvhOffsets, nullptr);
 
-    jfloat *bvPosPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvPositions, nullptr);
-    jfloat *bvSizePtr = (jfloat*)env->GetPrimitiveArrayCritical(bvSizes, nullptr);
-    jint *bvColorPtr = (jint*)env->GetPrimitiveArrayCritical(bvColors, nullptr);
-    jfloat *bvOpPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvOpacities, nullptr);
-    jint *bvTexPtr = (jint*)env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
+    jfloat *bvPosPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvPositions, nullptr);
+    jfloat *bvSizePtr = (jfloat *)env->GetPrimitiveArrayCritical(bvSizes, nullptr);
+    jint *bvColorPtr = (jint *)env->GetPrimitiveArrayCritical(bvColors, nullptr);
+    jfloat *bvOpPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvOpacities, nullptr);
+    jint *bvTexPtr = (jint *)env->GetPrimitiveArrayCritical(bvTextureIds, nullptr);
 
-    jfloat *bvhMinPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvhMins, nullptr);
-    jfloat *bvhMaxPtr = (jfloat*)env->GetPrimitiveArrayCritical(bvhMaxs, nullptr);
-    jint *bvhLinkPtr = (jint*)env->GetPrimitiveArrayCritical(bvhLinks, nullptr);
+    jfloat *bvhMinPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvhMins, nullptr);
+    jfloat *bvhMaxPtr = (jfloat *)env->GetPrimitiveArrayCritical(bvhMaxs, nullptr);
+    jint *bvhLinkPtr = (jint *)env->GetPrimitiveArrayCritical(bvhLinks, nullptr);
 
-    jint *atlasPtr = (jint*)env->GetPrimitiveArrayCritical(textureAtlas, nullptr);
+    jint *atlasPtr = (jint *)env->GetPrimitiveArrayCritical(textureAtlas, nullptr);
     jsize atlasLength = env->GetArrayLength(textureAtlas);
 
     std::vector<int> headers(entityCount * 16);
@@ -349,17 +357,17 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKerna
     {
         int base = i * 16;
 
-        headers[base + 0] = *(int*)&entPosPtr[i * 3 + 0];
-        headers[base + 1] = *(int*)&entPosPtr[i * 3 + 1];
-        headers[base + 2] = *(int*)&entPosPtr[i * 3 + 2];
+        headers[base + 0] = *(int *)&entPosPtr[i * 3 + 0];
+        headers[base + 1] = *(int *)&entPosPtr[i * 3 + 1];
+        headers[base + 2] = *(int *)&entPosPtr[i * 3 + 2];
 
         headers[base + 3] = entVoxelOffPtr[i * 2];
         headers[base + 4] = entVoxelOffPtr[i * 2 + 1];
 
         for (int r = 0; r < 9; r++)
-            headers[base + 5 + r] = *(int*)&entRotPtr[i * 9 + r];
+            headers[base + 5 + r] = *(int *)&entRotPtr[i * 9 + r];
 
-        headers[base + 14] = *(int*)&entRadPtr[i];
+        headers[base + 14] = *(int *)&entRadPtr[i];
         headers[base + 15] = entBvhOffPtr[i];
     }
 
@@ -372,36 +380,34 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeEntityKerna
         hot[i * 4 + 3] = bvSizePtr[i];
     }
 
-
     std::vector<int> cold(totalVoxels * 4);
     for (int i = 0; i < totalVoxels; i++)
     {
         cold[i * 4 + 0] = bvColorPtr[i];
-        cold[i * 4 + 1] = *(int*)&bvOpPtr[i];
+        cold[i * 4 + 1] = *(int *)&bvOpPtr[i];
         cold[i * 4 + 2] = bvTexPtr[i];
         cold[i * 4 + 3] = 0;
     }
-
 
     std::vector<int> nodes(totalBvhNodes * 12);
     for (int i = 0; i < totalBvhNodes; i++)
     {
         int base = i * 12;
 
-        nodes[base + 0] = *(int*)&bvhMinPtr[i * 3 + 0];
-        nodes[base + 1] = *(int*)&bvhMinPtr[i * 3 + 1];
-        nodes[base + 2] = *(int*)&bvhMinPtr[i * 3 + 2];
+        nodes[base + 0] = *(int *)&bvhMinPtr[i * 3 + 0];
+        nodes[base + 1] = *(int *)&bvhMinPtr[i * 3 + 1];
+        nodes[base + 2] = *(int *)&bvhMinPtr[i * 3 + 2];
 
         nodes[base + 3] = bvhLinkPtr[i * 3 + 0];
 
-        nodes[base + 4] = *(int*)&bvhMaxPtr[i * 3 + 0];
-        nodes[base + 5] = *(int*)&bvhMaxPtr[i * 3 + 1];
-        nodes[base + 6] = *(int*)&bvhMaxPtr[i * 3 + 2];
+        nodes[base + 4] = *(int *)&bvhMaxPtr[i * 3 + 0];
+        nodes[base + 5] = *(int *)&bvhMaxPtr[i * 3 + 1];
+        nodes[base + 6] = *(int *)&bvhMaxPtr[i * 3 + 2];
 
         nodes[base + 7] = bvhLinkPtr[i * 3 + 1];
         nodes[base + 8] = bvhLinkPtr[i * 3 + 2];
 
-        nodes[base + 9]  = 0;
+        nodes[base + 9] = 0;
         nodes[base + 10] = 0;
         nodes[base + 11] = 0;
     }

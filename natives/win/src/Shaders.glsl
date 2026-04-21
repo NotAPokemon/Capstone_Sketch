@@ -7,9 +7,10 @@ layout(std430, binding = 1) buffer Voxels { int voxelGrid[]; };
 layout(std430, binding = 2) buffer Colors { int colors[]; };
 layout(std430, binding = 3) buffer Opacity { float opacity[]; };
 layout(std430, binding = 4) buffer TextureLoc { int textureLocation[]; };
-layout(std430, binding = 5) buffer TextureAtlas { int textureAtlas[]; };
-layout(std430, binding = 6) buffer ChunkGrid { int chunkGrid[]; };
-layout(std430, binding = 7) buffer ChunkSize { int chunkSize[]; };
+layout(std430, binding = 5) buffer OverlayLoc { int overlayLocation[]; };
+layout(std430, binding = 6) buffer TextureAtlas { int textureAtlas[]; };
+layout(std430, binding = 7) buffer ChunkGrid { int chunkGrid[]; };
+layout(std430, binding = 8) buffer ChunkSize { int chunkSize[]; };
 layout(std430, binding = 11) buffer TBuffer { float tBuffer[]; };
 
 uniform vec3 cam;
@@ -162,6 +163,7 @@ void main() {
 
             if (uint(voxel) < uint(voxCount)) {
                 int texId = textureLocation[voxel];
+                int overlayId = overlayLocation[voxel];
                 float alpha = opacity[voxel];
 
                 if (texId != -1 && hitFace >= 0) {
@@ -182,8 +184,18 @@ void main() {
                     int iu = clamp(int(u * 32.0), 0, 31);
                     int iv = clamp(int(v * 32.0), 0, 31);
                     int base = texId * (192 * 32);
-                    hitColor = textureAtlas[base + iv * 192 + hitFace * 32 + iu];
+                    int lookupIdx = iv * 192 + hitFace * 32 + iu;
+                    hitColor = textureAtlas[base + lookupIdx];
                     opacAccum = 0.0;
+                    
+                    if (overlayId != -1){
+                        int overlayBase = overlayId * (192 * 32);
+                        int overlayHitColor = textureAtlas[overlayBase + lookupIdx];
+                        int overlayAlpha = (overlayHitColor >> 24) & 0xFF;
+                        if (overlayAlpha != 0 && (overlayHitColor & 0x00FFFFFF) != 0x00FFFFFF) {
+                            hitColor = overlayHitColor;
+                        }
+                    }
 
                 } else {
                     int c = colors[voxel];
@@ -196,6 +208,32 @@ void main() {
                     hitColor = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
                     opacAccum *= (1.0 - alpha);
+
+                    if (overlayId != -1){
+                        vec3 local = hitPos - floor(hitPos);
+                        float u, v;
+
+                        if (hitFace <= 1) {        // X faces
+                            u = local.z;
+                            v = 1.0 - local.y;
+                        } else if (hitFace <= 3) { // Y faces
+                            u = local.x;
+                            v = 1.0 - local.z;
+                        } else {                   // Z faces
+                            u = local.x;
+                            v = 1.0 - local.y;
+                        }
+
+                        int iu = clamp(int(u * 32.0), 0, 31);
+                        int iv = clamp(int(v * 32.0), 0, 31);
+                        int lookupIdx = iv * 192 + hitFace * 32 + iu;
+                        int overlayBase = overlayId * (192 * 32);
+                        int overlayHitColor = textureAtlas[overlayBase + lookupIdx];
+                        int overlayAlpha = (overlayHitColor >> 24) & 0xFF;
+                        if (overlayAlpha != 0 && (overlayHitColor & 0x00FFFFFF) != 0x00FFFFFF) {
+                            hitColor = overlayHitColor;
+                        }
+                    }
                 }
             }
         }
