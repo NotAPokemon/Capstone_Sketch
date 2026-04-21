@@ -75,7 +75,7 @@ public class Screen extends PApplet {
     private final String[] cfgLabels = { "Mouse Sensitivity", "Field of View", "Render Distance", "Server IP",
             "Resource Pack" };
     private final float[] cfgMin = { 1f, 40f, 10f, 0, 0 };
-    private final float[] cfgMax = { 100f, 120f, 80f, 0, 0 };
+    private final float[] cfgMax = { 6f, 120f, 80f, 0, 0 };
 
     private final boolean[] cfgIsToggle = { false, false, false, false, false };
     private final boolean[] cfgIsString = { false, false, false, true, true };
