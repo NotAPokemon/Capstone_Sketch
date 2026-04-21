@@ -258,7 +258,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_korgi_jni_KorgiJNI_executeKernal(
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, textureAtlasBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, chunkGridBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, chunkSizeBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 11, tBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, tBuffer);
 
     glUniform3f(glGetUniformLocation(computeProgram, "cam"), camPtr[0], camPtr[1], camPtr[2]);
     glUniform3f(glGetUniformLocation(computeProgram, "forward"), forwardPtr[0], forwardPtr[1], forwardPtr[2]);
