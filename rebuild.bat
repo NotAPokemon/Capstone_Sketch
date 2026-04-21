@@ -12,10 +12,10 @@ if exist Korgi\ (
     rmdir /s /q Korgi
 )
 
-runjava.bat
+call runjava.bat
 
 if exist config.json (
     move config.json Korgi\config.json
 )
 
-runjava.bat
+call runjava.bat
