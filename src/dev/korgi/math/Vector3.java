@@ -195,8 +195,6 @@ public class Vector3 {
             return v.x == x && v.y == y && v.z == z;
         } else if (obj instanceof Vector3 v) {
             return v.x == x && v.y == y && v.z == z;
-        } else if (obj instanceof Vector2 v) {
-            return v.x == x && v.y == y;
         }
         return false;
     }
