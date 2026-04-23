@@ -1,5 +1,7 @@
 package dev.korgi.math;
 
+import dev.korgi.json.JSONIgnore;
+
 public class Vector3 {
     public double x;
     public double y;
@@ -189,12 +191,15 @@ public class Vector3 {
         return x * y * z;
     }
 
+    @JSONIgnore
+    private static final double epsilon = 1e-4;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Vector4 v) {
-            return v.x == x && v.y == y && v.z == z;
+            return Math.abs(v.x - x) < epsilon && Math.abs(v.y - y) < epsilon && Math.abs(v.z - z) < epsilon;
         } else if (obj instanceof Vector3 v) {
-            return v.x == x && v.y == y && v.z == z;
+            return Math.abs(v.x - x) < epsilon && Math.abs(v.y - y) < epsilon && Math.abs(v.z - z) < epsilon;
         }
         return false;
     }
