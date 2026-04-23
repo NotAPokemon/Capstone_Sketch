@@ -7,6 +7,10 @@ public class ErrorMessage extends GUI {
 
     private String value = "";
 
+    public void setValue(String value) {
+        this.value = value;
+    }
+
     @Override
     protected void drawGUI() {
         loadStyle("txt");
@@ -18,10 +22,6 @@ public class ErrorMessage extends GUI {
         stylesheet.set("txt", new JSONObject()
                 .set("bg", StyleConstants.RED)
                 .set("font", screen.fontSans28));
-    }
-
-    public void setValue(String value) {
-        this.value = value;
     }
 
 }

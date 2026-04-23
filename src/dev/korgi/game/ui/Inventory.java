@@ -100,40 +100,31 @@ public class Inventory extends GUI {
 
     @Override
     protected void createStyleSheet() {
-        JSONObject container = new JSONObject();
 
-        container.set("bg", 0x78000000);
-        container.set("borderRadius", 10);
+        stylesheet.set("container", new JSONObject()
+                .set("bg", 0x78000000)
+                .set("borderRadius", 10));
 
-        JSONObject slot = new JSONObject();
+        stylesheet.set("slot", new JSONObject()
+                .set("bg", 0xFF1C2130)
+                .set("borderColor", 0xFF252B3B)
+                .set("borderSize", 1)
+                .set("borderRadius", 6));
 
-        slot.set("bg", 0xFF1C2130);
-        slot.set("borderColor", 0xFF252B3B);
-        slot.set("borderSize", 1);
-        slot.set("borderRadius", 6);
+        stylesheet.set("slotActive", new JSONObject()
+                .set("bg", 0xFF4F8EF7)
+                .set("borderColor", 0xFF4F8EF7)
+                .set("borderSize", 2)
+                .set("borderRadius", 6));
 
-        JSONObject slotActive = new JSONObject();
+        stylesheet.set("numTxt", new JSONObject()
+                .set("bg", 0xFF7A8099)
+                .set("font", screen.fontSans12)
+                .set("txtAlignX", PApplet.CENTER)
+                .set("txtAlignY", PApplet.BOTTOM));
 
-        slotActive.set("bg", 0xFF4F8EF7);
-        slotActive.set("borderColor", 0xFF4F8EF7);
-        slotActive.set("borderSize", 2);
-        slotActive.set("borderRadius", 6);
-
-        JSONObject numTxt = new JSONObject();
-
-        numTxt.set("bg", 0xFF7A8099);
-        numTxt.set("font", screen.fontSans12);
-        numTxt.set("txtAlignX", PApplet.CENTER);
-        numTxt.set("txtAlignY", PApplet.BOTTOM);
-
-        JSONObject icon = new JSONObject();
-        icon.set("imgMode", PApplet.CENTER);
-
-        stylesheet.set("container", container);
-        stylesheet.set("slot", slot);
-        stylesheet.set("slotActive", slotActive);
-        stylesheet.set("numTxt", numTxt);
-        stylesheet.set("icon", icon);
+        stylesheet.set("icon", new JSONObject()
+                .set("imgMode", PApplet.CENTER));
     }
 
 }
