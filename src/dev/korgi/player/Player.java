@@ -12,16 +12,8 @@ import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.game.rendering.Voxel;
-import dev.korgi.game.ui.Screen;
-import dev.korgi.game.ui.builder.CanvasBuilder;
-import dev.korgi.game.ui.builder.DrawMode;
-import dev.korgi.game.ui.builder.UIBuilder;
-import dev.korgi.game.ui.elements.Canvas;
-import dev.korgi.game.ui.elements.Image;
-import dev.korgi.game.ui.elements.Text;
-import dev.korgi.game.ui.elements.UI;
+import dev.korgi.game.ui.Inventory;
 import dev.korgi.json.JSONIgnore;
-import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
 import dev.korgi.networking.NetworkStream;
@@ -29,7 +21,6 @@ import dev.korgi.networking.Packet;
 import dev.korgi.utils.ClientSide;
 import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.VoxTranslator;
-import processing.core.PApplet;
 
 public class Player extends Entity implements StorageEntity {
 
@@ -42,10 +33,9 @@ public class Player extends Entity implements StorageEntity {
     private boolean fallProtected;
 
     private int speed;
-    private int selectedSlot = 0;
 
     @ServerSide
-    private Item[] inventory = new Item[9];
+    private Inventory inventory = new Inventory(9);
 
     @JSONIgnore
     private int selectedBlock = TextureAtlas.DUNGEON_BLOCK;
@@ -53,133 +43,11 @@ public class Player extends Entity implements StorageEntity {
     @JSONIgnore
     private Voxel last;
 
-    @JSONIgnore
-    @ClientSide
-    private static UI hotbar;
-
-    @JSONIgnore
-    @ClientSide
-    private static UI eToInteract;
-
-    @JSONIgnore
-    @ClientSide
-    private static UI debug = UIBuilder.debugValue(200, 200);
-
-    static {
-        debug.onOpen(() -> {
-            debug.close();
-        });
-    }
-
-    static {
-        if (Game.isClient) {
-            Screen screen = Screen.getInstance();
-            int slotSize = 42;
-            int gap = 6;
-
-            int totalW = 9 * slotSize + 8 * gap;
-            int startX = screen.width / 2 - totalW / 2;
-            int y = screen.height - 70;
-
-            int padding = 6;
-            float iconSize = slotSize - padding * 2;
-
-            UIBuilder builder = UIBuilder.create().drawMode(DrawMode.ABSOLUTE);
-
-            CanvasBuilder<UIBuilder> canvasBuilder = builder.canvas(new Canvas())
-                    .bg(0x78000000)
-                    .position(startX - 12, y - 10)
-                    .size(totalW + 24, slotSize + 20)
-                    .borderRadius(10);
-
-            for (int i = 0; i < 9; i++) {
-                int x = startX + i * (slotSize + gap);
-
-                canvasBuilder = canvasBuilder
-                        .canvas(new Canvas("slot" + i))
-                        .bg(0xFF1C2130)
-                        .borderColor(0xFF252B3B)
-                        .borderSize(1)
-                        .borderRadius(6)
-                        .position(x, y)
-                        .size(slotSize, slotSize)
-
-                        .text(new Text("num" + i))
-                        .color(0xFF7A8099)
-                        .font(screen.fontSans12)
-                        .align(PApplet.CENTER, PApplet.BOTTOM)
-                        .position(x + slotSize / 2f, y + slotSize - 4)
-                        .setText("" + (i + 1))
-                        .backToParent()
-
-                        .image(new Image("img" + i))
-                        .imgMode(PApplet.CENTER)
-                        .size(iconSize, iconSize)
-                        .position(x + slotSize / 2f, y + slotSize / 2f)
-                        .backToParent()
-
-                        .backToParent();
-            }
-
-            builder = canvasBuilder.backToParent();
-
-            hotbar = builder.build();
-
-            eToInteract = UIBuilder.create()
-                    .drawMode(DrawMode.ABSOLUTE)
-
-                    .canvas(new Canvas("root"))
-                    .bg(0x78000000)
-                    .borderRadius(10)
-                    .size(220, 56)
-                    .position(screen.width / 2f - 110, screen.height - 190)
-
-                    .canvas(new Canvas("inner"))
-                    .bg(0xFF1C2130)
-                    .borderColor(0xFF252B3B)
-                    .borderSize(1)
-                    .borderRadius(8)
-                    .size(200, 40)
-                    .position(screen.width / 2f - 100, screen.height - 182)
-
-                    .canvas(new Canvas("key"))
-                    .bg(0xFF4F8EF7)
-                    .borderRadius(6)
-                    .size(30, 30)
-                    .position(screen.width / 2f - 92, screen.height - 177)
-
-                    .text(new Text("keyText"))
-                    .setText("E")
-                    .font(screen.fontSans12)
-                    .align(PApplet.CENTER, PApplet.CENTER)
-                    .position(screen.width / 2f - 77, screen.height - 162)
-                    .color(0xFFFFFFFF)
-                    .backToParent()
-
-                    .backToParent()
-
-                    .text(new Text("label"))
-                    .setText("Interact")
-                    .font(screen.fontSans12)
-                    .align(PApplet.LEFT, PApplet.CENTER)
-                    .position(screen.width / 2f - 50, screen.height - 162)
-                    .color(0xFFB8B9BA)
-                    .backToParent()
-
-                    .backToParent()
-
-                    .backToParent()
-                    .build();
-        }
-    }
-
     public Player() {
         setCancelProtocol(() -> !connected);
         scale(0.125f);
         scaleHitbox(-1);
         hitboxOffset(VectorConstants.FORWARD.multiply(VectorConstants.HALF));
-
-        debug.open();
     }
 
     @Override
@@ -191,10 +59,7 @@ public class Player extends Entity implements StorageEntity {
 
         rotation = Graphics.camera.rotation;
         Graphics.camera.position = position.add(VectorConstants.HALF);
-        if (!hotbar.isOpen()) {
-            hotbar.open();
-        }
-        ensureStyle();
+        inventory.show();
         overlay();
 
     }
@@ -211,30 +76,6 @@ public class Player extends Entity implements StorageEntity {
             voxel.getMaterial().setOverlayLocation(TextureAtlas.OUTLINE);
             last = voxel;
         }, 5);
-    }
-
-    @ClientSide
-    private void ensureStyle() {
-        JSONObject rootStyle = hotbar.getStyle();
-        for (int i = 0; i < 9; i++) {
-            JSONObject localStyle = rootStyle.getJSONObject("slot" + i);
-            boolean selected = (i == selectedSlot);
-            if (selected) {
-                localStyle.set("bg", 0xFF4F8EF7);
-                localStyle.set("borderColor", 0xFF4F8EF7);
-                localStyle.set("borderSize", 2);
-            } else {
-                localStyle.set("bg", 0xFF1C2130);
-                localStyle.set("borderColor", 0xFF252B3B);
-                localStyle.set("borderSize", 1);
-            }
-            Image img = (Image) hotbar.findElement("img" + i, true);
-            if (inventory[i] == null) {
-                img.setImg(null);
-            } else {
-                img.setImg(inventory[i].getIcon());
-            }
-        }
     }
 
     @Override
@@ -345,12 +186,13 @@ public class Player extends Entity implements StorageEntity {
         if (val < 0 || val > 9) {
             return;
         }
-        selectedSlot = val;
+        inventory.select(val);
     }
 
     public void withHeldItem(Consumer<Item> handler) {
-        if (inventory[selectedSlot] != null) {
-            handler.accept(inventory[selectedSlot]);
+        Item heldItem = inventory.getSelected();
+        if (heldItem != null) {
+            handler.accept(heldItem);
         }
     }
 
@@ -393,44 +235,26 @@ public class Player extends Entity implements StorageEntity {
 
     @Override
     public boolean addToInventory(Item item) {
-        for (int i = 0; i < inventory.length; i++) {
-            if (inventory[i] == null) {
-                inventory[i] = item;
-                return true;
-            }
-        }
-        return false;
+        return inventory.addToInventory(item);
     }
 
     @Override
     public boolean removeFromInventory(Item item) {
-        for (int i = 0; i < inventory.length; i++) {
-            if (inventory[i] == item) {
-                inventory[i] = null;
-                return true;
-            }
-        }
-        return false;
+        return inventory.addToInventory(item);
     }
 
     @Override
     public void clearInventory(boolean drop) {
-        for (int i = 0; i < inventory.length; i++) {
-            if (inventory[i] != null) {
-                inventory[i].drop(this);
+        for (int i = 0; i < inventory.totalCapacity(); i++) {
+            if (inventory.get(i) != null) {
+                inventory.get(i).drop(this);
             }
         }
     }
 
     @Override
     public int inventorySize() {
-        int size = 0;
-        for (int i = 0; i < inventory.length; i++) {
-            if (inventory[i] != null) {
-                size++;
-            }
-        }
-        return size;
+        return inventory.itemCount();
     }
 
 }

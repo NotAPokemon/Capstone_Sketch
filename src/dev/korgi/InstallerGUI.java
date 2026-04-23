@@ -1,7 +1,7 @@
 package dev.korgi;
 
-import dev.korgi.utils.ColorConstants;
 import dev.korgi.utils.InstallConstants;
+import dev.korgi.utils.StyleConstants;
 import processing.core.PApplet;
 import processing.core.PFont;
 
@@ -509,7 +509,7 @@ public class InstallerGUI extends PApplet {
 
             float alpha = (i < installStep - 2) ? 0.4f : 1f;
 
-            fill(lerpColor(0xFF080810, ColorConstants.SUCCESS, checkAlpha[i]), (int) (alpha * 255));
+            fill(lerpColor(0xFF080810, StyleConstants.SUCCESS, checkAlpha[i]), (int) (alpha * 255));
             ellipse(bx + 10, ly + 10, 16, 16);
             if (checkAlpha[i] > 0.1f) {
                 fill(0xFF080810, (int) (checkAlpha[i] * alpha * 255));
@@ -537,11 +537,11 @@ public class InstallerGUI extends PApplet {
         float midY = height / 2f - 40;
 
         for (int r = (int) doneRadius; r > 0; r -= 6) {
-            fill(ColorConstants.SUCCESS, map(r, (int) doneRadius, 0, 0, 20) * doneAlpha);
+            fill(StyleConstants.SUCCESS, map(r, (int) doneRadius, 0, 0, 20) * doneAlpha);
             ellipse(midX, midY, r * 2, r * 2);
         }
 
-        fill(ColorConstants.SUCCESS);
+        fill(StyleConstants.SUCCESS);
         ellipse(midX, midY, 100, 100);
         fill(BG);
         textFont(fontBold, 46);

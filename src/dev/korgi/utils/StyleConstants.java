@@ -1,6 +1,10 @@
 package dev.korgi.utils;
 
-public class ColorConstants {
+import java.util.ArrayList;
+
+import processing.core.PFont;
+
+public class StyleConstants {
 
     public static final int BG_DARK = 0xFF0D0F14;
     public static final int BG_CARD = 0xFF1C2130;
@@ -14,5 +18,20 @@ public class ColorConstants {
     public static final int BORDER = 0xFF252B3B;
     public static final int RED = 0xFFFF0000;
     public static final int WARN = 0xFFE9D502;
+
+    private static final ArrayList<PFont> fonts = new ArrayList<>();
+
+    public static int getFontId(PFont font) {
+        int id = fonts.indexOf(font);
+        if (id == -1) {
+            id = fonts.size();
+            fonts.add(font);
+        }
+        return id;
+    }
+
+    public static PFont getFont(int index) {
+        return fonts.get(index);
+    }
 
 }

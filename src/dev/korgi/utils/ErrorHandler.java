@@ -9,15 +9,11 @@ public class ErrorHandler {
     };
 
     public static Error error(String message, Object... format) {
-        JSONObject style = Screen.errorMsg.getStyle();
-        JSONObject canavsLocal = style.getJSONObject("error_main_canvas");
-        Screen screen = Screen.getInstance();
-        canavsLocal.set("x", screen.width / 2.0f);
-        canavsLocal.set("y", screen.height / 2.0f);
-        JSONObject textLocal = style.getJSONObject("display");
-        textLocal.set("bg", ColorConstants.RED);
+        JSONObject style = Screen.errorMsg.getStylesheet();
+        JSONObject textLocal = style.getJSONObject("txt");
+        textLocal.set("bg", StyleConstants.RED);
         String error = "ERROR: %s".formatted(message).formatted(format);
-        style.set("display.value", error);
+        Screen.errorMsg.setValue(error);
         Thread thread = Thread.currentThread();
         StackTraceElement[] stackTrace = thread.getStackTrace();
         System.err.println(error);
@@ -27,39 +23,35 @@ public class ErrorHandler {
     }
 
     public static Error error(String message, double time, Object... format) {
-        JSONObject style = Screen.errorMsg.getStyle();
+        JSONObject style = Screen.errorMsg.getStylesheet();
         style.set("time", time);
         style.set("updated", System.nanoTime());
         return error(message, format);
     }
 
     public static void warn(String message, Object... format) {
-        JSONObject style = Screen.errorMsg.getStyle();
-        JSONObject canavsLocal = style.getJSONObject("error_main_canvas");
-        Screen screen = Screen.getInstance();
-        canavsLocal.set("x", screen.width / 2.0f);
-        canavsLocal.set("y", screen.height / 2.0f);
-        JSONObject textLocal = style.getJSONObject("display");
-        textLocal.set("bg", ColorConstants.WARN);
+        JSONObject style = Screen.errorMsg.getStylesheet();
+        JSONObject textLocal = style.getJSONObject("txt");
+        textLocal.set("bg", StyleConstants.WARN);
         String error = "WARNING: %s".formatted(message).formatted(format);
-        style.set("display.value", error);
+        Screen.errorMsg.setValue(error);
     }
 
     public static void warn(String message, double time, Object... format) {
-        JSONObject style = Screen.errorMsg.getStyle();
+        JSONObject style = Screen.errorMsg.getStylesheet();
         style.set("time", time);
         style.set("updated", System.nanoTime());
         warn(message, format);
     }
 
     public static void loòp() {
-        JSONObject style = Screen.errorMsg.getStyle();
+        JSONObject style = Screen.errorMsg.getStylesheet();
         Double time = style.getDouble("time");
         if (time != null && !Double.isFinite(time)) {
             long updateTime = style.getLong("updated");
             if (((System.nanoTime() - updateTime) / 1e9) >= time) {
                 style.set("time", Double.NaN);
-                style.set("display.value", "");
+                Screen.errorMsg.setValue("");
             }
         }
     }
