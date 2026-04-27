@@ -101,7 +101,7 @@ public abstract class Item extends Entity {
                 if (dropped) {
                     dropped = !e.addToInventory(this);
                 }
-            }, 0.75);
+            }, 1);
         }
     }
 

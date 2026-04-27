@@ -1,6 +1,7 @@
-package dev.korgi.game.ui;
+package dev.korgi.game.ui.game;
 
 import dev.korgi.game.items.Item;
+import dev.korgi.game.ui.GUI;
 import dev.korgi.json.JSONObject;
 import processing.core.PApplet;
 
@@ -41,7 +42,7 @@ public class Inventory extends GUI {
 
     public boolean removeFromInventory(Item item) {
         for (int i = 0; i < items.length; i++) {
-            if (items[i] == item) {
+            if (items[i].internal_id.equals(item.internal_id)) {
                 items[i] = null;
                 return true;
             }
@@ -63,39 +64,61 @@ public class Inventory extends GUI {
         return size;
     }
 
+    public void clear() {
+        for (int i = 0; i < items.length; i++) {
+            items[i] = null;
+        }
+    }
+
     public Item get(int i) {
         return items[i];
     }
 
+    public Item[] getItems() {
+        return items;
+    }
+
     @Override
     protected void drawGUI() {
-        int slotSize = 42;
-        int gap = 6;
+        final int slotSize = 42;
+        final int gap = 6;
 
-        int totalW = 9 * slotSize + 8 * gap;
-        int startX = screen.width / 2 - totalW / 2;
-        int y = screen.height - 70;
+        final int totalW = 9 * slotSize + 8 * gap;
+        final int startX = screen.width / 2 - totalW / 2;
+        final int y = screen.height - 70;
 
-        int padding = 6;
-        float iconSize = slotSize - padding * 2;
+        final float iconSize = slotSize - 12;
         loadStyle("container");
         rect(startX - 12, y - 10, totalW + 24, slotSize + 20);
+
+        loadStyle("slot");
         for (int i = 0; i < items.length; i++) {
             int x = startX + i * (slotSize + gap);
             boolean selected = i == this.selected;
             if (selected) {
                 loadStyle("slotActive");
-            } else {
-                loadStyle("slot");
             }
             rect(x, y, slotSize, slotSize);
-            loadStyle("numTxt");
+            if (selected) {
+                loadStyle("slot");
+            }
+        }
+
+        loadStyle("numTxt");
+        for (int i = 0; i < items.length; i++) {
+            int x = startX + i * (slotSize + gap);
             screen.text("%d".formatted(i + 1), x + slotSize / 2f, y + slotSize - 4);
+        }
+
+        loadStyle("icon");
+        for (int i = 0; i < items.length; i++) {
+            int x = startX + i * (slotSize + gap);
+
             if (items[i] != null) {
-                loadStyle("icon");
                 screen.image(items[i].getIcon(), x + slotSize / 2f, y + slotSize / 2f, iconSize, iconSize);
             }
         }
+
     }
 
     @Override

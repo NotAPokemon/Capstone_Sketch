@@ -14,7 +14,6 @@ import dev.korgi.game.items.JimmyItem;
 import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.NativeGPUKernal;
-import dev.korgi.game.ui.Screen;
 import dev.korgi.json.JSONObject;
 import dev.korgi.math.Vector3;
 import dev.korgi.networking.NetworkStream;
@@ -111,20 +110,16 @@ public class Game {
         return null;
     }
 
-    public static void loop(Screen screen) {
+    public static void loop() {
         networkStartLoop();
         if (Game.isClient) {
-            screen.handleMouseMovement();
             WorldEngine.updateClient();
             Graphics.display();
-            screen.drawOpenClientMenus();
         } else {
             WorldEngine.execute();
-            screen.drawServerInfo();
         }
         networkEndLoop();
 
-        screen.drawHUD();
         System.gc();
     }
 

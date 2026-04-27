@@ -5,25 +5,22 @@ import java.awt.Component;
 import java.awt.Point;
 import java.awt.Robot;
 import java.awt.event.MouseMotionAdapter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import dev.korgi.game.Game;
-import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
-import dev.korgi.game.rendering.NativeGPUKernal;
-import dev.korgi.networking.NetworkStream;
+import dev.korgi.game.ui.game.InfoDisplay;
+import dev.korgi.game.ui.pregame.ConfigGUI;
+import dev.korgi.game.ui.pregame.LoadingGUI;
+import dev.korgi.game.ui.pregame.SelectorGUI;
 import dev.korgi.player.Player;
 import dev.korgi.utils.ClientSide;
-import dev.korgi.utils.ErrorHandler;
-import dev.korgi.utils.InstallConstants;
-import dev.korgi.utils.ServerSide;
 import dev.korgi.utils.StyleConstants;
 import processing.core.PApplet;
 import processing.core.PFont;
 
-public class Screen extends PApplet {
+public final class Screen extends PApplet {
 
     private static Screen mInstance;
 
@@ -36,57 +33,26 @@ public class Screen extends PApplet {
     public int fontMono10, fontMono11;
     public int fontSans11, fontSans12, fontSans13, fontSans14, fontSans20, fontSans22, fontSans28;
 
-    private enum MenuState {
-        SELECTOR, CONFIG, GAME, LOADING
-    }
-
-    private MenuState menuState = MenuState.SELECTOR;
-
     private Robot robot;
     private int rawMouseX = -1;
     private int rawMouseY = -1;
     private boolean firstMouse = true;
+    private boolean cursorEnabled;
 
-    private String uiMessage = null;
-    private int uiMessageTimer = 0;
-
-    private static final int BTN_W = 220;
-    private static final int BTN_H = 56;
-
-    private boolean hoverHost = false;
-    private boolean hoverJoin = false;
-    private boolean hoverConfig = false;
-
-    private boolean stopHostingHover = false;
-
-    private final String[] cfgKeys = { "mouse_sensitivity", "fov", "render_dist", "ip", "pack" };
-    private final String[] cfgLabels = { "Mouse Sensitivity", "Field of View", "Render Distance", "Server IP",
-            "Resource Pack" };
-    private final float[] cfgMin = { 1f, 40f, 10f, 0, 0 };
-    private final float[] cfgMax = { 6f, 120f, 80f, 0, 0 };
-
-    private final boolean[] cfgIsToggle = { false, false, false, false, false };
-    private final boolean[] cfgIsString = { false, false, false, true, true };
-
-    private float[] cfgValues = new float[] { 3f, 60f, 50f, 0f, 0f };
-
-    private String[] cfgStrings = new String[] { "", "", "", "localhost", "default" };
-
-    private boolean cfgDragging = false;
-    private int cfgDragIndex = -1;
-
-    private int cfgEditIndex = -1;
-
-    private boolean hoverBack = false;
-    private boolean hoverApply = false;
-
-    private float[] btnHoverT = new float[4];
+    boolean eventCanceled = false;
 
     private processing.core.PGraphics bgCache;
 
     public static ErrorMessage errorMsg;
 
     private List<GUI> gameGui = new ArrayList<>();
+
+    private List<GUI> pregameGUI = new ArrayList<>();
+
+    public ConfigGUI config;
+    public SelectorGUI selector;
+    public LoadingGUI loadingScreen;
+    public InfoDisplay infoDisplay;
 
     @Override
     public void settings() {
@@ -115,19 +81,6 @@ public class Screen extends PApplet {
         this.fontSans22 = StyleConstants.getFontId(fontSans22);
         this.fontSans28 = StyleConstants.getFontId(fontSans28);
         textFont(fontSans14);
-
-        for (int i = 0; i < cfgKeys.length; i++) {
-            try {
-                if (cfgIsString[i]) {
-                    String v = Game.config.getString(cfgKeys[i]);
-                    if (v != null)
-                        cfgStrings[i] = v;
-                } else {
-                    cfgValues[i] = Game.config.getFloat(cfgKeys[i]);
-                }
-            } catch (Exception ignored) {
-            }
-        }
 
         bgCache = createGraphics(width, height);
         bgCache.beginDraw();
@@ -165,277 +118,47 @@ public class Screen extends PApplet {
                 mouseMoved(e);
             }
         });
-        errorMsg = new ErrorMessage();
-    }
-
-    private void initalizeGame() {
-        new Thread(() -> {
-            try {
-                menuState = MenuState.LOADING;
-                Game.init();
-                while (!Game.isInitialized()) {
-                    Game.networkStartLoop();
-                    WorldEngine.updateClient();
-                    Game.networkEndLoop();
-                }
-                menuState = MenuState.GAME;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }, "intialize-game").start();
+        config = new ConfigGUI();
+        loadingScreen = new LoadingGUI();
+        selector = new SelectorGUI();
+        infoDisplay = new InfoDisplay();
+        selector.show();
     }
 
     @Override
     public void draw() {
-        if (!Game.isInitialized()) {
-            if (menuState == MenuState.CONFIG) {
-                drawConfigMenu();
-            } else if (menuState == MenuState.LOADING) {
-                drawLoadingScreen();
-            } else {
-                drawSelector();
+        if (Game.isInitialized()) {
+            if (Game.isClient) {
+                handleMouseMovement();
             }
-        } else {
-            Game.loop(this);
+            Game.loop();
         }
-        ErrorHandler.loòp();
-        errorMsg.draw();
-        if (menuState == MenuState.GAME) {
-            for (GUI gui : gameGui) {
-                gui.draw();
+
+        List<GUI> list = getGUIList();
+        for (int i = 0; i < list.size(); i++) {
+            if (eventCanceled) {
+                eventCanceled = false;
+                break;
             }
+            list.get(i).draw();
         }
     }
 
-    private void drawLoadingScreen() {
-        background(StyleConstants.BG_DARK);
-        drawGrid();
-
-        int cx = width / 2;
-        int cy = height / 2;
-
-        int spokes = 12;
-        float angleStep = TWO_PI / spokes;
-        float t = (float) (millis() % 1000) / 1000f;
-
-        strokeWeight(2.5f);
-        noFill();
-        for (int i = 0; i < spokes; i++) {
-            float angle = i * angleStep - HALF_PI;
-            float spokeFade = ((i / (float) spokes) - t + 1f) % 1f;
-            int alpha = (int) (spokeFade * 220);
-            stroke(StyleConstants.ACCENT & 0x00FFFFFF | (alpha << 24));
-            float inner = 22, outer = 34;
-            line(
-                    cx + cos(angle) * inner, cy + sin(angle) * inner,
-                    cx + cos(angle) * outer, cy + sin(angle) * outer);
-        }
-        noStroke();
-
-        String dots = ".".repeat((int) ((millis() / 400) % 4));
-        fill(StyleConstants.TEXT_DIM);
-        textFont(StyleConstants.getFont(fontSans13));
-        textAlign(CENTER, TOP);
-        text("Loading" + dots, cx, cy + 70);
-
-        float progress = Game.getInitProgress();
-
-        int barW = 240, barH = 3;
-        int barX = cx - barW / 2, barY = cy + 100;
-
-        noStroke();
-        fill(StyleConstants.BORDER);
-        rect(barX, barY, barW, barH, barH / 2f);
-
-        fill(StyleConstants.ACCENT_DIM);
-        rect(barX, barY, barW * progress, barH, barH / 2f);
-
-        if (progress > 0.02f) {
-            fill(StyleConstants.ACCENT);
-            ellipse(barX + barW * progress, barY + barH / 2f, 6, 6);
-        }
-
-        drawMessageBanner();
-    }
-
-    private void drawSelector() {
-        background(StyleConstants.BG_DARK);
-        drawGrid();
-
-        int titleY = height / 2 - 110;
-        drawLabel("KORGI ENGINE", width / 2, titleY - 22, StyleConstants.TEXT_LABEL, 11);
-        drawHeading("GAME LAUNCHER", width / 2, titleY, 28);
-        drawDivider(width / 2 - 120, titleY + 27, 240);
-
-        int gapX = 24;
-        int row2Y = height / 2 + 10;
-
-        int hostX = width / 2 - BTN_W - gapX / 2;
-        int joinX = width / 2 + gapX / 2;
-        int cfgX = width / 2 - BTN_W / 2;
-        int cfgY = row2Y + BTN_H + 16;
-
-        hoverHost = hitTest(hostX, row2Y, BTN_W, BTN_H);
-        hoverJoin = hitTest(joinX, row2Y, BTN_W, BTN_H);
-        hoverConfig = hitTest(cfgX, cfgY, BTN_W, BTN_H - 10);
-
-        btnHoverT[0] = lerp(btnHoverT[0], hoverHost ? 1 : 0, 0.15f);
-        btnHoverT[1] = lerp(btnHoverT[1], hoverJoin ? 1 : 0, 0.15f);
-        btnHoverT[2] = lerp(btnHoverT[2], hoverConfig ? 1 : 0, 0.15f);
-
-        drawPrimaryButton("HOST GAME", hostX, row2Y, BTN_W, BTN_H, btnHoverT[0], StyleConstants.ACCENT);
-        drawPrimaryButton("JOIN GAME", joinX, row2Y, BTN_W, BTN_H, btnHoverT[1], StyleConstants.SUCCESS);
-        drawGhostButton("SETTINGS", cfgX, cfgY, BTN_W, BTN_H - 10, btnHoverT[2]);
-
-        drawLabel("v" + InstallConstants.version + " · korgi engine", width / 2, height - 30, StyleConstants.TEXT_LABEL,
-                10);
-
-        drawMessageBanner();
-    }
-
-    private void drawConfigMenu() {
-        background(StyleConstants.BG_DARK);
-        drawGrid();
-
-        int panelW = 560;
-        int panelH = 96 + cfgKeys.length * ROW_H + 70;
-        int panelX = width / 2 - panelW / 2;
-        int panelY = height / 2 - panelH / 2;
-        drawPanel(panelX, panelY, panelW, panelH);
-
-        drawLabel("CONFIGURATION", panelX + panelW / 2, panelY + 28, StyleConstants.TEXT_LABEL, 10);
-        drawHeading("Settings", panelX + panelW / 2, panelY + 52, 22);
-        drawDivider(panelX + 32, panelY + 77, panelW - 64);
-
-        int rowX = panelX + 32;
-        int rowY = panelY + 96;
-        int sliderW = 200;
-
-        for (int i = 0; i < cfgKeys.length; i++) {
-            int ry = rowY + i * ROW_H;
-            drawConfigRow(i, rowX, ry, panelW - 64, sliderW);
-        }
-
-        int btnY = panelY + panelH - 60;
-
-        hoverBack = hitTest(panelX + 32, btnY, 120, 36);
-        hoverApply = hitTest(panelX + panelW - 152, btnY, 120, 36);
-
-        drawGhostButton("← BACK", panelX + 32, btnY, 120, 36, hoverBack ? 1 : 0);
-        drawPrimaryButton("APPLY", panelX + panelW - 152, btnY, 120, 36, hoverApply ? 1 : 0, StyleConstants.ACCENT);
-
-        drawMessageBanner();
-    }
-
-    private static final int ROW_H = 58;
-
-    private void drawConfigRow(int idx, int x, int y, int totalW, int sliderW) {
-        textFont(StyleConstants.getFont(fontSans13));
-        fill(StyleConstants.TEXT_PRIMARY);
-        textAlign(LEFT, CENTER);
-        text(cfgLabels[idx], x, y + 16);
-
-        fill(StyleConstants.TEXT_LABEL);
-        textFont(StyleConstants.getFont(fontMono10));
-        text(cfgKeys[idx], x, y + 32);
-
-        if (cfgIsString[idx]) {
-            drawTextInputRow(idx, x, y, totalW);
-
-        } else if (cfgIsToggle[idx]) {
-            boolean on = cfgValues[idx] > 0.5f;
-            int tx = x + totalW - 52;
-            int ty = y + 10;
-            int tw = 44, th = 22;
-            float t = on ? 1f : 0f;
-
-            noStroke();
-            fill(lerpColor(StyleConstants.BORDER, StyleConstants.ACCENT_DIM, t));
-            rect(tx, ty, tw, th, th / 2f);
-
-            float knobX = lerp(tx + 4, tx + tw - 18, t);
-            fill(on ? StyleConstants.ACCENT : StyleConstants.TEXT_DIM);
-            ellipse(knobX + 7, ty + th / 2f, 16, 16);
-
-            fill(on ? StyleConstants.ACCENT : StyleConstants.TEXT_DIM);
-            textAlign(RIGHT, CENTER);
-            textFont(StyleConstants.getFont(fontMono11));
-            text(on ? "ON" : "OFF", tx - 8, ty + th / 2f);
-
-        } else {
-            int sx = x + totalW - sliderW;
-            int sy = y + 14;
-            int sh = 4;
-            float pct = (cfgValues[idx] - cfgMin[idx]) / (cfgMax[idx] - cfgMin[idx]);
-            float fillW = pct * sliderW;
-
-            noStroke();
-            fill(StyleConstants.BORDER);
-            rect(sx, sy, sliderW, sh, sh / 2f);
-
-            fill(StyleConstants.ACCENT_DIM);
-            rect(sx, sy, max(sh, fillW), sh, sh / 2f);
-
-            boolean dragging = cfgDragging && cfgDragIndex == idx;
-            boolean hovering = !cfgDragging
-                    && mouseX >= sx - 8 && mouseX <= sx + sliderW + 8
-                    && mouseY >= sy - 10 && mouseY <= sy + sh + 10;
-
-            fill(dragging || hovering ? StyleConstants.ACCENT : color(180));
-            ellipse(sx + fillW, sy + sh / 2f, dragging ? 14 : 10, dragging ? 14 : 10);
-
-            String fmt = (cfgMax[idx] <= 1f) ? "%.2f" : "%.0f";
-            fill(StyleConstants.TEXT_DIM);
-            textAlign(RIGHT, CENTER);
-            textFont(StyleConstants.getFont(fontMono11));
-            text(String.format(fmt, cfgValues[idx]), sx - 12, sy + sh / 2f);
-
-            if (dragging) {
-                float newPct = constrain((float) (mouseX - sx) / sliderW, 0, 1);
-                cfgValues[idx] = cfgMin[idx] + newPct * (cfgMax[idx] - cfgMin[idx]);
-            }
-        }
-
-        stroke(StyleConstants.BORDER);
-        strokeWeight(1);
-        line(x, y + ROW_H - 2, x + totalW, y + ROW_H - 2);
-        noStroke();
-    }
-
-    private void drawTextInputRow(int idx, int x, int y, int totalW) {
-        boolean active = cfgEditIndex == idx;
-        int fw = 200, fh = 26;
-        int fx = x + totalW - fw;
-        int fy = y + 8;
-
-        noStroke();
-        fill(active ? (StyleConstants.BG_DARK) : StyleConstants.BORDER);
-        rect(fx, fy, fw, fh, 4);
-
-        stroke(active ? StyleConstants.ACCENT : StyleConstants.TEXT_LABEL);
-        strokeWeight(1);
-        noFill();
-        rect(fx, fy, fw, fh, 4);
-        noStroke();
-
-        String display = cfgStrings[idx];
-        if (active && (millis() / 500) % 2 == 0)
-            display += "|";
-
-        textFont(StyleConstants.getFont(fontMono11));
-        while (display.length() > 1 && textWidth(display) > fw - 12)
-            display = display.substring(1);
-
-        fill(active ? StyleConstants.TEXT_PRIMARY : StyleConstants.TEXT_DIM);
-        textAlign(LEFT, CENTER);
-        text(display, fx + 6, fy + fh / 2f);
+    private List<GUI> getGUIList() {
+        return Game.isInitialized() ? gameGui : pregameGUI;
     }
 
     @Override
     public void keyPressed() {
-        if (cfgEditIndex >= 0 && menuState == MenuState.CONFIG) {
-            handleTextFieldKey();
-            return;
+
+        List<GUI> list = getGUIList();
+
+        for (int i = 0; i < list.size(); i++) {
+            if (eventCanceled) {
+                eventCanceled = false;
+                return;
+            }
+            list.get(i).onKeyPress();
         }
 
         if (Game.isClient) {
@@ -451,26 +174,9 @@ public class Screen extends PApplet {
         }
     }
 
-    private void handleTextFieldKey() {
-        if (key == BACKSPACE) {
-            String s = cfgStrings[cfgEditIndex];
-            if (s.length() > 0)
-                cfgStrings[cfgEditIndex] = s.substring(0, s.length() - 1);
-        } else if (key == ENTER || key == RETURN || key == ESC) {
-            cfgEditIndex = -1;
-            if (key == ESC)
-                key = 0;
-        } else if (key >= 32 && key < 127) {
-            if (cfgStrings[cfgEditIndex].length() < 64)
-                cfgStrings[cfgEditIndex] += key;
-        }
-    }
-
     @Override
     @ClientSide
     public void keyReleased() {
-        if (cfgEditIndex >= 0)
-            return;
 
         if (Game.isClient) {
             Player client = Game.getClient();
@@ -483,16 +189,15 @@ public class Screen extends PApplet {
 
     @Override
     public void mousePressed() {
-        if (menuState == MenuState.LOADING)
-            return;
 
-        if (!Game.isInitialized()) {
-            if (menuState == MenuState.CONFIG) {
-                handleConfigClick();
-            } else {
-                handleSelectorClick();
+        List<GUI> list = getGUIList();
+
+        for (int i = 0; i < list.size(); i++) {
+            if (eventCanceled) {
+                eventCanceled = false;
+                return;
             }
-            return;
+            list.get(i).onClick();
         }
 
         if (Game.isClient) {
@@ -506,17 +211,21 @@ public class Screen extends PApplet {
                 if (mouseButton == CENTER && !client.pressedKeys.contains("WD"))
                     client.pressedKeys.add("WD");
             });
-        } else {
-            if (stopHostingHover)
-                exit();
         }
     }
 
     @Override
     @ClientSide
     public void mouseReleased() {
-        cfgDragging = false;
-        cfgDragIndex = -1;
+        List<GUI> list = getGUIList();
+
+        for (int i = 0; i < list.size(); i++) {
+            if (eventCanceled) {
+                eventCanceled = false;
+                return;
+            }
+            list.get(i).onClickOff();
+        }
 
         Game.withClient((client) -> {
             if (mouseButton == LEFT)
@@ -527,164 +236,6 @@ public class Screen extends PApplet {
                 client.pressedKeys.remove("WD");
         });
     }
-
-    @Override
-    public void mouseDragged() {
-    }
-
-    private void handleSelectorClick() {
-        if (hoverHost)
-            launchGame(false);
-        else if (hoverJoin)
-            launchGame(true);
-        else if (hoverConfig)
-            menuState = MenuState.CONFIG;
-    }
-
-    private void launchGame(boolean asClient) {
-        try {
-            Game.isClient = asClient;
-            if (asClient)
-                NativeGPUKernal.loadTextureMap();
-            initalizeGame();
-        } catch (Exception e) {
-            e.printStackTrace();
-            showMessage("Failed to start: " + e.getMessage(), 180);
-        }
-    }
-
-    private void handleConfigClick() {
-        cfgEditIndex = -1;
-
-        if (hoverBack) {
-            menuState = MenuState.SELECTOR;
-            return;
-        }
-        if (hoverApply) {
-            applyConfig();
-            showMessage("Settings saved!", 120);
-            menuState = MenuState.SELECTOR;
-            return;
-        }
-
-        int panelW = 560;
-        int panelH = 96 + cfgKeys.length * ROW_H + 70;
-        int panelX = width / 2 - panelW / 2;
-        int panelY = height / 2 - panelH / 2;
-        int rowX = panelX + 32;
-        int rowY = panelY + 96;
-        int totalW = panelW - 64;
-        int sliderW = 200;
-
-        for (int i = 0; i < cfgKeys.length; i++) {
-            int ry = rowY + i * ROW_H;
-
-            if (cfgIsString[i]) {
-                int fw = 200, fh = 26;
-                int fx = rowX + totalW - fw;
-                int fy = ry + 8;
-                if (mouseX >= fx && mouseX <= fx + fw && mouseY >= fy && mouseY <= fy + fh) {
-                    cfgEditIndex = i;
-                }
-
-            } else if (cfgIsToggle[i]) {
-                int tx = rowX + totalW - 52;
-                int ty = ry + 10;
-                if (mouseX >= tx && mouseX <= tx + 44 && mouseY >= ty && mouseY <= ty + 22)
-                    cfgValues[i] = cfgValues[i] > 0.5f ? 0f : 1f;
-
-            } else {
-                int sx = rowX + totalW - sliderW;
-                int sy = ry + 14;
-                if (mouseX >= sx - 8 && mouseX <= sx + sliderW + 8 && mouseY >= sy - 10 && mouseY <= sy + 14) {
-                    cfgDragging = true;
-                    cfgDragIndex = i;
-                }
-            }
-        }
-    }
-
-    private void applyConfig() {
-        for (int i = 0; i < cfgKeys.length; i++) {
-            if (cfgIsString[i]) {
-                Game.config.set(cfgKeys[i], cfgStrings[i]);
-            } else {
-                Game.config.set(cfgKeys[i], cfgValues[i]);
-            }
-        }
-        try {
-            Game.updateConfig();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void drawHUD() {
-        textFont(StyleConstants.getFont(fontSans14));
-        fill(StyleConstants.TEXT_LABEL);
-        textAlign(LEFT, TOP);
-        text("FPS  " + (int) frameRate, 16, 16);
-        text("Sync " + Math.floor((NetworkStream.packetCount / NetworkStream.frameCount) * 100) + "%", 16, 32);
-        drawMessageBanner();
-    }
-
-    @ClientSide
-    public void drawCrosshair() {
-        int cx = width / 2, cy = height / 2;
-        int gap = 5, size = 9, thick = 4;
-        stroke(255, 255, 255, 180);
-        strokeWeight(thick);
-        line(cx - gap - size, cy, cx - gap, cy);
-        line(cx + gap, cy, cx + gap + size, cy);
-        line(cx, cy - gap - size, cx, cy - gap);
-        line(cx, cy + gap, cx, cy + gap + size);
-        noStroke();
-    }
-
-    @ClientSide
-    public void drawOpenClientMenus() {
-        drawCrosshair();
-
-        textFont(StyleConstants.getFont(fontSans14));
-        fill(StyleConstants.TEXT_DIM);
-        textAlign(LEFT, TOP);
-        text("PING " + (int) NetworkStream.getPing() + "ms", 16, 48);
-
-        Game.withClient((p, pos) -> {
-            fill(StyleConstants.TEXT_PRIMARY);
-            textAlign(CENTER, TOP);
-            text(String.format("%.1f  /  %.1f  /  %.1f", pos.x, pos.y, pos.z), width / 2f, 16);
-        });
-    }
-
-    @ServerSide
-    public void drawServerInfo() {
-        background(StyleConstants.BG_DARK);
-        drawGrid();
-
-        int panelW = 340;
-        int panelH = 180;
-        int panelX = width / 2 - panelW / 2;
-        int panelY = height / 2 - panelH / 2;
-        drawPanel(panelX, panelY, panelW, panelH);
-
-        drawLabel("SERVER CONTROL", panelX + panelW / 2, panelY + 24, StyleConstants.TEXT_LABEL, 10);
-        drawHeading("Hosting", panelX + panelW / 2, panelY + 46, 20);
-        drawDivider(panelX + 24, panelY + 71, panelW - 48);
-
-        int bx = panelX + 24;
-        int by = panelY + 86;
-        int bw = panelW - 48;
-        int bh = 46;
-
-        stopHostingHover = hitTest(bx, by, bw, bh);
-        btnHoverT[3] = lerp(btnHoverT[3], stopHostingHover ? 1 : 0, 0.15f);
-        drawPrimaryButton("STOP HOSTING", bx, by, bw, bh, btnHoverT[3], StyleConstants.DANGER);
-
-        drawMessageBanner();
-    }
-
-    private boolean cursorEnabled;
 
     @ClientSide
     public void handleMouseMovement() {
@@ -757,116 +308,16 @@ public class Screen extends PApplet {
         return null;
     }
 
-    public void showMessage(String msg, int durationFrames) {
-        uiMessage = msg;
-        uiMessageTimer = durationFrames;
-    }
-
-    private void drawGrid() {
+    public void drawGrid() {
         image(bgCache, 0, 0);
-    }
-
-    private void drawPanel(int x, int y, int w, int h) {
-        noStroke();
-        fill(0, 60);
-        rect(x + 4, y + 6, w, h, 12);
-
-        fill(StyleConstants.BG_CARD);
-        rect(x, y, w, h, 10);
-
-        stroke(StyleConstants.BORDER);
-        strokeWeight(1);
-        noFill();
-        rect(x, y, w, h, 10);
-        noStroke();
-    }
-
-    private void drawPrimaryButton(String label, int x, int y, int w, int h, float hoverT, int col) {
-        if (hoverT > 0.01f) {
-            noStroke();
-            fill(col & 0x00FFFFFF | (int) (60 * hoverT) << 24);
-            rect(x - 4, y - 4, w + 8, h + 8, 14);
-        }
-
-        int bg = lerpColor(StyleConstants.BG_CARD, col, hoverT * 0.85f);
-        fill(bg);
-        stroke(lerpColor(StyleConstants.BORDER, col, hoverT));
-        strokeWeight(1);
-        rect(x, y, w, h, 8);
-        noStroke();
-
-        fill(col);
-        rect(x, y, 3, h, 8, 0, 0, 8);
-
-        fill(lerpColor(StyleConstants.TEXT_DIM, StyleConstants.TEXT_PRIMARY, hoverT));
-        textFont(StyleConstants.getFont(fontSans12));
-        textAlign(CENTER, CENTER);
-        text(label, x + w / 2f + 1, y + h / 2f);
-    }
-
-    private void drawGhostButton(String label, int x, int y, int w, int h, float hoverT) {
-        noFill();
-        stroke(lerpColor(StyleConstants.BORDER, StyleConstants.TEXT_DIM, hoverT));
-        strokeWeight(1);
-        rect(x, y, w, h, 6);
-        noStroke();
-
-        fill(lerpColor(StyleConstants.TEXT_LABEL, StyleConstants.TEXT_DIM, hoverT));
-        textFont(StyleConstants.getFont(fontSans11));
-        textAlign(CENTER, CENTER);
-        text(label, x + w / 2f, y + h / 2f);
-    }
-
-    private void drawHeading(String txt, int cx, int y, int sz) {
-        PFont f = sz >= 26 ? StyleConstants.getFont(fontSans28)
-                : sz >= 21 ? StyleConstants.getFont(fontSans22)
-                        : StyleConstants.getFont(fontSans20);
-        fill(StyleConstants.TEXT_PRIMARY);
-        textFont(f);
-        textAlign(CENTER, TOP);
-        text(txt, cx, y);
-    }
-
-    private void drawLabel(String txt, int cx, int y, int col, int sz) {
-        fill(col);
-        textFont(sz <= 10 ? StyleConstants.getFont(fontMono10) : StyleConstants.getFont(fontMono11));
-        textAlign(CENTER, TOP);
-        text(txt, cx, y);
-    }
-
-    private void drawDivider(int x, int y, int w) {
-        stroke(StyleConstants.BORDER);
-        strokeWeight(1);
-        line(x, y, x + w, y);
-        noStroke();
-    }
-
-    private void drawMessageBanner() {
-        if (uiMessage == null || uiMessageTimer <= 0)
-            return;
-        float alpha = uiMessageTimer > 30 ? 255 : map(uiMessageTimer, 0, 30, 0, 255);
-        noStroke();
-        fill(StyleConstants.DANGER & 0x00FFFFFF | (int) (alpha * 0.15f) << 24);
-        rect(width / 2f - 200, 12, 400, 30, 6);
-        stroke(StyleConstants.DANGER & 0x00FFFFFF | (int) (alpha * 0.4f) << 24);
-        strokeWeight(1);
-        noFill();
-        rect(width / 2f - 200, 12, 400, 30, 6);
-        noStroke();
-
-        fill(StyleConstants.DANGER & 0x00FFFFFF | (int) alpha << 24);
-        textFont(StyleConstants.getFont(fontSans12));
-        textAlign(CENTER, CENTER);
-        text(uiMessage, width / 2f, 27);
-        uiMessageTimer--;
-    }
-
-    private boolean hitTest(int x, int y, int w, int h) {
-        return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
     }
 
     public List<GUI> getGameGui() {
         return gameGui;
+    }
+
+    public List<GUI> getPregameGUI() {
+        return pregameGUI;
     }
 
 }

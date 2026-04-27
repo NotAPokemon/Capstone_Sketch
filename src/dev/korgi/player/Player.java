@@ -12,7 +12,7 @@ import dev.korgi.game.physics.WorldEngine;
 import dev.korgi.game.rendering.Graphics;
 import dev.korgi.game.rendering.TextureAtlas;
 import dev.korgi.game.rendering.Voxel;
-import dev.korgi.game.ui.Inventory;
+import dev.korgi.game.ui.game.Inventory;
 import dev.korgi.json.JSONIgnore;
 import dev.korgi.math.Vector3;
 import dev.korgi.math.VectorConstants;
@@ -61,7 +61,6 @@ public class Player extends Entity implements StorageEntity {
         Graphics.camera.position = position.add(VectorConstants.HALF);
         inventory.show();
         overlay();
-
     }
 
     private void overlay() {
@@ -240,7 +239,7 @@ public class Player extends Entity implements StorageEntity {
 
     @Override
     public boolean removeFromInventory(Item item) {
-        return inventory.addToInventory(item);
+        return inventory.removeFromInventory(item);
     }
 
     @Override
